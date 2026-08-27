@@ -16,6 +16,6 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Check whitespace
-        run: git diff --check HEAD^ HEAD
+        run: git show --check --format= HEAD
       - name: Verify documentation
         run: node scripts/verify-docs.mjs
