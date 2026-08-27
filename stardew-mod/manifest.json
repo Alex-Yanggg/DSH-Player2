@@ -1,0 +1,10 @@
+{
+  "Name": "DSH Player2 Probe",
+  "Author": "Alex-Yanggg",
+  "Version": "%ProjectVersion%",
+  "Description": "Validates the minimal SMAPI entry point for DSH Player2.",
+  "UniqueID": "AlexYanggg.DSHPlayer2",
+  "EntryDll": "DSHPlayer2.Stardew.dll",
+  "MinimumApiVersion": "4.5.0",
+  "UpdateKeys": []
+}
