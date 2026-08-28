@@ -29,7 +29,7 @@ process.env.DSH_CORDIS_CONFIG = join(repositoryRoot, "fixtures", "dsh", "compani
 
 const requestedSession = readFlag("session");
 const sessionSuffix = requestedSession ?? basename(bridgeDirectory).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "save";
-const pollIntervalMs = Number.parseInt(readFlag("poll") ?? "2000", 10);
+const pollIntervalMs = Number.parseInt(readFlag("poll") ?? "2000", 10) || 2000;
 
 // One dedicated session accumulates the durable event-log relationship history;
 // the bridge directory identity keeps saves from sharing a session.
@@ -55,6 +55,8 @@ async function shutdown() {
   stopping = true;
   await dispatcher.stop().catch(() => undefined);
   await runner.close().catch(() => undefined);
+  // Registering a signal handler disables Node's default exit, so end explicitly.
+  process.exit(0);
 }
 
 process.on("SIGINT", () => void shutdown());
