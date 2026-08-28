@@ -22,11 +22,13 @@
     "@deepseek-ai/dsh-skill": "0.1.1-rc.2",
     "@deepseek-ai/dsh-system-prompt": "0.1.1-rc.2",
     "@deepseek-ai/dsh-tools": "0.1.1-rc.2",
-    "@deepseek-ai/schemastery": "3.18.1"
+    "@deepseek-ai/schemastery": "3.18.1",
+    "@dsh-player2/contracts": "file:../contracts"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.1",
-    "@deepseek-ai/dsh-llm": "0.1.1-rc.2"
+    "@deepseek-ai/dsh-llm": "0.1.1-rc.2",
+    "@types/node": "24.13.3"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1"
