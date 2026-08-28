@@ -85,6 +85,10 @@ grant/receipt/consent files: written only by the Player (SMAPI) host
 
 The dedicated session id is stable per bridge, so Harness' durable session log accumulates the relationship history across days. That log is replayable audit context; the receipt-backed projection remains the only fact source, and no memory index may grant authority. Failed dispatches retry with bounded doubling backoff and then give the sequence up for the process lifetime — the Mod's existing timeout falls back deterministically. Restarts are idempotent because any persisted request marks the sequence answered, and the write-once bridge refuses conflicting rewrites. `scripts/dispatch-companion-turns.mjs` is the single resident command; `npm run replay:dispatch` exercises the dispatcher against the real plugin registries without a model or game.
 
+## Receipt Memory (0.0.6)
+
+Memory in this project is a projection of receipt-backed Player events, never retained model transcript. The 0.0.6 decision mode turns that projection into a model-facing tool: `companion_recall` reads the bridge's persisted `receipts/receipt-<sequence>.json` files and returns a bounded, newest-first digest of shared outcomes (completed, failed, declined, expired) with an honest `skipped` count for damaged files. The digest is read-only and replaceable — the receipt files stay the fact source, and a proposal still cites only current-turn observation ids, so recalled history cannot fabricate evidence or authorize action. The decision skill teaches the ordering `game_observe → companion_recall → companion_propose → game_request_action`.
+
 ## Adapter Modes
 
 Every adapter declares one access mode instead of pretending that all game integrations have equal guarantees.
