@@ -1,8 +1,8 @@
 {
-  "Name": "DSH Player2 Probe",
+  "Name": "DSH Player2 Companion",
   "Author": "Alex-Yanggg",
   "Version": "%ProjectVersion%",
-  "Description": "Validates the minimal SMAPI entry point for DSH Player2.",
+  "Description": "A permission-first Stardew companion powered by an optional DeepSeek Harness decision bridge.",
   "UniqueID": "AlexYanggg.DSHPlayer2",
   "EntryDll": "DSHPlayer2.Stardew.dll",
   "MinimumApiVersion": "4.5.0",
