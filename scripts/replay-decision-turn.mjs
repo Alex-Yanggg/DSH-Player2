@@ -11,6 +11,14 @@ import * as companionPlugin from "../packages/dsh-companion-plugin/dist/index.js
 
 const fixturePath = resolve(process.cwd(), process.argv[2] ?? "fixtures/decision-turn/rainy-marker.json");
 const fixture = JSON.parse(await readFile(fixturePath, "utf8"));
+const expectedProposal = fixture.expectedRequest.proposal;
+const proposalArguments = fixture.proposal ?? {
+  capabilityId: expectedProposal.capabilityId,
+  basedOnObservationIds: expectedProposal.basedOnObservationIds,
+  target: expectedProposal.intent.target,
+  scope: expectedProposal.scope,
+  reason: expectedProposal.reason,
+};
 const bridgeDirectory = await mkdtemp(join(tmpdir(), "player2-decision-replay-"));
 
 try {
@@ -43,7 +51,7 @@ try {
     {
       callId: CallId("replay-propose"),
       name: companionPlugin.DECISION_TOOL_NAMES.propose,
-      arguments: { sequence: fixture.turn.sequence, ...fixture.proposal },
+      arguments: { sequence: fixture.turn.sequence, ...proposalArguments },
       signal,
     },
     {
