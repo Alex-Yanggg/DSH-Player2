@@ -55,6 +55,9 @@ export class DecisionFileBridge {
    */
   public async propose(sequence: number, input: ProposalDraftInput): Promise<Proposal> {
     const turn = await this.observe(sequence);
+    if (input.target.trim().length === 0) {
+      throw new Error("A proposal requires a non-empty target.");
+    }
     const observationIds = new Set(turn.observations.map((observation) => observation.id));
     const citedIds = [...input.basedOnObservationIds];
     if (citedIds.length === 0 || new Set(citedIds).size !== citedIds.length) {
@@ -73,7 +76,7 @@ export class DecisionFileBridge {
       createdAt: turn.createdAt,
       basedOnObservationIds: citedIds,
       capabilityId: input.capabilityId,
-      intent: { target: input.target },
+      intent: { target: input.target.trim() },
       scope: input.scope,
       reason: input.reason,
     });
