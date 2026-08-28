@@ -173,14 +173,18 @@ export interface SocialPresenter {
 
 export const decisionTurnVersion = "0.0.3" as const;
 
+const decisionAdapterDescriptorSchema = adapterDescriptorSchema.extend({
+  capabilities: z.array(capabilityDescriptorSchema).max(16),
+});
+
 /** Immutable Player-authored input for one DSH decision turn. */
 export const decisionTurnEnvelopeSchema = z.object({
   version: z.literal(decisionTurnVersion),
   sequence: z.number().int().positive(),
   createdAt: z.string().datetime(),
   gameDay: z.number().int().positive(),
-  adapter: adapterDescriptorSchema,
-  observations: z.array(observationSchema).min(1),
+  adapter: decisionAdapterDescriptorSchema,
+  observations: z.array(observationSchema).min(1).max(32),
 });
 export type DecisionTurnEnvelope = z.infer<typeof decisionTurnEnvelopeSchema>;
 
