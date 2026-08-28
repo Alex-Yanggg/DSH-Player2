@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <RootNamespace>DSHPlayer2.Core</RootNamespace>
+    <AssemblyName>DSHPlayer2.Core</AssemblyName>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+</Project>
