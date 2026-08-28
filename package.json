@@ -8,9 +8,11 @@
   ],
   "scripts": {
     "accept:0.0.2": "npm run typecheck && npm test && npm run replay",
+    "accept:0.0.3": "npm run typecheck && npm test && npm run replay && npm run replay:decision",
     "build": "npm run build --workspaces --if-present",
     "smoke:dsh-companion": "npm run build && node scripts/live-dsh-companion-smoke.mjs",
     "replay": "npm run build && node scripts/replay-social-turn.mjs",
+    "replay:decision": "npm run build && node scripts/replay-decision-turn.mjs",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },
