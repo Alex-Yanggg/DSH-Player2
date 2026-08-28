@@ -1,0 +1,21 @@
+name: Technical research
+description: Request evidence before a design or upstream proposal.
+title: "research: "
+labels: ["research"]
+body:
+  - type: textarea
+    attributes:
+      label: Decision to inform
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Questions and accepted evidence
+      description: Prefer primary sources and executable reproduction where possible.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Timebox and decision owner
+    validations:
+      required: true
