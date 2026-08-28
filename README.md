@@ -24,6 +24,8 @@ The Stardew adapter exposes that text turn with **F2**. Its immediate determinis
 
 The 0.0.3 decision lane makes DSH useful without giving it game authority. A Player-authored, immutable file envelope carries one monotonic sequence, semantic observations, and advertised capabilities. In `decision` mode the Companion plugin adds `game_observe`, `companion_propose`, and `game_request_action`; the last tool can only write an immutable `awaiting-player` request. It cannot grant consent or reach `GameAdapter.execute`. Run `npm run accept:0.0.3` for the full keyless social and decision regression, including an actual DSH tool-pipeline replay.
 
+The 0.0.4 Stardew host closes that loop. When the optional bridge is configured, the Mod publishes one immutable day turn in the background, polls without blocking the game, shows a validated DSH proposal through native dialogue, and writes the player's grant plus terminal receipt. Only an unexpired affirmative answer can reach the existing temporary marker. A timeout, invalid request, unavailable DSH process, or invalid local path falls back once to the deterministic proposal; a persisted receipt or player-owned settled sequence prevents replay after restart. `npm run accept:0.0.4` runs both wire replays, every TypeScript test, and the pure C# host/rules suite.
+
 ## Contributing
 
 Read [AGENTS.md](AGENTS.md) for the project boundaries and [CONTRIBUTING.md](CONTRIBUTING.md) before proposing a change. Please do not open a pull request that changes DeepSeek Harness as a side effect of Player2 work.

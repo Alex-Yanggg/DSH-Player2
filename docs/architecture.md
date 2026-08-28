@@ -65,6 +65,14 @@ game_observe -> companion_propose -> game_request_action
 
 The committed [`rainy-marker` fixture](../fixtures/decision-turn/rainy-marker.json) and `npm run replay:decision` assemble the real DSH skill/system-prompt/tool registries, execute all three tools without a model or game, and compare the immutable request with the golden output. The next implementation boundary is an asynchronous Player host that consumes the request and asks for consent; until then, no request is executable.
 
+## Stardew Consent Host (0.0.4)
+
+The optional SMAPI bridge now implements that boundary. `DecisionBridgeHost` is pure C# orchestration over fixed-path bounded storage: it recovers a prior receipt, publishes one turn, polls at a bounded cadence, times out to a local fallback, and persists grant before receipt. It owns Tasks and cancellation but no game objects. `ModEntry` captures immutable DTOs and consumes completed updates on SMAPI's main thread; only that thread opens dialogue, touches `Farmer.modData`, or adds a temporary sprite.
+
+Targets are location-qualified (`stardew-location:<NameOrUniqueName>:tile:<x>,<y>`). The host accepts only the exact target advertised by the current world observation, and `TryShowWorldReceipt` rechecks that the player is still in that location. Moving while DSH deliberates therefore produces a `failed` receipt instead of drawing the marker in the wrong map. The next day's DSH turn may include one `action-result` observation derived from the immediately prior `SharedOutcome`; this is receipt-backed relationship memory, not retained model transcript.
+
+The same [`stardew-visual-receipt` golden fixture](../fixtures/decision-turn/stardew-visual-receipt.json) is executed by the DSH tool replay and deserialized by .NET tests. This detects field, target, enum, and permission drift across the process/language boundary. The Mod remains disabled-by-default: an empty bridge directory preserves the deterministic local behavior.
+
 ## Adapter Modes
 
 Every adapter declares one access mode instead of pretending that all game integrations have equal guarantees.
