@@ -1,0 +1,59 @@
+{
+  "id": "decision-stardew-visual-receipt-v1",
+  "turn": {
+    "version": "0.0.3",
+    "sequence": 12,
+    "createdAt": "2026-08-29T00:00:00.000Z",
+    "gameDay": 12,
+    "adapter": {
+      "id": "stardew-smapi",
+      "gameId": "stardew-valley",
+      "accessMode": "semantic",
+      "capabilities": [
+        {
+          "id": "visual-receipt",
+          "title": "Show one temporary world marker",
+          "accessMode": "semantic",
+          "requiresExplicitConsent": true,
+          "isReversible": true,
+          "inputSchemaRef": "player2://visual-receipt/0.1"
+        }
+      ]
+    },
+    "observations": [
+      {
+        "id": "world-12",
+        "kind": "world",
+        "observedAt": "2026-08-29T00:00:00.000Z",
+        "expiresAt": null,
+        "source": "stardew-smapi",
+        "accessMode": "semantic",
+        "confidence": 1,
+        "facts": {
+          "weather": "rain",
+          "location": "Farm",
+          "pendingTask": "prepare tomorrow's mine supplies",
+          "target": "farm:tile:12,8"
+        }
+      }
+    ]
+  },
+  "expectedRequest": {
+    "version": "0.0.3",
+    "sequence": 12,
+    "status": "awaiting-player",
+    "proposal": {
+      "id": "turn-12:proposal",
+      "createdAt": "2026-08-29T00:00:00.000Z",
+      "basedOnObservationIds": [
+        "world-12"
+      ],
+      "capabilityId": "visual-receipt",
+      "intent": {
+        "target": "farm:tile:12,8"
+      },
+      "scope": "visual marker + sound only",
+      "reason": "The observed rain makes a shared planning marker useful."
+    }
+  }
+}
