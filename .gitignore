@@ -1,2 +1,5 @@
-stardew-mod/bin/
-stardew-mod/obj/
+**/bin/
+**/obj/
+node_modules/
+packages/*/dist/
+packages/*/*.tsbuildinfo
