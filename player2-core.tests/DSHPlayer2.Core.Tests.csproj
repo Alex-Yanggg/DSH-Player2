@@ -17,4 +17,8 @@
   <ItemGroup>
     <ProjectReference Include="..\player2-core\DSHPlayer2.Core.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\fixtures\decision-turn\stardew-visual-receipt.json" Link="fixtures\stardew-visual-receipt.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>
