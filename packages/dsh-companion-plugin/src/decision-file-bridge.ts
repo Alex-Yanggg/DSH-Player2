@@ -1,4 +1,5 @@
-import { mkdir, open, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { link, mkdir, open, unlink } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import {
   actionRequestSchema,
@@ -125,13 +126,29 @@ export class DecisionFileBridge {
   ): Promise<T> {
     await mkdir(dirname(path), { recursive: true });
     const serialized = `${JSON.stringify(value, null, 2)}\n`;
+    const temporaryPath = `${path}.${process.pid}.${randomUUID()}.tmp`;
     try {
-      await writeFile(path, serialized, { encoding: "utf8", flag: "wx" });
-      return value;
-    } catch (error) {
-      if (!this.isAlreadyExists(error)) {
-        throw error;
+      const handle = await open(temporaryPath, "wx");
+      try {
+        await handle.writeFile(serialized, { encoding: "utf8" });
+        await handle.sync();
+      } finally {
+        await handle.close();
       }
+      try {
+        await link(temporaryPath, path);
+        return value;
+      } catch (error) {
+        if (!this.isAlreadyExists(error)) {
+          throw error;
+        }
+      }
+    } finally {
+      await unlink(temporaryPath).catch((error: unknown) => {
+        if (!this.isNotFound(error)) {
+          throw error;
+        }
+      });
     }
     const existing = schema.parse(await this.readJson(path, label));
     if (JSON.stringify(existing) !== JSON.stringify(value)) {

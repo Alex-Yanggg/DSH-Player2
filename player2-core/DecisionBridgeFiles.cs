@@ -68,29 +68,41 @@ public sealed class DecisionBridgeFiles
     private async Task WriteOnceAsync<T>(string path, T value, CancellationToken cancellationToken)
     {
         var canonical = Serialize(value);
-        Directory.CreateDirectory(Path.GetDirectoryName(path) ?? throw new InvalidOperationException("Bridge path has no directory."));
+        var directory = Path.GetDirectoryName(path) ?? throw new InvalidOperationException("Bridge path has no directory.");
+        Directory.CreateDirectory(directory);
+        var temporaryPath = Path.Combine(directory, $".{Path.GetFileName(path)}.{Guid.NewGuid():N}.tmp");
         try
         {
-            await using var stream = new FileStream(
-                path,
+            await using (var stream = new FileStream(
+                temporaryPath,
                 FileMode.CreateNew,
                 FileAccess.Write,
-                FileShare.Read,
+                FileShare.None,
                 4096,
-                FileOptions.Asynchronous | FileOptions.WriteThrough);
-            await stream.WriteAsync(canonical.AsMemory(), cancellationToken).ConfigureAwait(false);
-            await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
-            return;
-        }
-        catch (IOException) when (File.Exists(path))
-        {
-            var existing = await this.ReadBoundedAsync(path, cancellationToken).ConfigureAwait(false);
-            var parsed = JsonSerializer.Deserialize<T>(existing, JsonOptions)
-                ?? throw new InvalidDataException("Existing bridge file contains JSON null.");
-            if (!Serialize(parsed).AsSpan().SequenceEqual(canonical))
+                FileOptions.Asynchronous | FileOptions.WriteThrough))
             {
-                throw new InvalidOperationException("Refusing to overwrite a conflicting decision bridge file.");
+                await stream.WriteAsync(canonical.AsMemory(), cancellationToken).ConfigureAwait(false);
+                await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
             }
+            try
+            {
+                File.Move(temporaryPath, path);
+                return;
+            }
+            catch (IOException) when (File.Exists(path))
+            {
+                var existing = await this.ReadBoundedAsync(path, cancellationToken).ConfigureAwait(false);
+                var parsed = JsonSerializer.Deserialize<T>(existing, JsonOptions)
+                    ?? throw new InvalidDataException("Existing bridge file contains JSON null.");
+                if (!Serialize(parsed).AsSpan().SequenceEqual(canonical))
+                {
+                    throw new InvalidOperationException("Refusing to overwrite a conflicting decision bridge file.");
+                }
+            }
+        }
+        finally
+        {
+            TryDeleteTemporaryFile(temporaryPath);
         }
     }
 
@@ -162,5 +174,21 @@ public sealed class DecisionBridgeFiles
             throw new InvalidDataException($"Decision bridge value exceeds the {MaxFileBytes} byte limit.");
         }
         return bytes;
+    }
+
+    private static void TryDeleteTemporaryFile(string path)
+    {
+        try
+        {
+            File.Delete(path);
+        }
+        catch (IOException)
+        {
+            // The final immutable file is authoritative; an unlinked temporary file is never consumed.
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Preserve the publish result when best-effort temporary cleanup is denied.
+        }
     }
 }

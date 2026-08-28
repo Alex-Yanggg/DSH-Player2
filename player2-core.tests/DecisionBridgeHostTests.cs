@@ -70,6 +70,27 @@ public sealed class DecisionBridgeHostTests : IDisposable
         Assert.IsType<TimeoutException>(failed.Error);
     }
 
+    [Fact]
+    public async Task InvalidRecoveryReceiptReturnsAControlledFailure()
+    {
+        var (turn, _) = LoadGolden();
+        var receipt = new BridgeActionReceipt(
+            "turn-99:proposal",
+            DecisionBridgeRules.CapabilityId,
+            "completed",
+            "2026-08-29T00:00:02.000Z",
+            "stardew-location:Farm:tile:12,8",
+            DecisionBridgeRules.AllowedScope,
+            "A temporary world marker was shown.");
+        await new DecisionBridgeFiles(this.root).WriteReceiptAsync(12, receipt);
+        using var host = new DecisionBridgeHost(this.root, 1, 100);
+        host.Start(turn);
+
+        var update = await WaitForAsync(host, value => value.Error is not null);
+
+        Assert.IsType<InvalidOperationException>(update.Error);
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(this.root))

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using DSHPlayer2.Core;
@@ -70,6 +71,22 @@ public sealed class DecisionBridgeFilesTests : IDisposable
             new string('x', DecisionBridgeFiles.MaxFileBytes + 1));
 
         await Assert.ThrowsAsync<InvalidDataException>(() => files.TryReadRequestAsync(turn));
+    }
+
+    [Fact]
+    public async Task ConcurrentEquivalentPublishesLeaveOneCompleteFileAndNoTemporaryArtifacts()
+    {
+        var files = new DecisionBridgeFiles(this.root);
+        var turn = CreateTurn();
+
+        await Task.WhenAll(Enumerable.Range(0, 32).Select(_ => files.PublishTurnAsync(turn)));
+
+        var inbox = Path.Combine(this.root, "inbox");
+        var paths = Directory.GetFiles(inbox);
+        Assert.Single(paths);
+        Assert.Equal("turn-12.json", Path.GetFileName(paths[0]));
+        var persisted = JsonSerializer.Deserialize<DecisionTurnEnvelope>(await File.ReadAllTextAsync(paths[0]), JsonOptions);
+        Assert.Equal(JsonSerializer.Serialize(turn, JsonOptions), JsonSerializer.Serialize(persisted, JsonOptions));
     }
 
     public void Dispose()
