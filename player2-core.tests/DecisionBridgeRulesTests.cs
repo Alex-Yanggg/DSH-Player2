@@ -28,7 +28,7 @@ public sealed class DecisionBridgeRulesTests
         Assert.Equal(12, validated.GameProposal.TargetTileX);
         Assert.Equal(8, validated.GameProposal.TargetTileY);
         Assert.Equal("completed", completion.Receipt.Status);
-        Assert.Equal("farm:tile:12,8", completion.Receipt.Target);
+        Assert.Equal("stardew-location:Farm:tile:12,8", completion.Receipt.Target);
         Assert.Equal("completed", completion.State.Outcome.Status);
     }
 
@@ -64,7 +64,7 @@ public sealed class DecisionBridgeRulesTests
             "sequence" => request with { Sequence = 13 },
             "proposal" => request with { Proposal = request.Proposal with { Id = "turn-12:other" } },
             "capability" => request with { Proposal = request.Proposal with { CapabilityId = "water-everything" } },
-            "target" => request with { Proposal = request.Proposal with { Intent = new BridgeProposalIntent("farm:tile:99,99") } },
+            "target" => request with { Proposal = request.Proposal with { Intent = new BridgeProposalIntent("stardew-location:Farm:tile:99,99") } },
             "grounding" => request with { Proposal = request.Proposal with { BasedOnObservationIds = new[] { "invented" } } },
             _ => throw new ArgumentOutOfRangeException(nameof(mutation)),
         };
