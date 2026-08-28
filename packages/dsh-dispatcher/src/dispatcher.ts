@@ -1,6 +1,6 @@
 import { existsSync, watch, type FSWatcher } from "node:fs";
 import { readFile, readdir, stat } from "node:fs/promises";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { actionRequestSchema } from "@dsh-player2/contracts";
 import type { DecisionTurnRunner } from "./decision-runner.js";
 
@@ -82,7 +82,7 @@ export class BridgeDispatcher {
     if (options.bridgeDirectory.trim().length === 0) {
       throw new Error("The dispatcher requires a non-empty bridgeDirectory.");
     }
-    this.root = join(options.bridgeDirectory);
+    this.root = resolve(options.bridgeDirectory);
     this.runner = options.runner;
     this.pollIntervalMs = Math.max(options.pollIntervalMs ?? 2000, 50);
     this.maxAttempts = Math.max(options.maxAttempts ?? 3, 1);
