@@ -1,11 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { link, mkdir, open, unlink } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { link, mkdir, open, readdir, unlink } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
 import {
   actionRequestSchema,
   decisionTurnEnvelopeSchema,
   decisionTurnVersion,
   proposalSchema,
+  receiptSchema,
   type ActionRequest,
   type DecisionTurnEnvelope,
   type Proposal,
@@ -13,9 +14,31 @@ import {
 
 const MAX_BRIDGE_FILE_BYTES = 64 * 1024;
 const MAX_CITED_OBSERVATIONS = 8;
+const MAX_RECALLED_RECEIPTS = 8;
+const MAX_DIGEST_DETAIL_LENGTH = 200;
+const MAX_DIGEST_SCOPE_LENGTH = 120;
 const MAX_TARGET_LENGTH = 256;
 const MAX_SCOPE_LENGTH = 400;
 const MAX_REASON_LENGTH = 800;
+
+/** One receipt-backed shared outcome as recalled to the model. */
+export interface ReceiptDigestEntry {
+  readonly sequence: number;
+  readonly proposalId: string;
+  readonly capabilityId: string;
+  readonly status: "completed" | "failed" | "declined" | "expired";
+  readonly occurredAt: string;
+  readonly target: string | null;
+  readonly scope: string;
+  readonly detail: string;
+}
+
+/** Bounded, newest-first projection of Player-persisted receipts. */
+export interface ReceiptDigest {
+  readonly entries: ReceiptDigestEntry[];
+  /** Receipt files present but not readable as valid receipts; surfaced honestly. */
+  readonly skipped: number;
+}
 
 /** Model-supplied fields from which Player2 constructs a proposal identity. */
 export interface ProposalDraftInput {
@@ -116,6 +139,64 @@ export class DecisionFileBridge {
       proposal,
     });
     return this.writeOnce(this.requestPath(sequence), request, actionRequestSchema, "action request");
+  }
+
+  /**
+   * Project the newest persisted receipts into a bounded read-only digest.
+   * Entries are historical context: they are never current observations and
+   * never grant authority. Damaged files are skipped and counted, never
+   * rewritten and never fatal.
+   */
+  public async recall(): Promise<ReceiptDigest> {
+    const entries: ReceiptDigestEntry[] = [];
+    let skipped = 0;
+    const names = await readdir(join(this.root, "receipts")).catch((error: unknown) => {
+      if (this.isNotFound(error)) {
+        return [] as string[];
+      }
+      throw error;
+    });
+    const sequences: number[] = [];
+    for (const name of names) {
+      const match = /^receipt-(\d+)\.json$/.exec(name);
+      if (match !== null) {
+        sequences.push(Number.parseInt(match[1], 10));
+      }
+    }
+    sequences.sort((a, b) => b - a);
+    for (const sequence of sequences) {
+      if (entries.length >= MAX_RECALLED_RECEIPTS) {
+        break;
+      }
+      const parsed = receiptSchema.safeParse(await this.readJsonOrNull(join(this.root, "receipts", `receipt-${sequence}.json`)));
+      if (!parsed.success) {
+        skipped += 1;
+        continue;
+      }
+      entries.push({
+        sequence,
+        proposalId: parsed.data.proposalId,
+        capabilityId: parsed.data.capabilityId,
+        status: parsed.data.status,
+        occurredAt: parsed.data.occurredAt,
+        target: parsed.data.target,
+        scope: this.truncate(parsed.data.scope, MAX_DIGEST_SCOPE_LENGTH),
+        detail: this.truncate(parsed.data.detail, MAX_DIGEST_DETAIL_LENGTH),
+      });
+    }
+    return { entries, skipped };
+  }
+
+  private async readJsonOrNull(path: string): Promise<unknown> {
+    try {
+      return await this.readJson(path, "receipt");
+    } catch {
+      return null;
+    }
+  }
+
+  private truncate(value: string, maxLength: number): string {
+    return value.length > maxLength ? `${value.slice(0, maxLength)}…` : value;
   }
 
   private async writeOnce<T>(

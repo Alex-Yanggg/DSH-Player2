@@ -120,4 +120,38 @@ describe("DecisionFileBridge", () => {
     );
     await expect(bridge.observe(1)).rejects.toThrow("exceeds the 65536 byte limit");
   });
+
+  it("recalls a bounded newest-first digest and skips damaged receipts", async () => {
+    const { root, bridge } = await createBridge();
+    await mkdir(join(root, "receipts"), { recursive: true });
+    const receipt = (sequence: number, status: string) => JSON.stringify({
+      proposalId: `turn-${sequence}:proposal`,
+      capabilityId: "mark-target",
+      status,
+      occurredAt: "2026-08-29T00:00:00.000Z",
+      target: "farm:tile:12,8",
+      scope: "one temporary marker",
+      detail: `Day ${sequence} shared outcome.`,
+    });
+    for (const [sequence, status] of [[3, "completed"], [5, "failed"], [7, "declined"]]) {
+      await writeFile(join(root, "receipts", `receipt-${sequence}.json`), receipt(sequence, status), "utf8");
+    }
+    await writeFile(join(root, "receipts", "receipt-9.json"), "{ not json", "utf8");
+    await writeFile(join(root, "receipts", "notes.txt"), "ignored", "utf8");
+
+    const digest = await bridge.recall();
+
+    expect(digest.entries.map((entry) => [entry.sequence, entry.status])).toEqual([
+      [7, "declined"],
+      [5, "failed"],
+      [3, "completed"],
+    ]);
+    expect(digest.skipped).toBe(1);
+  });
+
+  it("returns an empty digest when no receipts exist", async () => {
+    const { bridge } = await createBridge();
+
+    await expect(bridge.recall()).resolves.toEqual({ entries: [], skipped: 0 });
+  });
 });
