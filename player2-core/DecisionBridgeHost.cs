@@ -72,9 +72,16 @@ public sealed class DecisionBridgeHost : IDisposable
             this.recoveryTask = null;
             if (receipt is not null)
             {
-                receipt = DecisionBridgeRules.ValidateReceipt(activeTurn.Sequence, receipt);
-                this.closed = true;
-                return DecisionBridgeHostUpdate.Recovered(receipt);
+                try
+                {
+                    receipt = DecisionBridgeRules.ValidateReceipt(activeTurn, receipt);
+                    this.closed = true;
+                    return DecisionBridgeHostUpdate.Recovered(receipt);
+                }
+                catch (Exception error)
+                {
+                    return this.CloseWith(error);
+                }
             }
             this.publishTask = this.files.PublishTurnAsync(activeTurn, this.cancellation.Token);
         }

@@ -219,10 +219,14 @@ public static class DecisionBridgeRules
     }
 
     /// <summary>Validates a persisted terminal receipt before using it as restart evidence.</summary>
-    public static BridgeActionReceipt ValidateReceipt(int sequence, BridgeActionReceipt receipt)
+    public static BridgeActionReceipt ValidateReceipt(DecisionTurnEnvelope turn, BridgeActionReceipt receipt)
     {
-        AssertSequence(sequence);
-        if (receipt.ProposalId != $"turn-{sequence}:proposal" ||
+        if (turn.Version != WireVersion)
+        {
+            throw new InvalidOperationException("Decision bridge version mismatch.");
+        }
+        AssertSequence(turn.Sequence);
+        if (receipt.ProposalId != $"turn-{turn.Sequence}:proposal" ||
             receipt.CapabilityId != CapabilityId ||
             receipt.Scope != AllowedScope ||
             string.IsNullOrWhiteSpace(receipt.Detail))
@@ -236,9 +240,11 @@ public static class DecisionBridgeRules
         AssertTimestamp(receipt.OccurredAt, nameof(receipt.OccurredAt));
         if (receipt.Status is "completed" or "failed")
         {
-            if (string.IsNullOrWhiteSpace(receipt.Target))
+            var world = turn.Observations.SingleOrDefault(observation => observation.Kind == "world")
+                ?? throw new InvalidOperationException("Decision turn has no current world observation.");
+            if (receipt.Target != GetStringFact(world, "target"))
             {
-                throw new InvalidOperationException("Action receipt is missing its semantic target.");
+                throw new InvalidOperationException("Action receipt does not match the current turn target.");
             }
         }
         else if (receipt.Target is not null)

@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -58,13 +58,19 @@ describe("DecisionFileBridge", () => {
     };
 
     await expect(bridge.observe(1)).resolves.toMatchObject({ sequence: 1, gameDay: 12 });
-    const proposal = await bridge.propose(1, input);
+    const [proposal, concurrentProposal] = await Promise.all([
+      bridge.propose(1, input),
+      bridge.propose(1, input),
+    ]);
+    expect(concurrentProposal).toEqual(proposal);
     await expect(bridge.propose(1, input)).resolves.toEqual(proposal);
     const request = await bridge.requestAction(1, proposal.id);
     await expect(bridge.requestAction(1, proposal.id)).resolves.toEqual(request);
 
     expect(request).toMatchObject({ sequence: 1, status: "awaiting-player" });
     expect(JSON.parse(await readFile(join(root, "outbox", "request-1.json"), "utf8"))).toEqual(request);
+    expect((await readdir(join(root, "drafts"))).sort()).toEqual(["proposal-1.json"]);
+    expect((await readdir(join(root, "outbox"))).sort()).toEqual(["request-1.json"]);
   });
 
   it("rejects unknown evidence, capabilities, skipped proposals, and conflicting rewrites", async () => {

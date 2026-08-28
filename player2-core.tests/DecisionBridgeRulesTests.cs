@@ -101,7 +101,29 @@ public sealed class DecisionBridgeRulesTests
             DecisionBridgeRules.AllowedScope,
             "A temporary world marker was shown.");
 
-        Assert.Throws<InvalidOperationException>(() => DecisionBridgeRules.ValidateReceipt(12, receipt));
+        var (turn, _) = LoadGolden();
+        Assert.Throws<InvalidOperationException>(() => DecisionBridgeRules.ValidateReceipt(turn, receipt));
+    }
+
+    [Fact]
+    public void RecoveryRejectsAReceiptForAnotherTarget()
+    {
+        var (turn, request) = LoadGolden();
+        var grant = DecisionBridgeRules.CreateGrant(
+            request,
+            true,
+            "2026-08-29T00:00:01.000Z",
+            "2026-08-29T00:05:00.000Z");
+        var authorization = DecisionBridgeRules.Authorize(turn, request, grant, "2026-08-29T00:00:02.000Z");
+        var receipt = DecisionBridgeRules.CompleteGranted(
+            authorization,
+            true,
+            "2026-08-29T00:00:03.000Z").Receipt with
+        {
+            Target = "stardew-location:Town:tile:12,8",
+        };
+
+        Assert.Throws<InvalidOperationException>(() => DecisionBridgeRules.ValidateReceipt(turn, receipt));
     }
 
     private static (DecisionTurnEnvelope Turn, BridgeActionRequest Request) LoadGolden()
