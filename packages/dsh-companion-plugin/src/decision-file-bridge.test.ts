@@ -89,4 +89,29 @@ describe("DecisionFileBridge", () => {
       .rejects.toThrow("Refusing to overwrite conflicting proposal");
     await expect(bridge.observe(2)).rejects.toThrow("No decision turn exists");
   });
+
+  it("rejects oversized bridge input and proposal fields before persistence", async () => {
+    const { root, bridge } = await createBridge();
+    const valid = {
+      capabilityId: "mark-target",
+      basedOnObservationIds: ["weather-12"],
+      target: "farm:tile:12,8",
+      scope: "one temporary marker",
+      reason: "Use the observed rain.",
+    };
+
+    await expect(bridge.propose(1, { ...valid, target: "x".repeat(257) }))
+      .rejects.toThrow("target may contain at most 256 characters");
+    await expect(bridge.propose(1, {
+      ...valid,
+      basedOnObservationIds: Array.from({ length: 9 }, (_, index) => `observation-${index}`),
+    })).rejects.toThrow("cite at most 8 observations");
+
+    await writeFile(
+      join(root, "inbox", "turn-1.json"),
+      JSON.stringify({ padding: "x".repeat(64 * 1024) }),
+      "utf8",
+    );
+    await expect(bridge.observe(1)).rejects.toThrow("exceeds the 65536 byte limit");
+  });
 });
