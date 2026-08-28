@@ -73,6 +73,18 @@ Targets are location-qualified (`stardew-location:<NameOrUniqueName>:tile:<x>,<y
 
 The same [`stardew-visual-receipt` golden fixture](../fixtures/decision-turn/stardew-visual-receipt.json) is executed by the DSH tool replay and deserialized by .NET tests. This detects field, target, enum, and permission drift across the process/language boundary. The Mod remains disabled-by-default: an empty bridge directory preserves the deterministic local behavior.
 
+## Auto-Dispatch Loop (0.0.5)
+
+DeepSeek Harness publishes no daemon-side scheduler or file watcher, so the public way to drive a turn from an external event is to hold an SDK client and call it when the event fires. [`@dsh-player2/dsh-dispatcher`](../packages/dsh-dispatcher/src/index.ts) is exactly that: a resident waker that scans `inbox/turn-<sequence>.json`, calls `DeepSeekHarness.run` on one dedicated session, and requires `outbox/request-<sequence>.json` to exist and validate against the action request schema. The model's final message is never completion evidence.
+
+```text
+Mod publishes turn -> dispatcher wakes session -> skill/tool pipeline -> request file
+                                                     ^ deduplicated by session id
+grant/receipt/consent files: written only by the Player (SMAPI) host
+```
+
+The dedicated session id is stable per bridge, so Harness' durable session log accumulates the relationship history across days. That log is replayable audit context; the receipt-backed projection remains the only fact source, and no memory index may grant authority. Failed dispatches retry with bounded doubling backoff and then give the sequence up for the process lifetime — the Mod's existing timeout falls back deterministically. Restarts are idempotent because any persisted request marks the sequence answered, and the write-once bridge refuses conflicting rewrites. `scripts/dispatch-companion-turns.mjs` is the single resident command; `npm run replay:dispatch` exercises the dispatcher against the real plugin registries without a model or game.
+
 ## Adapter Modes
 
 Every adapter declares one access mode instead of pretending that all game integrations have equal guarantees.
