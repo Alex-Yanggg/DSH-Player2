@@ -89,6 +89,21 @@ public sealed class DecisionBridgeRulesTests
         Assert.Equal(DecisionBridgeRules.CapabilityId, turn.Adapter.Capabilities[0].Id);
     }
 
+    [Fact]
+    public void RecoveryRejectsAReceiptThatDoesNotBelongToTheSequence()
+    {
+        var receipt = new BridgeActionReceipt(
+            "turn-99:proposal",
+            DecisionBridgeRules.CapabilityId,
+            "completed",
+            "2026-08-29T00:00:03.000Z",
+            "stardew-location:Farm:tile:12,8",
+            DecisionBridgeRules.AllowedScope,
+            "A temporary world marker was shown.");
+
+        Assert.Throws<InvalidOperationException>(() => DecisionBridgeRules.ValidateReceipt(12, receipt));
+    }
+
     private static (DecisionTurnEnvelope Turn, BridgeActionRequest Request) LoadGolden()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "fixtures", "stardew-visual-receipt.json");
