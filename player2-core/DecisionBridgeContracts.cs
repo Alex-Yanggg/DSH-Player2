@@ -17,6 +17,13 @@ public static class DecisionBridgeRules
     public const int MaxCitedObservations = 8;
     public const int MaxReasonLength = 800;
 
+    /// <summary>Returns a stable game-clock timestamp so same-day restart reproduces the same inbox value.</summary>
+    public static string TimestampForSequence(int sequence)
+    {
+        AssertSequence(sequence);
+        return DateTimeOffset.UnixEpoch.AddDays(sequence).ToString("O", CultureInfo.InvariantCulture);
+    }
+
     /// <summary>Creates the bounded Player-authored facts exposed to DSH for one game day.</summary>
     public static DecisionTurnEnvelope CreateTurn(
         WorldSnapshot snapshot,
@@ -209,6 +216,36 @@ public static class DecisionBridgeRules
             FormatTarget(proposal.Location, proposal.TargetTileX, proposal.TargetTileY),
             receiptShown ? "A temporary world marker was shown." : "The temporary world marker could not be shown.");
         return new DecisionCompletion(state, receipt);
+    }
+
+    /// <summary>Validates a persisted terminal receipt before using it as restart evidence.</summary>
+    public static BridgeActionReceipt ValidateReceipt(int sequence, BridgeActionReceipt receipt)
+    {
+        AssertSequence(sequence);
+        if (receipt.ProposalId != $"turn-{sequence}:proposal" ||
+            receipt.CapabilityId != CapabilityId ||
+            receipt.Scope != AllowedScope ||
+            string.IsNullOrWhiteSpace(receipt.Detail))
+        {
+            throw new InvalidOperationException("Persisted receipt does not belong to this decision sequence.");
+        }
+        if (receipt.Status is not ("completed" or "failed" or "declined" or "expired"))
+        {
+            throw new InvalidOperationException("Persisted receipt has an invalid terminal status.");
+        }
+        AssertTimestamp(receipt.OccurredAt, nameof(receipt.OccurredAt));
+        if (receipt.Status is "completed" or "failed")
+        {
+            if (string.IsNullOrWhiteSpace(receipt.Target))
+            {
+                throw new InvalidOperationException("Action receipt is missing its semantic target.");
+            }
+        }
+        else if (receipt.Target is not null)
+        {
+            throw new InvalidOperationException("Non-executed receipt must not claim a target.");
+        }
+        return receipt;
     }
 
     private static BridgeActionReceipt CreateReceipt(
