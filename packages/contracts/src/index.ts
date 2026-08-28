@@ -13,7 +13,7 @@ export const observationSchema = z.object({
   source: z.string().min(1),
   accessMode: accessModeSchema,
   confidence: z.number().min(0).max(1),
-  facts: z.record(z.string(), z.unknown()),
+  facts: z.record(z.string(), z.json()),
 });
 export type Observation = z.infer<typeof observationSchema>;
 
@@ -40,7 +40,7 @@ export const proposalSchema = z.object({
   createdAt: z.string().datetime(),
   basedOnObservationIds: z.array(z.string().min(1)).min(1),
   capabilityId: z.string().min(1),
-  intent: z.record(z.string(), z.unknown()),
+  intent: z.record(z.string(), z.json()),
   scope: z.string().min(1),
   reason: z.string().min(1),
 });
