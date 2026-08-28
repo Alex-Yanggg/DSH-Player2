@@ -1,0 +1,22 @@
+{
+  "name": "@dsh-player2/dsh-provider",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "prebuild": "node -e \"for (const path of ['dist', 'tsconfig.tsbuildinfo']) require('node:fs').rmSync(path, { recursive: true, force: true })\"",
+    "build": "tsc --build tsconfig.json",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh-sdk-client": "0.1.1-rc.2",
+    "@dsh-player2/runtime": "file:../runtime"
+  }
+}

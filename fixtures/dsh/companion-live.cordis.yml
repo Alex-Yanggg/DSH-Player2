@@ -1,0 +1,32 @@
+# Dedicated actionless DSH composition for the optional live 0.0.2 acceptance smoke.
+# The JSON-RPC runtime supplies the closed set of published DSH packages; the
+# relative Player plugin is loaded from this repository's built artifact.
+
+- id: sdk-jsonrpc-server
+  name: '@deepseek-ai/dsh-sdk-jsonrpc-server'
+  config:
+    maxTokensAsSuccess: false
+
+- id: llm-deepseek
+  name: '@deepseek-ai/dsh-llm-deepseek'
+  config:
+    thinking: enabled
+    reasoningEffort: low
+
+- id: agent-spine
+  name: '@deepseek-ai/dsh-agent-spine-demo'
+  config:
+    persona: ''
+    workspaceContext: false
+    tools:
+      mode: native
+    skills:
+      enabled: true
+    toolBash: false
+    toolJobs: false
+
+- id: player2-companion
+  name: '../../packages/dsh-companion-plugin/dist/index.js'
+  config:
+    characterName: Mira
+    relationshipRole: the player's candid farm partner
