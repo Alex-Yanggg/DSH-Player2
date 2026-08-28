@@ -22,6 +22,8 @@ The Stardew adapter exposes that text turn with **F2**. Its immediate determinis
 
 `@dsh-player2/dsh-provider` supplies the live transport through DeepSeek Harness' public JSON-RPC SDK. It requires a dedicated DSH composition that mounts `@dsh-player2/dsh-companion-plugin`, the DSH skill registry, and the `skill` tool in native mode. The plugin's execution guard denies shell, filesystem, game execution, and every other model-facing tool even if such a tool is accidentally mounted. The provider uses a fresh DSH session for every social turn; the versioned Player envelope and trace, not retained chat history, remain the bounded context source.
 
+The 0.0.3 decision lane makes DSH useful without giving it game authority. A Player-authored, immutable file envelope carries one monotonic sequence, semantic observations, and advertised capabilities. In `decision` mode the Companion plugin adds `game_observe`, `companion_propose`, and `game_request_action`; the last tool can only write an immutable `awaiting-player` request. It cannot grant consent or reach `GameAdapter.execute`. Run `npm run accept:0.0.3` for the full keyless social and decision regression, including an actual DSH tool-pipeline replay.
+
 ## Contributing
 
 Read [AGENTS.md](AGENTS.md) for the project boundaries and [CONTRIBUTING.md](CONTRIBUTING.md) before proposing a change. Please do not open a pull request that changes DeepSeek Harness as a side effect of Player2 work.

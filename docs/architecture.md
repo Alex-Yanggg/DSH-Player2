@@ -43,6 +43,28 @@ player text + semantic observations + yesterday's receipt memory
 
 The distinction between Harness concepts is deliberate: persona is stable identity, a skill is loadable procedural knowledge, memory is a projection of receipt-backed Player events, and a power that changes the world must become a typed capability plus enforceable permission and execution policy. Putting all four into skill text would make authority and facts unauditable.
 
+## Permission-Seeking Decision Lane (0.0.3)
+
+The decision lane uses DSH tools as a typed cognitive workflow, not as a game executor. Player writes `inbox/turn-<sequence>.json`; the Companion plugin reads that fixed path, validates cited observations and advertised capabilities, writes a deterministic proposal once, then writes `outbox/request-<sequence>.json` with status `awaiting-player`. Existing files are returned only when byte-equivalent after parsing; conflicting retries fail instead of overwriting history.
+
+```text
+Player immutable turn envelope
+       |
+       v
+game_observe -> companion_propose -> game_request_action
+                                      |
+                                      v
+                         immutable awaiting-player request
+                                      |
+                            future Player bridge
+                                      v
+                  PermissionGrant -> TurnCoordinator -> adapter
+```
+
+`social` mode permits only `skill`. `decision` mode permits `skill` plus the three decision tools. Both modes install a monotonic tool guard, so mounting a shell or general filesystem tool elsewhere in the composition does not increase Player authority. Tool schemas, calls, and results are retained by the DSH session log; cross-day relationship memory remains the Player-owned projection of a completed or failed receipt, never the DSH transcript.
+
+The committed [`rainy-marker` fixture](../fixtures/decision-turn/rainy-marker.json) and `npm run replay:decision` assemble the real DSH skill/system-prompt/tool registries, execute all three tools without a model or game, and compare the immutable request with the golden output. The next implementation boundary is an asynchronous Player host that consumes the request and asks for consent; until then, no request is executable.
+
 ## Adapter Modes
 
 Every adapter declares one access mode instead of pretending that all game integrations have equal guarantees.

@@ -1,0 +1,33 @@
+# Dedicated DSH composition for the 0.0.3 permission-seeking decision lane.
+# Set PLAYER2_BRIDGE_DIRECTORY to the trusted local bridge root before launch.
+
+- id: sdk-jsonrpc-server
+  name: '@deepseek-ai/dsh-sdk-jsonrpc-server'
+  config:
+    maxTokensAsSuccess: false
+
+- id: llm-deepseek
+  name: '@deepseek-ai/dsh-llm-deepseek'
+  config:
+    thinking: enabled
+    reasoningEffort: low
+
+- id: agent-spine
+  name: '@deepseek-ai/dsh-agent-spine-demo'
+  config:
+    persona: ''
+    workspaceContext: false
+    tools:
+      mode: native
+    skills:
+      enabled: true
+    toolBash: false
+    toolJobs: false
+
+- id: player2-companion
+  name: '../../packages/dsh-companion-plugin/dist/index.js'
+  config:
+    characterName: Mira
+    relationshipRole: the player's candid farm partner
+    mode: decision
+    bridgeDirectory: !!js process.env.PLAYER2_BRIDGE_DIRECTORY
