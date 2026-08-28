@@ -33,7 +33,7 @@
           "weather": "rain",
           "location": "Farm",
           "pendingTask": "prepare tomorrow's mine supplies",
-          "target": "farm:tile:12,8"
+          "target": "stardew-location:Farm:tile:12,8"
         }
       }
     ]
@@ -50,7 +50,7 @@
       ],
       "capabilityId": "visual-receipt",
       "intent": {
-        "target": "farm:tile:12,8"
+        "target": "stardew-location:Farm:tile:12,8"
       },
       "scope": "visual marker + sound only",
       "reason": "The observed rain makes a shared planning marker useful."

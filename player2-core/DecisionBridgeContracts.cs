@@ -28,7 +28,7 @@ public static class DecisionBridgeRules
     {
         AssertSequence(sequence);
         AssertTimestamp(createdAt, nameof(createdAt));
-        var target = FormatTarget(targetTileX, targetTileY);
+        var target = FormatTarget(snapshot.Location, targetTileX, targetTileY);
         var observations = new List<BridgeObservation>
         {
             new(
@@ -61,7 +61,7 @@ public static class DecisionBridgeRules
                 new Dictionary<string, JsonElement>
                 {
                     ["status"] = JsonSerializer.SerializeToElement(priorOutcome.Status),
-                    ["target"] = JsonSerializer.SerializeToElement(FormatTarget(priorOutcome.TargetTileX, priorOutcome.TargetTileY)),
+                    ["target"] = JsonSerializer.SerializeToElement($"stardew-tile:{priorOutcome.TargetTileX},{priorOutcome.TargetTileY}"),
                     ["scope"] = JsonSerializer.SerializeToElement(priorOutcome.Scope),
                 }));
         }
@@ -130,14 +130,17 @@ public static class DecisionBridgeRules
         }
 
         var expectedTarget = GetStringFact(world, "target");
-        if (proposal.Intent.Target != expectedTarget || !TryParseTarget(expectedTarget, out var targetTileX, out var targetTileY))
+        var location = GetStringFact(world, "location");
+        if (proposal.Intent.Target != expectedTarget ||
+            !TryParseTarget(expectedTarget, out var targetLocation, out var targetTileX, out var targetTileY) ||
+            targetLocation != location)
         {
             throw new InvalidOperationException("Action request selected a target outside the current turn.");
         }
         var gameProposal = new Proposal(
             GetIntFact(turn, "gameDay"),
             GetStringFact(world, "weather"),
-            GetStringFact(world, "location"),
+            location,
             GetStringFact(world, "pendingTask"),
             "show one agreed world receipt",
             proposal.Reason,
@@ -203,7 +206,7 @@ public static class DecisionBridgeRules
             authorization.Validated.Request,
             receiptShown ? "completed" : "failed",
             occurredAt,
-            FormatTarget(proposal.TargetTileX, proposal.TargetTileY),
+            FormatTarget(proposal.Location, proposal.TargetTileX, proposal.TargetTileY),
             receiptShown ? "A temporary world marker was shown." : "The temporary world marker could not be shown.");
         return new DecisionCompletion(state, receipt);
     }
@@ -241,18 +244,25 @@ public static class DecisionBridgeRules
             : throw new InvalidOperationException($"Decision turn is missing integer fact '{key}'.");
     }
 
-    private static string FormatTarget(int x, int y) => $"farm:tile:{x},{y}";
+    private static string FormatTarget(string location, int x, int y) => $"stardew-location:{location}:tile:{x},{y}";
 
-    private static bool TryParseTarget(string target, out int x, out int y)
+    private static bool TryParseTarget(string target, out string location, out int x, out int y)
     {
+        location = string.Empty;
         x = 0;
         y = 0;
-        const string prefix = "farm:tile:";
+        const string prefix = "stardew-location:";
         if (!target.StartsWith(prefix, StringComparison.Ordinal))
         {
             return false;
         }
-        var coordinates = target[prefix.Length..].Split(',');
+        var separator = target.IndexOf(":tile:", prefix.Length, StringComparison.Ordinal);
+        if (separator <= prefix.Length)
+        {
+            return false;
+        }
+        location = target[prefix.Length..separator];
+        var coordinates = target[(separator + ":tile:".Length)..].Split(',');
         return coordinates.Length == 2 &&
             int.TryParse(coordinates[0], NumberStyles.None, CultureInfo.InvariantCulture, out x) &&
             int.TryParse(coordinates[1], NumberStyles.None, CultureInfo.InvariantCulture, out y) &&

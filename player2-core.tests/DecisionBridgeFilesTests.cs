@@ -22,7 +22,7 @@ public sealed class DecisionBridgeFilesTests : IDisposable
             DecisionBridgeRules.CapabilityId,
             "completed",
             "2026-08-29T00:00:03.000Z",
-            "farm:tile:12,8",
+            "stardew-location:Farm:tile:12,8",
             DecisionBridgeRules.AllowedScope,
             "A temporary world marker was shown.");
         var grant = new BridgePermissionGrant(
