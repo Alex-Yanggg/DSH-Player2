@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Text.Json;
 using DSHPlayer2.Core;
 using Microsoft.Xna.Framework;
@@ -15,14 +16,26 @@ internal sealed class ModEntry : Mod
 {
     private const string AcceptProposalId = "dsh-player2-accept";
     private const string DeclineProposalId = "dsh-player2-decline";
+    private const string SettledSequenceStateKey = "AlexYanggg.DSHPlayer2/settled-sequence";
 
+    private ModConfig config = new();
+    private DecisionBridgeHost? bridgeHost;
+    private DecisionTurnEnvelope? activeBridgeTurn;
+    private BridgeActionRequest? activeBridgeRequest;
+    private BridgeActionRequest? pendingBridgeRequest;
+    private Player2Proposal? pendingBridgeProposal;
+    private Player2Proposal? fallbackProposal;
+    private bool fallbackPending;
     private Player2Proposal? activeProposal;
 
     /// <summary>Registers the first semantic game event used by Player2.</summary>
     /// <param name="helper">The SMAPI helper for the loaded mod.</param>
     public override void Entry(IModHelper helper)
     {
+        this.config = helper.ReadConfig<ModConfig>();
         helper.Events.GameLoop.DayStarted += this.OnDayStarted;
+        helper.Events.GameLoop.UpdateTicked += this.OnUpdateTicked;
+        helper.Events.GameLoop.ReturnedToTitle += this.OnReturnedToTitle;
         helper.Events.Input.ButtonPressed += this.OnButtonPressed;
     }
 
@@ -64,11 +77,131 @@ internal sealed class ModEntry : Mod
 
         var snapshot = this.CaptureWorldSnapshot();
         this.ShowYesterdayRecall(Game1.player, snapshot.Day);
-        this.activeProposal = this.CreateProposal(snapshot);
+        var proposal = this.CreateProposal(snapshot);
 
         this.Monitor.Log(
             $"Player2 snapshot: day {snapshot.Day}, weather {snapshot.Weather}, location {snapshot.Location}, pending task {snapshot.PendingTask}.",
             LogLevel.Info);
+
+        if (string.IsNullOrWhiteSpace(this.config.DecisionBridgeDirectory))
+        {
+            this.ShowProposal(proposal);
+            return;
+        }
+
+        var sequence = checked(snapshot.Day + 1);
+        if (this.IsSettled(Game1.player, sequence))
+        {
+            this.Monitor.Log($"Player2 decision sequence {sequence} is already settled; no request will be replayed.", LogLevel.Info);
+            return;
+        }
+        var yesterdayOutcome = Player2Rules.GetYesterdayOutcome(
+            this.ReadState<SharedOutcome>(Game1.player, Player2Rules.LastSharedOutcomeStateKey),
+            snapshot.Day);
+        this.activeBridgeTurn = DecisionBridgeRules.CreateTurn(
+            snapshot,
+            sequence,
+            DecisionBridgeRules.TimestampForSequence(sequence),
+            proposal.TargetTileX,
+            proposal.TargetTileY,
+            yesterdayOutcome);
+        this.fallbackProposal = proposal;
+        this.fallbackPending = false;
+        this.pendingBridgeRequest = null;
+        this.pendingBridgeProposal = null;
+        this.activeBridgeRequest = null;
+        this.bridgeHost?.Dispose();
+        try
+        {
+            this.bridgeHost = new DecisionBridgeHost(
+                this.config.DecisionBridgeDirectory,
+                this.config.PollIntervalTicks,
+                this.config.RequestTimeoutTicks);
+            this.bridgeHost.Start(this.activeBridgeTurn);
+        }
+        catch (Exception ex)
+        {
+            this.bridgeHost = null;
+            this.Monitor.Log($"Player2 could not start its decision bridge: {ex.Message}", LogLevel.Warn);
+            this.ShowProposal(proposal);
+            return;
+        }
+        this.Monitor.Log(
+            $"Player2 published decision sequence {sequence} asynchronously and is waiting for DSH without blocking the game.",
+            LogLevel.Info);
+    }
+
+    private void OnUpdateTicked(object? sender, UpdateTickedEventArgs e)
+    {
+        if (!Context.IsWorldReady || !Context.IsMainPlayer || this.bridgeHost is null)
+        {
+            return;
+        }
+        var update = this.bridgeHost.Update();
+        if (update.Error is not null)
+        {
+            this.Monitor.Log($"Player2 decision bridge stopped for this day: {update.Error.Message}", LogLevel.Warn);
+            this.fallbackPending = this.fallbackProposal is not null;
+        }
+        if (update.RecoveredReceipt is not null && this.activeBridgeTurn is not null)
+        {
+            this.MarkSettled(Game1.player, this.activeBridgeTurn.Sequence);
+            this.Monitor.Log(
+                $"Player2 recovered settled sequence {this.activeBridgeTurn.Sequence} from its {update.RecoveredReceipt.Status} receipt; it will not execute again.",
+                LogLevel.Info);
+            this.ClearBridgeDay();
+            return;
+        }
+        if (update.Request is not null && this.activeBridgeTurn is not null)
+        {
+            var validated = DecisionBridgeRules.ValidateRequest(this.activeBridgeTurn, update.Request);
+            this.pendingBridgeRequest = update.Request;
+            this.pendingBridgeProposal = validated.GameProposal;
+            this.Monitor.Log(
+                $"Player2 received grounded DSH proposal {update.Request.Proposal.Id}; it is awaiting native player consent.",
+                LogLevel.Info);
+        }
+        this.TryPresentPendingBridgeChoice();
+    }
+
+    private void TryPresentPendingBridgeChoice()
+    {
+        if (!Context.IsPlayerFree || Game1.activeClickableMenu is not null)
+        {
+            return;
+        }
+        if (this.pendingBridgeRequest is not null && this.pendingBridgeProposal is not null)
+        {
+            this.activeBridgeRequest = this.pendingBridgeRequest;
+            this.activeProposal = this.pendingBridgeProposal;
+            this.pendingBridgeRequest = null;
+            this.pendingBridgeProposal = null;
+            this.OpenProposalDialogue(this.activeProposal);
+            return;
+        }
+        if (this.fallbackPending && this.fallbackProposal is not null)
+        {
+            this.fallbackPending = false;
+            this.Monitor.Log("Player2 is using the deterministic local proposal for this day.", LogLevel.Info);
+            this.ShowProposal(this.fallbackProposal);
+        }
+    }
+
+    private void OnReturnedToTitle(object? sender, ReturnedToTitleEventArgs e)
+    {
+        this.ClearBridgeDay();
+        this.activeProposal = null;
+    }
+
+    private void ShowProposal(Player2Proposal proposal)
+    {
+        this.activeBridgeRequest = null;
+        this.activeProposal = proposal;
+        this.OpenProposalDialogue(proposal);
+    }
+
+    private void OpenProposalDialogue(Player2Proposal proposal)
+    {
 
         var responses = new[]
         {
@@ -76,7 +209,7 @@ internal sealed class ModEntry : Mod
             new Response(DeclineProposalId, "Not today"),
         };
 
-        Game1.currentLocation.createQuestionDialogue(this.FormatProposal(this.activeProposal), responses, this.OnProposalAnswered);
+        Game1.currentLocation.createQuestionDialogue(this.FormatProposal(proposal), responses, this.OnProposalAnswered);
     }
 
     /// <summary>Records the player's explicit response without changing gameplay state.</summary>
@@ -85,11 +218,19 @@ internal sealed class ModEntry : Mod
     private void OnProposalAnswered(Farmer farmer, string answer)
     {
         var proposal = this.activeProposal;
+        var bridgeRequest = this.activeBridgeRequest;
         this.activeProposal = null;
+        this.activeBridgeRequest = null;
 
         if (proposal is null)
         {
             this.Monitor.Log("Player2 received a proposal response without an active proposal.", LogLevel.Warn);
+            return;
+        }
+
+        if (bridgeRequest is not null && this.activeBridgeTurn is not null && this.bridgeHost is not null)
+        {
+            this.OnBridgeProposalAnswered(farmer, proposal, bridgeRequest, answer == AcceptProposalId);
             return;
         }
 
@@ -109,11 +250,13 @@ internal sealed class ModEntry : Mod
             this.Monitor.Log(
                 $"Player2 proposal accepted by {farmer.Name}: target tile {proposal.TargetTileX}, {proposal.TargetTileY}; scope {proposal.Scope}; status {acceptedState.Outcome.Status}.",
                 LogLevel.Info);
+            this.FinishLocalFallback(farmer);
             return;
         }
 
         Game1.addHUDMessage(new HUDMessage("Player2: Understood. I will not act on it today."));
         this.Monitor.Log($"Player2 proposal was declined by {farmer.Name}; no world or state change was made.", LogLevel.Info);
+        this.FinishLocalFallback(farmer);
     }
 
     private WorldSnapshot CaptureWorldSnapshot()
@@ -138,6 +281,13 @@ internal sealed class ModEntry : Mod
 
     private bool TryShowWorldReceipt(Player2Proposal proposal)
     {
+        if (Game1.currentLocation.NameOrUniqueName != proposal.Location)
+        {
+            this.Monitor.Log(
+                $"Player2 did not show a receipt because the player moved from {proposal.Location} to {Game1.currentLocation.NameOrUniqueName}.",
+                LogLevel.Warn);
+            return false;
+        }
         try
         {
             var targetPosition = new Vector2(proposal.TargetTileX * Game1.tileSize, proposal.TargetTileY * Game1.tileSize);
@@ -156,6 +306,92 @@ internal sealed class ModEntry : Mod
             this.Monitor.Log($"Player2 could not show its world receipt: {ex.Message}", LogLevel.Error);
             return false;
         }
+    }
+
+    private void OnBridgeProposalAnswered(
+        Farmer farmer,
+        Player2Proposal proposal,
+        BridgeActionRequest request,
+        bool accepted)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var grant = DecisionBridgeRules.CreateGrant(
+            request,
+            accepted,
+            now.ToString("O", CultureInfo.InvariantCulture),
+            now.AddMinutes(5).ToString("O", CultureInfo.InvariantCulture));
+        var authorization = DecisionBridgeRules.Authorize(
+            this.activeBridgeTurn ?? throw new InvalidOperationException("Bridge turn disappeared before settlement."),
+            request,
+            grant,
+            now.ToString("O", CultureInfo.InvariantCulture));
+        BridgeActionReceipt receipt;
+        if (!authorization.MayExecute)
+        {
+            receipt = authorization.TerminalReceipt
+                ?? throw new InvalidOperationException("Terminal authorization has no receipt.");
+            Game1.addHUDMessage(new HUDMessage("Player2: Understood. I will not act on it today."));
+        }
+        else
+        {
+            var receiptShown = this.TryShowWorldReceipt(proposal);
+            var completion = DecisionBridgeRules.CompleteGranted(
+                authorization,
+                receiptShown,
+                DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture));
+            receipt = completion.Receipt;
+            this.SaveLocalState(farmer, completion.State);
+            Game1.addHUDMessage(new HUDMessage(
+                $"Player2: {receipt.Status} at {receipt.Target ?? "the agreed target"}; scope: {receipt.Scope}."));
+        }
+
+        var sequence = this.activeBridgeTurn.Sequence;
+        this.MarkSettled(farmer, sequence);
+        this.bridgeHost?.RecordSettlement(grant, receipt);
+        this.Monitor.Log(
+            $"Player2 settled DSH decision sequence {sequence} as {receipt.Status}; granted: {grant.Granted}.",
+            LogLevel.Info);
+        this.ClearBridgeDay(keepHost: true);
+    }
+
+    private bool IsSettled(Farmer farmer, int sequence)
+    {
+        return farmer.modData.TryGetValue(SettledSequenceStateKey, out var value) &&
+            int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var settled) &&
+            settled >= sequence;
+    }
+
+    private void MarkSettled(Farmer farmer, int sequence)
+    {
+        farmer.modData[SettledSequenceStateKey] = sequence.ToString(CultureInfo.InvariantCulture);
+    }
+
+    private void FinishLocalFallback(Farmer farmer)
+    {
+        if (this.activeBridgeTurn is null)
+        {
+            return;
+        }
+        this.MarkSettled(farmer, this.activeBridgeTurn.Sequence);
+        this.Monitor.Log(
+            $"Player2 settled bridge sequence {this.activeBridgeTurn.Sequence} through its deterministic local fallback.",
+            LogLevel.Info);
+        this.ClearBridgeDay();
+    }
+
+    private void ClearBridgeDay(bool keepHost = false)
+    {
+        if (!keepHost)
+        {
+            this.bridgeHost?.Dispose();
+            this.bridgeHost = null;
+        }
+        this.activeBridgeTurn = null;
+        this.activeBridgeRequest = null;
+        this.pendingBridgeRequest = null;
+        this.pendingBridgeProposal = null;
+        this.fallbackProposal = null;
+        this.fallbackPending = false;
     }
 
     private void SaveLocalState(Farmer farmer, AcceptedState acceptedState)
