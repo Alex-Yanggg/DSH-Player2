@@ -29,6 +29,21 @@ try {
     `${JSON.stringify(fixture.turn, null, 2)}\n`,
     "utf8",
   );
+  // A receipt from an earlier day proves the recall tool inside the dispatch loop.
+  await mkdir(join(bridgeDirectory, "receipts"), { recursive: true });
+  await writeFile(
+    join(bridgeDirectory, "receipts", "receipt-12.json"),
+    `${JSON.stringify({
+      proposalId: "turn-12:proposal",
+      capabilityId: expectedProposal.capabilityId,
+      status: "completed",
+      occurredAt: "2026-08-28T00:00:00.000Z",
+      target: expectedProposal.intent.target,
+      scope: expectedProposal.scope,
+      detail: "The earlier marker was placed and faded overnight.",
+    }, null, 2)}\n`,
+    "utf8",
+  );
 
   const ctx = new Context();
   await ctx.plugin(SystemPrompt);
@@ -42,8 +57,9 @@ try {
   });
 
   const signal = new AbortController().signal;
-  // Plays the model role: the real DSH composition would invoke the same three
-  // tools through the skill pipeline the dispatcher wakes.
+  // Plays the model role: the real DSH composition would invoke the same tool
+  // pipeline — including the receipt-memory recall — through the session the
+  // dispatcher wakes.
   let runnerCalls = 0;
   const runner = {
     async runDecisionTurn(sequence) {
@@ -53,6 +69,12 @@ try {
           callId: CallId(`dispatch-observe-${sequence}`),
           name: companionPlugin.DECISION_TOOL_NAMES.observe,
           arguments: { sequence },
+          signal,
+        },
+        {
+          callId: CallId(`dispatch-recall-${sequence}`),
+          name: companionPlugin.DECISION_TOOL_NAMES.recall,
+          arguments: {},
           signal,
         },
         {

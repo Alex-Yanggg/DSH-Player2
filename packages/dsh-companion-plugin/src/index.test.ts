@@ -126,7 +126,8 @@ describe("Player DSH companion composition", () => {
     }));
 
     expect(skills).toEqual([expect.objectContaining({ name: companionPlugin.GROUNDED_DECISION_SKILL })]);
-    expect(prompt).toContain("game_observe → companion_propose → game_request_action");
+    expect(prompt).toContain("game_observe → companion_recall → companion_propose → game_request_action");
+    expect(prompt).toContain("Recalled outcomes are history");
 
     const signal = new AbortController().signal;
     const observed = await ctx.tools.execute({
@@ -163,5 +164,39 @@ describe("Player DSH companion composition", () => {
     expect(executeShell).not.toHaveBeenCalled();
     expect(JSON.parse(await readFile(join(bridgeDirectory, "outbox", "request-1.json"), "utf8")))
       .toMatchObject({ sequence: 1, status: "awaiting-player", proposal: { id: "turn-1:proposal" } });
+  });
+
+  it("recalls receipts in decision mode and denies the tool in social mode", async () => {
+    const bridgeDirectory = await createDecisionBridgeRoot();
+    await mkdir(join(bridgeDirectory, "receipts"), { recursive: true });
+    await writeFile(join(bridgeDirectory, "receipts", "receipt-4.json"), JSON.stringify({
+      proposalId: "turn-4:proposal",
+      capabilityId: "mark-target",
+      status: "completed",
+      occurredAt: "2026-08-28T00:00:00.000Z",
+      target: "farm:tile:12,8",
+      scope: "one temporary marker",
+      detail: "The marker was placed and faded overnight.",
+    }), "utf8");
+
+    const decision = await createComposition({ mode: "decision", bridgeDirectory });
+    const recalled = await decision.tools.execute({
+      callId: CallId("call-recall"),
+      name: companionPlugin.DECISION_TOOL_NAMES.recall,
+      arguments: {},
+      signal: new AbortController().signal,
+    });
+    expect(recalled.isError, JSON.stringify(recalled)).toBe(false);
+    expect(JSON.stringify(recalled.content)).toContain("Recalled 1 past outcome(s)");
+
+    const social = await createComposition();
+    const denied = await social.tools.execute({
+      callId: CallId("call-recall-social"),
+      name: companionPlugin.DECISION_TOOL_NAMES.recall,
+      arguments: {},
+      signal: new AbortController().signal,
+    });
+    expect(denied).toMatchObject({ isError: true });
+    expect(denied.content).toEqual([expect.objectContaining({ text: expect.stringContaining("allowed tools: skill") })]);
   });
 });
