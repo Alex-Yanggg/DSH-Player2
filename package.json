@@ -1,0 +1,21 @@
+{
+  "name": "dsh-player2",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "accept:0.0.2": "npm run typecheck && npm test && npm run replay",
+    "build": "npm run build --workspaces --if-present",
+    "smoke:dsh-companion": "npm run build && node scripts/live-dsh-companion-smoke.mjs",
+    "replay": "npm run build && node scripts/replay-social-turn.mjs",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  }
+}

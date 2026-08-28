@@ -1,0 +1,36 @@
+{
+  "id": "rainy-suggestion",
+  "gameDay": 42,
+  "now": "2026-08-28T00:00:00.000Z",
+  "message": {
+    "id": "message-rain-42",
+    "content": "今天该做什么？",
+    "createdAt": "2026-08-28T00:00:00.000Z"
+  },
+  "observations": [
+    {
+      "id": "weather-42",
+      "kind": "world",
+      "observedAt": "2026-08-28T00:00:00.000Z",
+      "expiresAt": null,
+      "source": "fixture",
+      "accessMode": "semantic",
+      "confidence": 1,
+      "facts": { "weather": "rain", "location": "Farm" }
+    }
+  ],
+  "latestReceipt": {
+    "proposalId": "proposal-rain-42",
+    "capabilityId": "visual-receipt",
+    "status": "completed",
+    "occurredAt": "2026-08-28T00:00:00.000Z",
+    "target": "tile 12, 8",
+    "scope": "visual marker + sound only",
+    "detail": "A temporary marker was shown."
+  },
+  "expected": {
+    "responseKind": "suggestion",
+    "memoryId": "outcome:proposal-rain-42",
+    "traceTypes": ["observations", "player-message", "latest-receipt", "response", "memory-retained"]
+  }
+}
