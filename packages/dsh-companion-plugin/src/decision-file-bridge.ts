@@ -36,7 +36,7 @@ export interface ReceiptDigestEntry {
 /** Bounded, newest-first projection of Player-persisted receipts. */
 export interface ReceiptDigest {
   readonly entries: ReceiptDigestEntry[];
-  /** Receipt files present but not readable as valid receipts; surfaced honestly. */
+  /** Receipt files within the scanned window that were not readable as valid receipts. */
   readonly skipped: number;
 }
 

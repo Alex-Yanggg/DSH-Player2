@@ -42,6 +42,18 @@ async function createBridge() {
   return { root, bridge: new DecisionFileBridge(root) };
 }
 
+function receiptFile(sequence: number, status: string): string {
+  return JSON.stringify({
+    proposalId: `turn-${sequence}:proposal`,
+    capabilityId: "mark-target",
+    status,
+    occurredAt: "2026-08-29T00:00:00.000Z",
+    target: "farm:tile:12,8",
+    scope: "one temporary marker",
+    detail: `Day ${sequence} shared outcome.`,
+  });
+}
+
 afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
 });
@@ -153,5 +165,48 @@ describe("DecisionFileBridge", () => {
     const { bridge } = await createBridge();
 
     await expect(bridge.recall()).resolves.toEqual({ entries: [], skipped: 0 });
+  });
+
+  it("returns only the eight newest receipts when more exist", async () => {
+    const { root, bridge } = await createBridge();
+    await mkdir(join(root, "receipts"), { recursive: true });
+    for (let sequence = 1; sequence <= 12; sequence += 1) {
+      await writeFile(
+        join(root, "receipts", `receipt-${sequence}.json`),
+        receiptFile(sequence, "completed"),
+        "utf8",
+      );
+    }
+
+    const digest = await bridge.recall();
+
+    expect(digest.entries.map((entry) => entry.sequence)).toEqual([12, 11, 10, 9, 8, 7, 6, 5]);
+    expect(digest.skipped).toBe(0);
+  });
+
+  it("truncates oversized scope and detail in the digest", async () => {
+    const { root, bridge } = await createBridge();
+    await mkdir(join(root, "receipts"), { recursive: true });
+    await writeFile(
+      join(root, "receipts", "receipt-2.json"),
+      JSON.stringify({
+        proposalId: "turn-2:proposal",
+        capabilityId: "mark-target",
+        status: "completed",
+        occurredAt: "2026-08-29T00:00:00.000Z",
+        target: "farm:tile:12,8",
+        scope: "s".repeat(300),
+        detail: "d".repeat(500),
+      }),
+      "utf8",
+    );
+
+    const digest = await bridge.recall();
+
+    expect(digest.entries).toHaveLength(1);
+    expect(digest.entries[0].scope).toHaveLength(121);
+    expect(digest.entries[0].scope.endsWith("…")).toBe(true);
+    expect(digest.entries[0].detail).toHaveLength(201);
+    expect(digest.entries[0].detail.endsWith("…")).toBe(true);
   });
 });
