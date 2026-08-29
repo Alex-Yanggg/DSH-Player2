@@ -173,6 +173,12 @@ export interface SocialPresenter {
 
 export const decisionTurnVersion = "0.0.3" as const;
 
+/**
+ * Single byte bound for one persisted bridge file. Writers refuse more and
+ * readers refuse to buffer more, so both ends drift together, never apart.
+ */
+export const bridgeFileLimit = 64 * 1024;
+
 const decisionAdapterDescriptorSchema = adapterDescriptorSchema.extend({
   capabilities: z.array(capabilityDescriptorSchema).max(16),
 });

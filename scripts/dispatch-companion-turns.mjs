@@ -53,8 +53,14 @@ async function shutdown() {
     return;
   }
   stopping = true;
-  await dispatcher.stop().catch(() => undefined);
-  await runner.close().catch(() => undefined);
+  try {
+    await dispatcher.stop();
+    await runner.close();
+  } catch (error) {
+    // Development posture: shutdown problems must be visible, never swallowed.
+    console.error("player2-dispatch: shutdown failed:", error);
+    process.exit(1);
+  }
   // Registering a signal handler disables Node's default exit, so end explicitly.
   process.exit(0);
 }

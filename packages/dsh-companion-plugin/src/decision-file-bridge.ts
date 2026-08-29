@@ -3,6 +3,7 @@ import { link, mkdir, open, readdir, unlink } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import {
   actionRequestSchema,
+  bridgeFileLimit,
   decisionTurnEnvelopeSchema,
   decisionTurnVersion,
   proposalSchema,
@@ -12,7 +13,6 @@ import {
   type Proposal,
 } from "@dsh-player2/contracts";
 
-const MAX_BRIDGE_FILE_BYTES = 64 * 1024;
 const MAX_CITED_OBSERVATIONS = 8;
 const MAX_RECALLED_RECEIPTS = 8;
 const MAX_DIGEST_DETAIL_LENGTH = 200;
@@ -251,10 +251,10 @@ export class DecisionFileBridge {
     let serialized: string;
     try {
       const stats = await handle.stat();
-      if (stats.size > MAX_BRIDGE_FILE_BYTES) {
-        throw new Error(`The persisted ${label} exceeds the ${MAX_BRIDGE_FILE_BYTES} byte limit.`);
+      if (stats.size > bridgeFileLimit) {
+        throw new Error(`The persisted ${label} exceeds the ${bridgeFileLimit} byte limit.`);
       }
-      const buffer = Buffer.alloc(MAX_BRIDGE_FILE_BYTES + 1);
+      const buffer = Buffer.alloc(bridgeFileLimit + 1);
       let offset = 0;
       while (offset < buffer.length) {
         const { bytesRead } = await handle.read(buffer, offset, buffer.length - offset, offset);
@@ -263,8 +263,8 @@ export class DecisionFileBridge {
         }
         offset += bytesRead;
       }
-      if (offset > MAX_BRIDGE_FILE_BYTES) {
-        throw new Error(`The persisted ${label} exceeds the ${MAX_BRIDGE_FILE_BYTES} byte limit.`);
+      if (offset > bridgeFileLimit) {
+        throw new Error(`The persisted ${label} exceeds the ${bridgeFileLimit} byte limit.`);
       }
       serialized = buffer.subarray(0, offset).toString("utf8");
     } finally {
