@@ -40,6 +40,7 @@ async function createDecisionBridgeRoot(): Promise<string> {
       capabilities: [{
         id: "mark-target",
         title: "Mark one agreed target",
+        scope: "one temporary marker",
         accessMode: "semantic",
         requiresExplicitConsent: true,
         isReversible: true,

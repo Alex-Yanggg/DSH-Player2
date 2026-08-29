@@ -146,6 +146,7 @@ public static class DecisionBridgeRules
                     .Select(capability => new BridgeCapabilityDescriptor(
                         capability.Id,
                         capability.Title,
+                        capability.Scope,
                         "semantic",
                         true,
                         true,
@@ -404,6 +405,7 @@ public static class DecisionBridgeRules
 public sealed record BridgeCapabilityDescriptor(
     [property: JsonPropertyName("id")] string Id,
     [property: JsonPropertyName("title")] string Title,
+    [property: JsonPropertyName("scope")] string Scope,
     [property: JsonPropertyName("accessMode")] string AccessMode,
     [property: JsonPropertyName("requiresExplicitConsent")] bool RequiresExplicitConsent,
     [property: JsonPropertyName("isReversible")] bool IsReversible,

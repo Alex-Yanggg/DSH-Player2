@@ -20,6 +20,7 @@ export type Observation = z.infer<typeof observationSchema>;
 export const capabilityDescriptorSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
+  scope: z.string().min(1),
   accessMode: accessModeSchema,
   requiresExplicitConsent: z.boolean(),
   isReversible: z.boolean(),

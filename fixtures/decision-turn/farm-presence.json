@@ -16,7 +16,8 @@
           "accessMode": "semantic",
           "requiresExplicitConsent": true,
           "isReversible": true,
-          "inputSchemaRef": "player2://visual-receipt/0.1"
+          "inputSchemaRef": "player2://visual-receipt/0.1",
+          "scope": "visual marker + sound only"
         },
         {
           "id": "companion-presence",
@@ -24,7 +25,8 @@
           "accessMode": "semantic",
           "requiresExplicitConsent": true,
           "isReversible": true,
-          "inputSchemaRef": "player2://presence-sprite/0.1"
+          "inputSchemaRef": "player2://presence-sprite/0.1",
+          "scope": "temporary presence sprite only"
         }
       ]
     },
