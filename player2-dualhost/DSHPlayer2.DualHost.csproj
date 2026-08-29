@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <RootNamespace>DSHPlayer2.DualHost</RootNamespace>
+    <AssemblyName>DSHPlayer2.DualHost</AssemblyName>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\player2-core\DSHPlayer2.Core.csproj" />
+  </ItemGroup>
+</Project>
