@@ -1,7 +1,7 @@
 import { readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { DeepSeekHarness, type DeepSeekHarnessOptions, type RunResult } from "@deepseek-ai/dsh-sdk-client";
-import { actionRequestSchema, decisionTurnVersion } from "@dsh-player2/contracts";
+import { actionRequestSchema, bridgeFileLimit, decisionTurnVersion } from "@dsh-player2/contracts";
 
 /**
  * The only DSH-facing operation the dispatcher needs: drive one Player decision
@@ -19,14 +19,12 @@ export class RequestNotWrittenError extends Error {
   }
 }
 
-const MAX_BRIDGE_FILE_BYTES = 64 * 1024;
-
 /** Read one outbox request without following model-controlled paths. */
 export async function readBridgeRequest(bridgeDirectory: string, sequence: number): Promise<unknown> {
   const path = join(bridgeDirectory, "outbox", `request-${sequence}.json`);
   let serialized: string;
   try {
-    if (await stat(path).then((stats) => stats.size > MAX_BRIDGE_FILE_BYTES)) {
+    if (await stat(path).then((stats) => stats.size > bridgeFileLimit)) {
       throw new Error();
     }
     serialized = await readFile(path, "utf8");

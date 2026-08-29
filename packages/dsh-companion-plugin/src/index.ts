@@ -11,6 +11,9 @@ import { defineTool } from "@deepseek-ai/dsh-tools";
 import z from "@deepseek-ai/schemastery";
 import { DecisionFileBridge } from "./decision-file-bridge.js";
 
+export { DecisionFileBridge } from "./decision-file-bridge.js";
+export type { ProposalDraftInput, ReceiptDigest, ReceiptDigestEntry } from "./decision-file-bridge.js";
+
 /** Cordis plugin name. */
 export const name = "player2-companion";
 

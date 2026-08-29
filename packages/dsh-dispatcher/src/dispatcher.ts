@@ -266,7 +266,12 @@ export class BridgeDispatcher {
       this.watcher = watch(target, { persistent: false }, () => this.wake());
       this.watcherTarget = inboxExists ? "inbox" : "root";
       this.watcher.on("error", () => this.closeWatcher());
-    } catch {
+    } catch (error) {
+      // Polling remains the correctness backstop, but the watcher degradation
+      // is surfaced so latency surprises are never silent.
+      this.logger.warn(
+        `Inbox watcher unavailable on ${target}; falling back to polling: ${error instanceof Error ? error.message : String(error)}`,
+      );
       this.watcherTarget = undefined;
     }
   }
