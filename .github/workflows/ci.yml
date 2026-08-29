@@ -29,4 +29,6 @@ jobs:
       - name: Test Player2 core rules
         run: dotnet test player2-core.tests/DSHPlayer2.Core.Tests.csproj --configuration Release
       - name: Verify TypeScript core
-        run: npm ci && npm run typecheck && npm run build && npm test
+        # Build first: project-reference typechecks read contracts' declared
+        # dist outputs, which only exist after the build on a fresh checkout.
+        run: npm ci && npm run build && npm run typecheck && npm test
