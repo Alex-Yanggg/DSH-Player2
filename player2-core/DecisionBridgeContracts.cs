@@ -17,6 +17,50 @@ public static class DecisionBridgeRules
     public const int MaxCitedObservations = 8;
     public const int MaxReasonLength = 800;
 
+    /// <summary>One Player-advertised capability with its own bounded scope and receipt language.</summary>
+    public sealed record CapabilityDefinition(
+        string Id,
+        string Title,
+        string Scope,
+        string InputSchemaRef,
+        string GrantedDetail,
+        string FailedDetail);
+
+    /// <summary>The temporary world marker: the original reversible visual receipt.</summary>
+    public static readonly CapabilityDefinition VisualReceipt = new(
+        CapabilityId,
+        "Show one temporary world marker",
+        AllowedScope,
+        "player2://visual-receipt/0.1",
+        "A temporary world marker was shown.",
+        "The temporary world marker could not be shown.");
+
+    /// <summary>
+    /// Companion presence: a temporary sprite built from Stardew Valley's own
+    /// player character template. It adds no gameplay effect and no custom art;
+    /// it is the smallest observable step toward a companion with a body.
+    /// </summary>
+    public static readonly CapabilityDefinition CompanionPresence = new(
+        "companion-presence",
+        "Stand beside the agreed target as a temporary farmer-template presence",
+        "temporary presence sprite only",
+        "player2://presence-sprite/0.1",
+        "The companion stood beside the target using the player template.",
+        "The companion presence could not be shown.");
+
+    /// <summary>The complete Player-owned capability catalog advertised on every turn.</summary>
+    public static readonly IReadOnlyList<CapabilityDefinition> Capabilities = new[]
+    {
+        VisualReceipt,
+        CompanionPresence,
+    };
+
+    public static CapabilityDefinition Capability(string capabilityId)
+    {
+        return Capabilities.FirstOrDefault(capability => capability.Id == capabilityId)
+            ?? throw new InvalidOperationException($"Unknown capability {capabilityId}.");
+    }
+
     /// <summary>Returns a stable game-clock timestamp so same-day restart reproduces the same inbox value.</summary>
     public static string TimestampForSequence(int sequence)
     {
@@ -98,16 +142,15 @@ public static class DecisionBridgeRules
                 "stardew-smapi",
                 "stardew-valley",
                 "semantic",
-                new[]
-                {
-                    new BridgeCapabilityDescriptor(
-                        CapabilityId,
-                        "Show one temporary world marker",
+                Capabilities
+                    .Select(capability => new BridgeCapabilityDescriptor(
+                        capability.Id,
+                        capability.Title,
                         "semantic",
                         true,
                         true,
-                        "player2://visual-receipt/0.1"),
-                }),
+                        capability.InputSchemaRef))
+                    .ToArray()),
             observations.ToArray());
     }
 
@@ -129,8 +172,16 @@ public static class DecisionBridgeRules
         {
             throw new InvalidOperationException("Action request has an invalid proposal identity.");
         }
-        if (proposal.CapabilityId != CapabilityId ||
-            !turn.Adapter.Capabilities.Any(capability => capability.Id == CapabilityId))
+        CapabilityDefinition capability;
+        try
+        {
+            capability = Capability(proposal.CapabilityId);
+        }
+        catch (InvalidOperationException)
+        {
+            throw new InvalidOperationException("Action request selected an unavailable capability.");
+        }
+        if (!turn.Adapter.Capabilities.Any(advertised => advertised.Id == proposal.CapabilityId))
         {
             throw new InvalidOperationException("Action request selected an unavailable capability.");
         }
@@ -147,7 +198,7 @@ public static class DecisionBridgeRules
         {
             throw new InvalidOperationException("Action request is not grounded in the current turn.");
         }
-        if (proposal.Scope != AllowedScope || string.IsNullOrWhiteSpace(proposal.Reason) || proposal.Reason.Length > MaxReasonLength)
+        if (proposal.Scope != capability.Scope || string.IsNullOrWhiteSpace(proposal.Reason) || proposal.Reason.Length > MaxReasonLength)
         {
             throw new InvalidOperationException("Action request exceeds the advertised capability scope.");
         }
@@ -225,12 +276,13 @@ public static class DecisionBridgeRules
         var proposal = authorization.Validated.GameProposal;
         var state = Player2Rules.CreateAcceptedState(proposal, true, receiptShown)
             ?? throw new InvalidOperationException("Granted proposal did not produce retained state.");
+        var capability = Capability(authorization.Validated.Request.Proposal.CapabilityId);
         var receipt = CreateReceipt(
             authorization.Validated.Request,
             receiptShown ? "completed" : "failed",
             occurredAt,
             FormatTarget(proposal.Location, proposal.TargetTileX, proposal.TargetTileY),
-            receiptShown ? "A temporary world marker was shown." : "The temporary world marker could not be shown.");
+            receiptShown ? capability.GrantedDetail : capability.FailedDetail);
         return new DecisionCompletion(state, receipt);
     }
 

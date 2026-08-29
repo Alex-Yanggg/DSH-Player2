@@ -18,10 +18,12 @@
     "replay": "npm run build && node scripts/replay-social-turn.mjs",
     "replay:decision": "npm run build && node scripts/replay-decision-turn.mjs",
     "replay:decision:stardew": "npm run build && node scripts/replay-decision-turn.mjs fixtures/decision-turn/stardew-visual-receipt.json",
+    "replay:decision:presence": "npm run build && node scripts/replay-decision-turn.mjs fixtures/decision-turn/farm-presence.json",
     "replay:dispatch": "npm run build && node scripts/replay-dispatch-turn.mjs",
     "replay:dual": "npm run build && node scripts/replay-dual-end.mjs",
     "test": "npm run test --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "accept:0.0.7": "npm run accept:0.0.5 && npm run replay:decision:presence && npm run replay:dual"
   },
   "devDependencies": {
     "typescript": "5.9.3",

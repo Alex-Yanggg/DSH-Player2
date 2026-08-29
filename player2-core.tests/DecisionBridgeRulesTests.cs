@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using DSHPlayer2.Core;
 using Xunit;
@@ -124,6 +125,48 @@ public sealed class DecisionBridgeRulesTests
         };
 
         Assert.Throws<InvalidOperationException>(() => DecisionBridgeRules.ValidateReceipt(turn, receipt));
+    }
+
+    [Fact]
+    public void AdvertisesAndValidatesThePresenceCapabilityWithItsOwnScope()
+    {
+        var createdAt = "2026-08-29T00:00:00.000Z";
+        var turn = DecisionBridgeRules.CreateTurn(
+            new WorldSnapshot(12, "rain", "Farm", "none"),
+            12,
+            createdAt,
+            12,
+            8,
+            yesterdayOutcome: null);
+        Assert.Equal(
+            new[] { DecisionBridgeRules.CapabilityId, DecisionBridgeRules.CompanionPresence.Id },
+            turn.Adapter.Capabilities.Select(capability => capability.Id).ToArray());
+
+        var presenceRequest = new BridgeActionRequest(
+            DecisionBridgeRules.WireVersion,
+            12,
+            DecisionBridgeRules.AwaitingPlayerStatus,
+            new BridgeProposal(
+                "turn-12:proposal",
+                createdAt,
+                new[] { "world-12" },
+                DecisionBridgeRules.CompanionPresence.Id,
+                new BridgeProposalIntent("stardew-location:Farm:tile:12,8"),
+                DecisionBridgeRules.CompanionPresence.Scope,
+                "Standing nearby makes planning easier."));
+        var grant = DecisionBridgeRules.CreateGrant(
+            presenceRequest,
+            true,
+            "2026-08-29T00:00:01.000Z",
+            "2026-08-29T00:05:00.000Z");
+        var authorization = DecisionBridgeRules.Authorize(turn, presenceRequest, grant, "2026-08-29T00:00:02.000Z");
+        var receipt = DecisionBridgeRules.CompleteGranted(authorization, true, "2026-08-29T00:00:03.000Z").Receipt;
+
+        Assert.True(authorization.MayExecute);
+        Assert.Equal(DecisionBridgeRules.CompanionPresence.GrantedDetail, receipt.Detail);
+        Assert.Throws<InvalidOperationException>(() => DecisionBridgeRules.ValidateRequest(
+            turn,
+            presenceRequest with { Proposal = presenceRequest.Proposal with { Scope = DecisionBridgeRules.AllowedScope } }));
     }
 
     private static (DecisionTurnEnvelope Turn, BridgeActionRequest Request) LoadGolden()

@@ -279,6 +279,54 @@ internal sealed class ModEntry : Mod
         return Player2Rules.FormatProposal(proposal);
     }
 
+    /// <summary>
+    /// Shows the companion presence receipt using Stardew Valley's own player
+    /// character template - the vanilla farmer base spritesheet, no custom art.
+    /// </summary>
+    private bool TryShowPresenceReceipt(Player2Proposal proposal)
+    {
+        if (Game1.currentLocation.NameOrUniqueName != proposal.Location)
+        {
+            this.Monitor.Log(
+                $"Player2 did not show a presence receipt because the player moved from {proposal.Location} to {Game1.currentLocation.NameOrUniqueName}.",
+                LogLevel.Warn);
+            return false;
+        }
+        try
+        {
+            // The vanilla player base spritesheet, frame 0 (16x32 source pixels),
+            // anchored so the presence stands on the agreed tile. Same bounded
+            // lifetime envelope as the marker receipt.
+            var targetPosition = new Vector2(
+                proposal.TargetTileX * Game1.tileSize,
+                (proposal.TargetTileY * Game1.tileSize) - Game1.tileSize);
+            Game1.currentLocation.temporarySprites.Add(new TemporaryAnimatedSprite(
+                "Characters\\Farmer\\farmer_base",
+                new Rectangle(0, 0, 16, 32),
+                1200f,
+                1,
+                1,
+                targetPosition,
+                flicker: false,
+                flipped: false,
+                layerDepth: 0.72f,
+                alphaFade: 0f,
+                Color.White,
+                scale: Game1.pixelZoom,
+                scaleChange: 0f,
+                rotation: 0f,
+                rotationChange: 0f,
+                local: false));
+            Game1.currentLocation.playSound("dwoop");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            this.Monitor.Log($"Player2 could not show its presence receipt: {ex.Message}", LogLevel.Error);
+            return false;
+        }
+    }
+
     private bool TryShowWorldReceipt(Player2Proposal proposal)
     {
         if (Game1.currentLocation.NameOrUniqueName != proposal.Location)
@@ -334,7 +382,9 @@ internal sealed class ModEntry : Mod
         }
         else
         {
-            var receiptShown = this.TryShowWorldReceipt(proposal);
+            var receiptShown = request.Proposal.CapabilityId == DecisionBridgeRules.CompanionPresence.Id
+                ? this.TryShowPresenceReceipt(proposal)
+                : this.TryShowWorldReceipt(proposal);
             var completion = DecisionBridgeRules.CompleteGranted(
                 authorization,
                 receiptShown,
