@@ -28,7 +28,7 @@ process.env.PLAYER2_BRIDGE_DIRECTORY = bridgeDirectory;
 process.env.DSH_CORDIS_CONFIG = join(repositoryRoot, "fixtures", "dsh", "companion-decision.cordis.yml");
 
 const requestedSession = readFlag("session");
-const sessionSuffix = requestedSession ?? basename(bridgeDirectory).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "save";
+const sessionSuffix = requestedSession ?? (basename(bridgeDirectory).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "save");
 const pollIntervalMs = Number.parseInt(readFlag("poll") ?? "2000", 10) || 2000;
 
 // One dedicated session accumulates the durable event-log relationship history;

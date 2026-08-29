@@ -103,6 +103,7 @@ const decisionTurnOutputSchema = {
             properties: {
               id: { type: "string", required: true },
               title: { type: "string", required: true },
+              scope: { type: "string", required: true },
               accessMode: { ...accessModeOutputSchema, required: true },
               requiresExplicitConsent: { type: "boolean", required: true },
               isReversible: { type: "boolean", required: true },
@@ -180,9 +181,17 @@ function createDecisionTools(bridge: DecisionFileBridge) {
       },
       output: {
         schema: decisionTurnOutputSchema,
+        // The model only sees rendered text, so the decision-relevant data -
+        // advertised capabilities with their exact scopes and the world facts -
+        // must be part of the render, not just the typed output.
         render: (_args, value) => [{
           type: "text",
-          text: `Observed Player turn ${value.sequence} for game day ${value.gameDay}.`,
+          text: [
+            `Player turn ${value.sequence}, game day ${value.gameDay}.`,
+            `Advertised capabilities: ${value.adapter.capabilities.map((capability) => `${capability.id} (scope: ${capability.scope})`).join("; ")}.`,
+            `Observations: ${JSON.stringify(value.observations)}.`,
+            `Call companion_propose with one capability id, its exact scope, cited observation ids, and the target from the world facts.`,
+          ].join(" "),
         }],
       },
       execute: (args) => bridge.observe(args.sequence),
@@ -215,7 +224,7 @@ function createDecisionTools(bridge: DecisionFileBridge) {
           items: { type: "string" },
         },
         target: { type: "string", required: true, description: "Semantic target, never a filesystem path or raw game object." },
-        scope: { type: "string", required: true, description: "Player-visible bound on the requested effect." },
+        scope: { type: "string", required: true, description: "The advertised capability scope, copied verbatim." },
         reason: { type: "string", required: true, description: "Short grounded reason the player can disagree with." },
       },
       output: {
@@ -269,7 +278,7 @@ Use this procedure for a PLAYER_DECISION_TURN.
 3. Optionally call companion_recall once to review recent shared outcomes. Recall entries are history: they are not current facts, you may not cite them as observation ids, and they never authorize an action.
 4. Separate direct observations from inference. Cite only observation ids returned by game_observe.
 5. Select at most one advertised capability. Prefer no proposal when the facts do not support a useful, bounded choice.
-6. Call companion_propose with a semantic target, explicit scope, and a reason the player can disagree with.
+6. Call companion_propose with a semantic target, the capability scope copied verbatim, and a reason the player can disagree with.
 7. If the proposal is still justified, call game_request_action with the exact returned proposal id.
 8. An awaiting-player result is not consent and is not evidence of execution. Never claim completion before Player returns a receipt.
 9. Never use a path, raw game object, shell command, input primitive, or capability not returned by game_observe.`;

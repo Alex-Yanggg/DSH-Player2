@@ -100,8 +100,13 @@ export class DecisionFileBridge {
     if (unknownObservation !== undefined) {
       throw new Error(`Proposal cited unknown observation ${JSON.stringify(unknownObservation)}.`);
     }
-    if (!turn.adapter.capabilities.some((capability) => capability.id === input.capabilityId)) {
+    const capability = turn.adapter.capabilities.find((candidate) => candidate.id === input.capabilityId);
+    if (capability === undefined) {
       throw new Error(`Proposal selected unknown capability ${JSON.stringify(input.capabilityId)}.`);
+    }
+    if (input.scope !== capability.scope) {
+      throw new Error(
+        `Proposal scope must copy the advertised capability scope verbatim: ${JSON.stringify(capability.scope)}.`);
     }
 
     const proposal = proposalSchema.parse({

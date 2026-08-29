@@ -16,7 +16,8 @@
           "accessMode": "semantic",
           "requiresExplicitConsent": true,
           "isReversible": true,
-          "inputSchemaRef": "player2://mark-target/0.1"
+          "inputSchemaRef": "player2://mark-target/0.1",
+          "scope": "one temporary marker"
         }
       ]
     },
