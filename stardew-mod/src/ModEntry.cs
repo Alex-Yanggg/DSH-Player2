@@ -318,13 +318,13 @@ internal sealed class ModEntry : Mod
         var grant = DecisionBridgeRules.CreateGrant(
             request,
             accepted,
-            now.ToString("O", CultureInfo.InvariantCulture),
-            now.AddMinutes(5).ToString("O", CultureInfo.InvariantCulture));
+            DecisionBridgeRules.UtcTimestamp(now),
+            DecisionBridgeRules.UtcTimestamp(now.AddMinutes(5)));
         var authorization = DecisionBridgeRules.Authorize(
             this.activeBridgeTurn ?? throw new InvalidOperationException("Bridge turn disappeared before settlement."),
             request,
             grant,
-            now.ToString("O", CultureInfo.InvariantCulture));
+            DecisionBridgeRules.UtcTimestamp(now));
         BridgeActionReceipt receipt;
         if (!authorization.MayExecute)
         {
@@ -338,7 +338,7 @@ internal sealed class ModEntry : Mod
             var completion = DecisionBridgeRules.CompleteGranted(
                 authorization,
                 receiptShown,
-                DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture));
+                DecisionBridgeRules.TimestampNow());
             receipt = completion.Receipt;
             this.SaveLocalState(farmer, completion.State);
             Game1.addHUDMessage(new HUDMessage(

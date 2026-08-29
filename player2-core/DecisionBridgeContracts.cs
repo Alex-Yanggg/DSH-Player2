@@ -21,7 +21,23 @@ public static class DecisionBridgeRules
     public static string TimestampForSequence(int sequence)
     {
         AssertSequence(sequence);
-        return DateTimeOffset.UnixEpoch.AddDays(sequence).ToString("O", CultureInfo.InvariantCulture);
+        return UtcTimestamp(DateTimeOffset.UnixEpoch.AddDays(sequence));
+    }
+
+    /// <summary>Returns the current UTC time in the wire timestamp format.</summary>
+    public static string TimestampNow()
+    {
+        return UtcTimestamp(DateTimeOffset.UtcNow);
+    }
+
+    /// <summary>
+    /// Renders one timestamp in the exact wire format the TypeScript contracts accept:
+    /// UTC with the "Z" suffix. DateTimeOffset's round-trip "O" format would emit
+    /// "+00:00", which the cross-language schema rejects.
+    /// </summary>
+    public static string UtcTimestamp(DateTimeOffset value)
+    {
+        return value.UtcDateTime.ToString("O", CultureInfo.InvariantCulture);
     }
 
     /// <summary>Creates the bounded Player-authored facts exposed to DSH for one game day.</summary>
@@ -322,9 +338,13 @@ public static class DecisionBridgeRules
 
     private static void AssertTimestamp(string value, string name)
     {
-        if (!DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out _))
+        // The TypeScript contracts accept only UTC "Z" timestamps; accepting
+        // offsets here would let both ends disagree until the schema rejects it.
+        if (!value.EndsWith("Z", StringComparison.Ordinal)
+            || !DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsed)
+            || parsed.Offset != TimeSpan.Zero)
         {
-            throw new ArgumentException("Decision timestamps must be ISO-8601 values.", name);
+            throw new ArgumentException("Decision timestamps must be UTC ISO-8601 values ending in 'Z'.", name);
         }
     }
 }
