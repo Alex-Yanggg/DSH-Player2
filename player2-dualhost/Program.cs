@@ -1,0 +1,158 @@
+using System;
+using System.Globalization;
+using System.IO;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Threading;
+using DSHPlayer2.Core;
+
+namespace DSHPlayer2.DualHost;
+
+/// <summary>
+/// Headless stand-in for the SMAPI mod used by the unattended dual-end harness.
+/// It runs the exact pure day cycle the mod runs — publish turn, poll request,
+/// scripted consent, settlement — against a real bridge directory, then prints
+/// one outcome JSON line and exits. Failures crash loudly on purpose: this tool
+/// exists to surface cross-language contract drift, not to survive it.
+/// </summary>
+public static class Program
+{
+    public static int Main(string[] args)
+    {
+        var options = Options.Parse(args);
+        using var host = new DecisionBridgeHost(options.Bridge, pollIntervalTicks: 1, requestTimeoutTicks: int.MaxValue);
+        var turn = DecisionBridgeRules.CreateTurn(
+            new WorldSnapshot(options.Sequence, "rain", "Farm", "none"),
+            options.Sequence,
+            DecisionBridgeRules.TimestampNow(),
+            targetTileX: 12,
+            targetTileY: 8,
+            yesterdayOutcome: null);
+        host.Start(turn);
+
+        var deadline = DateTime.UtcNow.AddSeconds(options.TimeoutSeconds);
+        var settled = false;
+        while (!settled)
+        {
+            if (DateTime.UtcNow > deadline)
+            {
+                Console.Error.WriteLine($"dualhost: timed out after {options.TimeoutSeconds}s waiting for the bridge cycle.");
+                return 2;
+            }
+
+            var update = host.Update();
+            if (update.Error is not null)
+            {
+                Console.Error.WriteLine($"dualhost: bridge failure: {update.Error}");
+                return 1;
+            }
+            if (update.RecoveredReceipt is not null)
+            {
+                Console.Error.WriteLine("dualhost: unexpected recovered receipt; the bridge directory was not clean.");
+                return 1;
+            }
+            if (update.Request is not null)
+            {
+                settled = Settle(host, turn, update.Request, options);
+            }
+            Thread.Sleep(options.PollMilliseconds);
+        }
+
+        WaitPersisted(options, deadline);
+        var receipt = new DecisionBridgeFiles(options.Bridge).TryReadReceiptAsync(options.Sequence).GetAwaiter().GetResult()
+            ?? throw new InvalidOperationException("Settlement reported done but the receipt file is missing.");
+        Console.Out.WriteLine(JsonSerializer.Serialize(new Outcome(
+            options.Sequence,
+            receipt.Status,
+            receipt,
+            "dualhost-ok")));
+        return 0;
+    }
+
+    private static bool Settle(DecisionBridgeHost host, DecisionTurnEnvelope turn, BridgeActionRequest request, Options options)
+    {
+        var decidedAt = DecisionBridgeRules.TimestampNow();
+        var grant = DecisionBridgeRules.CreateGrant(
+            request,
+            options.Consent == ConsentChoice.Grant,
+            decidedAt,
+            DecisionBridgeRules.UtcTimestamp(DateTimeOffset.UtcNow.AddMinutes(5)));
+        var authorization = DecisionBridgeRules.Authorize(turn, request, grant, decidedAt);
+        var receipt = authorization.MayExecute
+            ? DecisionBridgeRules.CompleteGranted(authorization, receiptShown: true, decidedAt).Receipt
+            : authorization.TerminalReceipt ?? throw new InvalidOperationException("Denied authorization without a terminal receipt.");
+        host.RecordSettlement(grant, receipt);
+        return true;
+    }
+
+    private static void WaitPersisted(Options options, DateTime deadline)
+    {
+        var receiptPath = Path.Combine(options.Bridge, "receipts", $"receipt-{options.Sequence}.json");
+        while (!File.Exists(receiptPath))
+        {
+            if (DateTime.UtcNow > deadline)
+            {
+                throw new TimeoutException("Settlement persistence did not finish before the deadline.");
+            }
+            Thread.Sleep(options.PollMilliseconds);
+        }
+    }
+
+    private sealed record Outcome(
+        [property: JsonPropertyName("sequence")] int Sequence,
+        [property: JsonPropertyName("status")] string Status,
+        [property: JsonPropertyName("receipt")] BridgeActionReceipt Receipt,
+        [property: JsonPropertyName("marker")] string Marker);
+
+    private enum ConsentChoice
+    {
+        Grant,
+        Decline,
+    }
+
+    private sealed record Options(
+        string Bridge,
+        int Sequence,
+        ConsentChoice Consent,
+        int TimeoutSeconds,
+        int PollMilliseconds)
+    {
+        public static Options Parse(string[] args)
+        {
+            string? bridge = null;
+            var sequence = 12;
+            var consent = ConsentChoice.Grant;
+            var timeoutSeconds = 40;
+            var pollMilliseconds = 10;
+            for (var index = 0; index < args.Length; index += 2)
+            {
+                var value = args[index + 1];
+                switch (args[index])
+                {
+                    case "--bridge":
+                        bridge = value;
+                        break;
+                    case "--sequence" when int.TryParse(value, out var parsed):
+                        sequence = parsed;
+                        break;
+                    case "--consent" when Enum.TryParse<ConsentChoice>(value, ignoreCase: true, out var parsed):
+                        consent = parsed;
+                        break;
+                    case "--timeout-seconds" when int.TryParse(value, out var parsed):
+                        timeoutSeconds = parsed;
+                        break;
+                    case "--poll-millis" when int.TryParse(value, out var parsed):
+                        pollMilliseconds = Math.Max(parsed, 1);
+                        break;
+                    default:
+                        throw new ArgumentException($"Unknown or malformed argument pair at '{args[index]} {value}'.");
+                }
+            }
+            if (string.IsNullOrWhiteSpace(bridge))
+            {
+                throw new ArgumentException("The dual host requires --bridge <directory>.");
+            }
+            return new Options(bridge, sequence, consent, timeoutSeconds, pollMilliseconds);
+        }
+    }
+}
