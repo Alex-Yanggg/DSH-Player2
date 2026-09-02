@@ -1,0 +1,35 @@
+name: Product slice
+description: Propose one bounded Player2 outcome.
+title: "feat: "
+labels: ["needs-triage"]
+body:
+  - type: textarea
+    attributes:
+      label: Problem and intended outcome
+      description: Name the player or engineering result, not a solution.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Scope and non-goals
+      description: State what this task must not become.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Acceptance and negative path
+      description: Include a reproducible success signal and refusal or failure behavior.
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: Risk level
+      options: [L0, L1, L2, L3]
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Evidence, dependencies, and stop condition
+      description: Link relevant research/PRD/ADR and state what would stop or redirect this work.
+    validations:
+      required: true

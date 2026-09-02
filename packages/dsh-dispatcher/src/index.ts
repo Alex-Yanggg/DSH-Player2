@@ -11,6 +11,7 @@ export {
   type DispatcherLogger,
   type DispatcherStats,
 } from "./dispatcher.js";
+export { BridgeLock } from "./bridge-lock.js";
 export {
   DshSessionDecisionRunner,
   RequestNotWrittenError,

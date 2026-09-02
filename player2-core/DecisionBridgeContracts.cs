@@ -7,15 +7,23 @@ using System.Text.Json.Serialization;
 
 namespace DSHPlayer2.Core;
 
-/// <summary>Wire constants and host-side validation for one DSH permission-seeking turn.</summary>
+/// <summary>Wire constants and host-side validation for one DSH decision turn.</summary>
 public static class DecisionBridgeRules
 {
-    public const string WireVersion = "0.0.3";
+    public const string WireVersion = "0.1.0";
     public const string AwaitingPlayerStatus = "awaiting-player";
+    public const string AutonomousStatus = "autonomous";
+    public const string ConsultAutonomy = "consult";
+    public const string FullAutonomy = "full";
     public const string CapabilityId = "visual-receipt";
     public const string AllowedScope = "visual marker + sound only";
     public const int MaxCitedObservations = 8;
     public const int MaxReasonLength = 800;
+    public const int MaxInventoryItems = 12;
+    public const int MaxItemNameLength = 50;
+    public const int MaxSoulItems = 8;
+    public const int MaxSoulItemLength = 160;
+    public const int MaxSoulVoiceLength = 240;
 
     /// <summary>One Player-advertised capability with its own bounded scope and receipt language.</summary>
     public sealed record CapabilityDefinition(
@@ -86,16 +94,22 @@ public static class DecisionBridgeRules
 
     /// <summary>Creates the bounded Player-authored facts exposed to DSH for one game day.</summary>
     public static DecisionTurnEnvelope CreateTurn(
+        AdapterProfile adapter,
         WorldSnapshot snapshot,
         int sequence,
         string createdAt,
         int targetTileX,
         int targetTileY,
-        SharedOutcome? yesterdayOutcome)
+        SharedOutcome? yesterdayOutcome,
+        BridgeCompanionIdentity? companion = null)
     {
         AssertSequence(sequence);
         AssertTimestamp(createdAt, nameof(createdAt));
-        var target = FormatTarget(snapshot.Location, targetTileX, targetTileY);
+        if (companion?.Soul is not null)
+        {
+            ValidateCompanionSoul(companion.Soul);
+        }
+        var target = adapter.FormatLocationTarget(snapshot.Location, targetTileX, targetTileY);
         var observations = new List<BridgeObservation>
         {
             new(
@@ -103,14 +117,13 @@ public static class DecisionBridgeRules
                 "world",
                 createdAt,
                 null,
-                "stardew-smapi",
+                adapter.AdapterId,
                 "semantic",
                 1,
                 new Dictionary<string, JsonElement>
                 {
                     ["weather"] = JsonSerializer.SerializeToElement(snapshot.Weather),
                     ["location"] = JsonSerializer.SerializeToElement(snapshot.Location),
-                    ["pendingTask"] = JsonSerializer.SerializeToElement(snapshot.PendingTask),
                     ["target"] = JsonSerializer.SerializeToElement(target),
                 }),
         };
@@ -122,14 +135,43 @@ public static class DecisionBridgeRules
                 "action-result",
                 createdAt,
                 null,
-                "stardew-smapi",
+                adapter.AdapterId,
                 "semantic",
                 1,
                 new Dictionary<string, JsonElement>
                 {
                     ["status"] = JsonSerializer.SerializeToElement(priorOutcome.Status),
-                    ["target"] = JsonSerializer.SerializeToElement($"stardew-tile:{priorOutcome.TargetTileX},{priorOutcome.TargetTileY}"),
+                    ["target"] = JsonSerializer.SerializeToElement(adapter.FormatTileTarget(priorOutcome.TargetTileX, priorOutcome.TargetTileY)),
                     ["scope"] = JsonSerializer.SerializeToElement(priorOutcome.Scope),
+                }));
+        }
+        if (snapshot.Self is not null)
+        {
+            // The farmer's own state: the companion plans as a teammate only if
+            // it can see the backpack and purse it plans with. Direct facts
+            // only, bounded to MaxInventoryItems entries.
+            var self = snapshot.Self;
+            observations.Add(new BridgeObservation(
+                $"self-{sequence}",
+                "self",
+                createdAt,
+                null,
+                adapter.AdapterId,
+                "semantic",
+                1,
+                new Dictionary<string, JsonElement>
+                {
+                    ["farmerName"] = JsonSerializer.SerializeToElement(self.Name),
+                    ["money"] = JsonSerializer.SerializeToElement(self.Money),
+                    ["inventorySlotsUsed"] = JsonSerializer.SerializeToElement(self.InventorySlotsUsed),
+                    ["inventorySlotCapacity"] = JsonSerializer.SerializeToElement(self.InventorySlotCapacity),
+                    ["inventory"] = JsonSerializer.SerializeToElement(
+                        self.Items.Select(item => new Dictionary<string, JsonElement>
+                        {
+                            ["name"] = JsonSerializer.SerializeToElement(item.Name),
+                            ["count"] = JsonSerializer.SerializeToElement(item.Count),
+                        }).ToArray()),
+                    ["inventoryTruncated"] = JsonSerializer.SerializeToElement(self.InventoryTruncated),
                 }));
         }
 
@@ -137,10 +179,10 @@ public static class DecisionBridgeRules
             WireVersion,
             sequence,
             createdAt,
-            sequence,
+            checked(snapshot.Day + 1),
             new BridgeAdapterDescriptor(
-                "stardew-smapi",
-                "stardew-valley",
+                adapter.AdapterId,
+                adapter.GameId,
                 "semantic",
                 Capabilities
                     .Select(capability => new BridgeCapabilityDescriptor(
@@ -152,7 +194,41 @@ public static class DecisionBridgeRules
                         true,
                         capability.InputSchemaRef))
                     .ToArray()),
-            observations.ToArray());
+            observations.ToArray(),
+            companion);
+    }
+
+    /// <summary>
+    /// Validates the bounded soul rows at the Player writer boundary: counts,
+    /// item lengths, and non-empty text, mirroring the TypeScript soul schema
+    /// so both bridge sides reject the same malformed personas.
+    /// </summary>
+    public static void ValidateCompanionSoul(BridgeCompanionSoul soul)
+    {
+        AssertSoulItems(soul.Values, "values");
+        AssertSoulItems(soul.Bonds, "bonds");
+        AssertSoulItems(soul.Boundaries, "boundaries");
+        if (string.IsNullOrWhiteSpace(soul.Voice) || soul.Voice.Length > MaxSoulVoiceLength)
+        {
+            throw new InvalidOperationException($"The companion soul voice is required and may contain at most {MaxSoulVoiceLength} characters.");
+        }
+        if (soul.Values.Length == 0 || soul.Bonds.Length == 0 || soul.Boundaries.Length == 0)
+        {
+            throw new InvalidOperationException("A companion soul requires values, bonds, voice, and boundaries.");
+        }
+    }
+
+    private static void AssertSoulItems(string[] items, string field)
+    {
+        if (items.Length > MaxSoulItems)
+        {
+            throw new InvalidOperationException($"The companion soul {field} may contain at most {MaxSoulItems} rows.");
+        }
+        if (items.Any(item => string.IsNullOrWhiteSpace(item) || item.Length > MaxSoulItemLength))
+        {
+            throw new InvalidOperationException(
+                $"Every companion soul {field} row must be non-empty and at most {MaxSoulItemLength} characters.");
+        }
     }
 
     /// <summary>Revalidates one DSH request against the exact Player-authored turn.</summary>
@@ -163,7 +239,8 @@ public static class DecisionBridgeRules
             throw new InvalidOperationException("Decision bridge version mismatch.");
         }
         AssertSequence(turn.Sequence);
-        if (request.Sequence != turn.Sequence || request.Status != AwaitingPlayerStatus)
+        if (request.Sequence != turn.Sequence ||
+            (request.Status != AwaitingPlayerStatus && request.Status != AutonomousStatus))
         {
             throw new InvalidOperationException("Action request does not belong to the current turn.");
         }
@@ -216,8 +293,6 @@ public static class DecisionBridgeRules
             GetIntFact(turn, "gameDay"),
             GetStringFact(world, "weather"),
             location,
-            GetStringFact(world, "pendingTask"),
-            "show one agreed world receipt",
             proposal.Reason,
             targetTileX,
             targetTileY,
@@ -231,6 +306,27 @@ public static class DecisionBridgeRules
         AssertTimestamp(grantedAt, nameof(grantedAt));
         AssertTimestamp(expiresAt, nameof(expiresAt));
         return new BridgePermissionGrant(request.Proposal.Id, granted, grantedAt, expiresAt);
+    }
+
+    /// <summary>
+    /// Authorizes one already-validated autonomous request without a player
+    /// answer. Only a request that arrived with the autonomous status may take
+    /// this lane, and the returned authorization carries the full-autonomy
+    /// marker that must survive onto the receipt.
+    /// </summary>
+    public static DecisionAuthorization AuthorizeAutonomous(
+        DecisionTurnEnvelope turn,
+        BridgeActionRequest request,
+        string occurredAt)
+    {
+        if (request.Status != AutonomousStatus)
+        {
+            throw new InvalidOperationException(
+                "Autonomous authorization requires an autonomous request; a consult request must be answered by the player.");
+        }
+        var validated = ValidateRequest(turn, request);
+        AssertTimestamp(occurredAt, nameof(occurredAt));
+        return new DecisionAuthorization(true, validated, null);
     }
 
     /// <summary>Validates permission and returns either an executable proposal or a terminal receipt.</summary>
@@ -267,11 +363,19 @@ public static class DecisionBridgeRules
     }
 
     /// <summary>Creates player-owned retained state and a receipt after one granted marker attempt.</summary>
-    public static DecisionCompletion CompleteGranted(DecisionAuthorization authorization, bool receiptShown, string occurredAt)
+    public static DecisionCompletion CompleteGranted(
+        DecisionAuthorization authorization,
+        bool receiptShown,
+        string occurredAt,
+        string autonomy = ConsultAutonomy)
     {
         if (!authorization.MayExecute || authorization.TerminalReceipt is not null)
         {
             throw new InvalidOperationException("Only a granted authorization can be completed.");
+        }
+        if (autonomy != ConsultAutonomy && autonomy != FullAutonomy)
+        {
+            throw new ArgumentException("Autonomy must be \"consult\" or \"full\".", nameof(autonomy));
         }
         AssertTimestamp(occurredAt, nameof(occurredAt));
         var proposal = authorization.Validated.GameProposal;
@@ -282,8 +386,11 @@ public static class DecisionBridgeRules
             authorization.Validated.Request,
             receiptShown ? "completed" : "failed",
             occurredAt,
-            FormatTarget(proposal.Location, proposal.TargetTileX, proposal.TargetTileY),
-            receiptShown ? capability.GrantedDetail : capability.FailedDetail);
+            // The exact validated target from the request, never a local
+            // reformatting that could drift from what the turn advertised.
+            authorization.Validated.Request.Proposal.Intent.Target,
+            receiptShown ? capability.GrantedDetail : capability.FailedDetail,
+            autonomy);
         return new DecisionCompletion(state, receipt);
     }
 
@@ -295,12 +402,24 @@ public static class DecisionBridgeRules
             throw new InvalidOperationException("Decision bridge version mismatch.");
         }
         AssertSequence(turn.Sequence);
+        CapabilityDefinition capability;
+        try
+        {
+            capability = Capability(receipt.CapabilityId);
+        }
+        catch (InvalidOperationException)
+        {
+            throw new InvalidOperationException("Persisted receipt names an unavailable capability.");
+        }
         if (receipt.ProposalId != $"turn-{turn.Sequence}:proposal" ||
-            receipt.CapabilityId != CapabilityId ||
-            receipt.Scope != AllowedScope ||
+            receipt.Scope != capability.Scope ||
             string.IsNullOrWhiteSpace(receipt.Detail))
         {
             throw new InvalidOperationException("Persisted receipt does not belong to this decision sequence.");
+        }
+        if (receipt.Autonomy is not null && receipt.Autonomy != FullAutonomy)
+        {
+            throw new InvalidOperationException("Persisted receipt carries an invalid autonomy marker.");
         }
         if (receipt.Status is not ("completed" or "failed" or "declined" or "expired"))
         {
@@ -328,7 +447,8 @@ public static class DecisionBridgeRules
         string status,
         string occurredAt,
         string? target,
-        string detail)
+        string detail,
+        string autonomy = ConsultAutonomy)
     {
         return new BridgeActionReceipt(
             request.Proposal.Id,
@@ -337,7 +457,8 @@ public static class DecisionBridgeRules
             occurredAt,
             target,
             request.Proposal.Scope,
-            detail);
+            detail,
+            autonomy == FullAutonomy ? FullAutonomy : null);
     }
 
     private static string GetStringFact(BridgeObservation observation, string key)
@@ -356,25 +477,27 @@ public static class DecisionBridgeRules
             : throw new InvalidOperationException($"Decision turn is missing integer fact '{key}'.");
     }
 
-    private static string FormatTarget(string location, int x, int y) => $"stardew-location:{location}:tile:{x},{y}";
-
     private static bool TryParseTarget(string target, out string location, out int x, out int y)
     {
         location = string.Empty;
         x = 0;
         y = 0;
-        const string prefix = "stardew-location:";
-        if (!target.StartsWith(prefix, StringComparison.Ordinal))
+        // The target scheme is adapter vocabulary (see AdapterProfile); the
+        // parse is scheme-agnostic because the Player side authored the
+        // target fact itself and the request must match it verbatim.
+        var schemeEnd = target.IndexOf(':', StringComparison.Ordinal);
+        if (schemeEnd <= 0)
         {
             return false;
         }
-        var separator = target.IndexOf(":tile:", prefix.Length, StringComparison.Ordinal);
-        if (separator <= prefix.Length)
+        var remainder = target[(schemeEnd + 1)..];
+        var separator = remainder.IndexOf(":tile:", StringComparison.Ordinal);
+        if (separator <= 0)
         {
             return false;
         }
-        location = target[prefix.Length..separator];
-        var coordinates = target[(separator + ":tile:".Length)..].Split(',');
+        location = remainder[..separator];
+        var coordinates = remainder[(separator + ":tile:".Length)..].Split(',');
         return coordinates.Length == 2 &&
             int.TryParse(coordinates[0], NumberStyles.None, CultureInfo.InvariantCulture, out x) &&
             int.TryParse(coordinates[1], NumberStyles.None, CultureInfo.InvariantCulture, out y) &&
@@ -427,13 +550,33 @@ public sealed record BridgeObservation(
     [property: JsonPropertyName("confidence")] double Confidence,
     [property: JsonPropertyName("facts")] Dictionary<string, JsonElement> Facts);
 
+/// <summary>The player-chosen companion identity carried on one decision turn.</summary>
+public sealed record BridgeCompanionIdentity(
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("role")] string Role,
+    [property: JsonPropertyName("soul")] BridgeCompanionSoul Soul);
+
+/// <summary>
+/// Player-authored stable persona commitments: the soul layer of the
+/// companion's five-layer personality. Bound once per composition on the DSH
+/// side; turn data may refine the surface identity but never these rows.
+/// </summary>
+public sealed record BridgeCompanionSoul(
+    [property: JsonPropertyName("values")] string[] Values,
+    [property: JsonPropertyName("bonds")] string[] Bonds,
+    [property: JsonPropertyName("voice")] string Voice,
+    [property: JsonPropertyName("boundaries")] string[] Boundaries);
+
 public sealed record DecisionTurnEnvelope(
     [property: JsonPropertyName("version")] string Version,
     [property: JsonPropertyName("sequence")] int Sequence,
     [property: JsonPropertyName("createdAt")] string CreatedAt,
     [property: JsonPropertyName("gameDay")] int GameDay,
     [property: JsonPropertyName("adapter")] BridgeAdapterDescriptor Adapter,
-    [property: JsonPropertyName("observations")] BridgeObservation[] Observations);
+    [property: JsonPropertyName("observations")] BridgeObservation[] Observations,
+    [property: JsonPropertyName("companion")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    BridgeCompanionIdentity? Companion = null);
 
 public sealed record BridgeProposalIntent([property: JsonPropertyName("target")] string Target);
 
@@ -452,6 +595,14 @@ public sealed record BridgeActionRequest(
     [property: JsonPropertyName("status")] string Status,
     [property: JsonPropertyName("proposal")] BridgeProposal Proposal);
 
+/// <summary>Terminal DSH-host failure for a decision sequence, surfaced directly to the developer.</summary>
+public sealed record BridgeRuntimeError(
+    [property: JsonPropertyName("version")] string Version,
+    [property: JsonPropertyName("sequence")] int Sequence,
+    [property: JsonPropertyName("traceId")] string TraceId,
+    [property: JsonPropertyName("code")] string Code,
+    [property: JsonPropertyName("message")] string Message);
+
 public sealed record BridgePermissionGrant(
     [property: JsonPropertyName("proposalId")] string ProposalId,
     [property: JsonPropertyName("granted")] bool Granted,
@@ -465,7 +616,10 @@ public sealed record BridgeActionReceipt(
     [property: JsonPropertyName("occurredAt")] string OccurredAt,
     [property: JsonPropertyName("target")] string? Target,
     [property: JsonPropertyName("scope")] string Scope,
-    [property: JsonPropertyName("detail")] string Detail);
+    [property: JsonPropertyName("detail")] string Detail,
+    [property: JsonPropertyName("autonomy")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    string? Autonomy = null);
 
 public sealed record ValidatedDecision(BridgeActionRequest Request, Proposal GameProposal);
 

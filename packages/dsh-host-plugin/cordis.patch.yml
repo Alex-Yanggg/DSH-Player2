@@ -1,0 +1,7 @@
+- insert:
+    - id: player2-dsh-host
+      name: '@dsh-player2/dsh-host-plugin'
+      inject: [agents, agentDefaultModel, sessions, sessionPersistence]
+      config:
+        bridgeDirectory: !!js dshHomePath('player2', 'bridge')
+        pollIntervalMs: 250

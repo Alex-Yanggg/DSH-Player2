@@ -5,8 +5,9 @@ import { actionRequestSchema, bridgeFileLimit, decisionTurnVersion } from "@dsh-
 
 /**
  * The only DSH-facing operation the dispatcher needs: drive one Player decision
- * turn to an immutable awaiting-player request. Implementations must resolve only
- * after that request file exists and validates; the model's own words are not proof.
+ * turn to an immutable bridge request (awaiting-player or autonomous).
+ * Implementations must resolve only after that request file exists and
+ * validates; the model's own words are not proof.
  */
 export interface DecisionTurnRunner {
   runDecisionTurn(sequence: number): Promise<void>;
@@ -14,7 +15,7 @@ export interface DecisionTurnRunner {
 
 export class RequestNotWrittenError extends Error {
   public constructor(sequence: number, cause: string) {
-    super(`Decision turn ${sequence} produced no valid awaiting-player request: ${cause}`);
+    super(`Decision turn ${sequence} produced no valid bridge request: ${cause}`);
     this.name = "RequestNotWrittenError";
   }
 }
@@ -39,7 +40,7 @@ export async function readBridgeRequest(bridgeDirectory: string, sequence: numbe
 }
 
 /**
- * Verify that the Player file bridge received an awaiting-player request for this sequence.
+ * Verify that the Player file bridge received a bridge request for this sequence.
  * This file check, never the model's final message, is the dispatcher's completion signal.
  */
 export async function verifyRequestWritten(bridgeDirectory: string, sequence: number): Promise<void> {
@@ -73,7 +74,7 @@ export interface DshSessionDecisionRunnerOptions {
  *
  * The prompt carries only a bounded untrusted envelope; the sequence is the sole data
  * the model needs because `game_observe` reads the immutable Player turn itself. The
- * runner resolves only when the tool pipeline has written a valid awaiting-player request.
+ * runner resolves only when the tool pipeline has written a valid bridge request.
  */
 export class DshSessionDecisionRunner implements DecisionTurnRunner {
   private readonly harness: DeepSeekHarness;

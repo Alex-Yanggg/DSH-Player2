@@ -74,6 +74,58 @@ public sealed class DecisionBridgeFilesTests : IDisposable
     }
 
     [Fact]
+    public async Task ClearsOnlyTheRetryableDshRuntimeError()
+    {
+        var files = new DecisionBridgeFiles(this.root);
+        var outbox = Path.Combine(this.root, "outbox");
+        Directory.CreateDirectory(outbox);
+        var errorPath = Path.Combine(outbox, "error-12.json");
+        var requestPath = Path.Combine(outbox, "request-12.json");
+        await File.WriteAllTextAsync(errorPath, "{\"code\":\"MISSING_CREDENTIAL\"}");
+        await File.WriteAllTextAsync(requestPath, "{\"kept\":true}");
+
+        await files.ClearRuntimeErrorAsync(12);
+
+        Assert.False(File.Exists(errorPath));
+        Assert.True(File.Exists(requestPath));
+    }
+
+    [Fact]
+    public async Task ResetsOnlyAnUnsettledContractConflict()
+    {
+        var files = new DecisionBridgeFiles(this.root);
+        var turn = CreateTurn();
+        await files.PublishTurnAsync(turn);
+        var outbox = Path.Combine(this.root, "outbox");
+        Directory.CreateDirectory(outbox);
+        await File.WriteAllTextAsync(Path.Combine(outbox, "request-12.json"), "{\"old\":true}");
+
+        await files.ResetUnsettledTurnAsync(12);
+
+        Assert.False(File.Exists(Path.Combine(this.root, "inbox", "turn-12.json")));
+        Assert.False(File.Exists(Path.Combine(outbox, "request-12.json")));
+
+        await files.PublishTurnAsync(turn);
+        await files.WriteReceiptAsync(12, new BridgeActionReceipt("turn-12:proposal", DecisionBridgeRules.CapabilityId, "declined", "2026-08-29T00:00:02.000Z", null, DecisionBridgeRules.AllowedScope, "declined"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => files.ResetUnsettledTurnAsync(12));
+    }
+
+    [Fact]
+    public async Task AllocatesANewMonotonicSequenceAcrossOldBridgeArtifacts()
+    {
+        var files = new DecisionBridgeFiles(this.root);
+        var now = DateTimeOffset.FromUnixTimeSeconds(1_000_000);
+        Directory.CreateDirectory(Path.Combine(this.root, "outbox"));
+        Directory.CreateDirectory(Path.Combine(this.root, "receipts"));
+        await File.WriteAllTextAsync(Path.Combine(this.root, "outbox", "error-1000005.json"), "{}");
+        await File.WriteAllTextAsync(Path.Combine(this.root, "receipts", "receipt-999999.json"), "{}");
+
+        var sequence = files.NextAvailableSequence(now);
+
+        Assert.Equal(1_000_006, sequence);
+    }
+
+    [Fact]
     public async Task ConcurrentEquivalentPublishesLeaveOneCompleteFileAndNoTemporaryArtifacts()
     {
         var files = new DecisionBridgeFiles(this.root);
@@ -99,8 +151,8 @@ public sealed class DecisionBridgeFilesTests : IDisposable
 
     private static DecisionTurnEnvelope CreateTurn()
     {
-        return DecisionBridgeRules.CreateTurn(
-            new WorldSnapshot(11, "rain", "Farm", "prepare tomorrow's mine supplies"),
+        return DecisionBridgeRules.CreateTurn(AdapterProfile.StardewValley, 
+            new WorldSnapshot(11, "rain", "Farm"),
             12,
             "2026-08-29T00:00:00.000Z",
             12,

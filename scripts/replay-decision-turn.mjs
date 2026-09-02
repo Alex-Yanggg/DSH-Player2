@@ -11,6 +11,7 @@ import * as companionPlugin from "../packages/dsh-companion-plugin/dist/index.js
 
 const fixturePath = resolve(process.cwd(), process.argv[2] ?? "fixtures/decision-turn/rainy-marker.json");
 const fixture = JSON.parse(await readFile(fixturePath, "utf8"));
+const autonomy = fixture.autonomy === "full" ? "full" : "consult";
 const expectedProposal = fixture.expectedRequest.proposal;
 const proposalArguments = fixture.proposal ?? {
   capabilityId: expectedProposal.capabilityId,
@@ -37,6 +38,7 @@ try {
     characterName: "Mira",
     relationshipRole: "the player's candid farm partner",
     mode: "decision",
+    autonomy,
     bridgeDirectory,
   });
 
@@ -73,7 +75,7 @@ try {
     "utf8",
   ));
   assert.deepStrictEqual(actual, fixture.expectedRequest);
-  console.log(`PASS ${fixture.id}: observe -> propose -> awaiting-player`);
+  console.log(`PASS ${fixture.id}: observe -> propose -> ${autonomy === "full" ? "autonomous order" : "awaiting-player"}`);
 } finally {
   await rm(bridgeDirectory, { recursive: true, force: true });
 }

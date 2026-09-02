@@ -1,198 +1,141 @@
 using System;
+using System.Collections.Generic;
+using System.Globalization;
 
 namespace DSHPlayer2.Core;
 
-/// <summary>Contains deterministic Player2 rules which do not require game assemblies.</summary>
+/// <summary>Player-owned state and presentation rules; it never infers game tasks locally.</summary>
 public static class Player2Rules
 {
     public const int StateVersion = 1;
     public const string CommitmentStateKey = "AlexYanggg.DSHPlayer2/commitment";
     public const string LastSharedOutcomeStateKey = "AlexYanggg.DSHPlayer2/lastSharedOutcome";
 
-    /// <summary>Creates the whitelisted world facts used by one Player2 turn.</summary>
-    public static WorldSnapshot CreateSnapshot(int day, string weather, string location)
+    /// <summary>Captures only direct game facts. It intentionally contains no inferred task or plan.</summary>
+    public static WorldSnapshot CreateSnapshot(int day, string weather, string location, FarmerSnapshot? self = null)
     {
-        var pendingTask = weather == "rain"
-            ? "crops do not need watering today"
-            : "nearby crops may still need attention";
-
-        return new WorldSnapshot(day, weather, location, pendingTask);
+        if (day < 0) throw new ArgumentOutOfRangeException(nameof(day));
+        if (string.IsNullOrWhiteSpace(weather)) throw new ArgumentException("Weather must not be empty.", nameof(weather));
+        if (string.IsNullOrWhiteSpace(location)) throw new ArgumentException("Location must not be empty.", nameof(location));
+        return new WorldSnapshot(day, weather, location, self);
     }
 
-    /// <summary>Creates the one bounded proposal available for a world snapshot.</summary>
-    public static Proposal CreateProposal(WorldSnapshot snapshot, int targetTileX, int targetTileY)
+    /// <summary>
+    /// Formats one validated native DSH request without inventing a local goal
+    /// or task. The companion name always comes from the player-chosen
+    /// identity, and the weather word is the adapter's localized display for
+    /// its own weather code — the core never interprets game weather.
+    /// </summary>
+    public static string FormatProposal(
+        Proposal proposal,
+        string companionName,
+        string weatherDisplay,
+        Player2TextSet? text = null)
     {
-        var isRainPlan = snapshot.Weather == "rain";
-        var goal = isRainPlan
-            ? "prepare tomorrow's mine supplies"
-            : "keep three nearby crops in view before anything else";
-        var reason = isRainPlan
-            ? "rain removes today's watering pressure"
-            : "clear weather leaves crop care visible";
-
-        return new Proposal(
-            snapshot.Day,
-            snapshot.Weather,
-            snapshot.Location,
-            snapshot.PendingTask,
-            goal,
-            reason,
-            targetTileX,
-            targetTileY,
-            "visual marker + sound only");
-    }
-
-    /// <summary>Formats the permission request without implying any unapproved game action.</summary>
-    public static string FormatProposal(Proposal proposal)
-    {
+        text ??= Player2TextSet.English;
+        var name = string.IsNullOrWhiteSpace(companionName) ? "Player2" : companionName.Trim();
+        var weather = string.IsNullOrWhiteSpace(weatherDisplay) ? proposal.Weather : weatherDisplay.Trim();
         return string.Join(
             Environment.NewLine,
-            $"Day {proposal.Day}: {proposal.Weather} at {proposal.Location}.",
-            $"Observed: {proposal.PendingTask}.",
-            $"Goal: {proposal.Goal} because {proposal.Reason}.",
-            $"Scope: mark tile {proposal.TargetTileX}, {proposal.TargetTileY} with a temporary visual receipt only.",
-            "No crops, inventory, map, or multiplayer state will change.",
-            "May I do that?");
+            Fill(text.ProposalDayLine,
+                ("day", proposal.Day.ToString(CultureInfo.InvariantCulture)),
+                ("weather", weather),
+                ("location", proposal.Location)),
+            Fill(text.ProposalReasonLine, ("name", name), ("reason", proposal.Reason)),
+            Fill(text.ProposalScopeLine,
+                ("tileX", proposal.TargetTileX.ToString(CultureInfo.InvariantCulture)),
+                ("tileY", proposal.TargetTileY.ToString(CultureInfo.InvariantCulture))),
+            text.ProposalBoundaryLine,
+            text.ProposalAskLine);
     }
 
-    /// <summary>Builds the player-owned commitment written after an explicit agreement.</summary>
-    public static Commitment CreateCommitment(Proposal proposal)
-    {
-        return new Commitment(
-            StateVersion,
-            proposal.Day,
-            proposal.TargetTileX,
-            proposal.TargetTileY,
-            proposal.Goal,
-            proposal.Scope);
-    }
+    public static Commitment CreateCommitment(Proposal proposal) => new(
+        StateVersion, proposal.Day, proposal.TargetTileX, proposal.TargetTileY, proposal.Reason, proposal.Scope);
 
-    /// <summary>Builds the one outcome the next day is allowed to recall.</summary>
-    public static SharedOutcome CreateOutcome(Proposal proposal, bool receiptShown)
-    {
-        return new SharedOutcome(
-            StateVersion,
-            proposal.Day,
-            proposal.TargetTileX,
-            proposal.TargetTileY,
-            proposal.Scope,
-            receiptShown ? "completed" : "failed");
-    }
+    public static SharedOutcome CreateOutcome(Proposal proposal, bool receiptShown) => new(
+        StateVersion, proposal.Day, proposal.TargetTileX, proposal.TargetTileY, proposal.Scope,
+        receiptShown ? "completed" : "failed");
 
-    /// <summary>Creates retained state only after the player explicitly agrees to the proposal.</summary>
-    public static AcceptedState? CreateAcceptedState(Proposal proposal, bool playerAgreed, bool receiptShown)
-    {
-        return playerAgreed
-            ? new AcceptedState(CreateCommitment(proposal), CreateOutcome(proposal, receiptShown))
-            : null;
-    }
+    public static AcceptedState? CreateAcceptedState(Proposal proposal, bool playerAgreed, bool receiptShown) =>
+        playerAgreed ? new AcceptedState(CreateCommitment(proposal), CreateOutcome(proposal, receiptShown)) : null;
 
     /// <summary>Returns a compatible outcome only when it belongs to the immediately prior day.</summary>
-    public static SharedOutcome? GetYesterdayOutcome(SharedOutcome? outcome, int currentDay)
+    public static SharedOutcome? GetYesterdayOutcome(SharedOutcome? outcome, int currentDay) =>
+        outcome?.Version == StateVersion && outcome.Day == currentDay - 1 ? outcome : null;
+
+    /// <summary>
+    /// Builds the bounded farmer projection exposed to DSH: at most
+    /// MaxInventoryItems named stacks, each name clipped, with an honest
+    /// truncation flag instead of a silently cropped list.
+    /// </summary>
+    public static FarmerSnapshot CreateFarmerSnapshot(
+        string name,
+        int money,
+        int inventorySlotsUsed,
+        int inventorySlotCapacity,
+        IEnumerable<InventoryItemSnapshot> items)
     {
-        return outcome?.Version == StateVersion && outcome.Day == currentDay - 1
-            ? outcome
-            : null;
-    }
-
-    /// <summary>Creates a local, actionless text response when no asynchronous decision provider is available.</summary>
-    public static SocialReply CreateSocialReply(WorldSnapshot snapshot, string playerMessage, SharedOutcome? yesterdayOutcome)
-    {
-        if (string.IsNullOrWhiteSpace(playerMessage))
+        if (string.IsNullOrWhiteSpace(name))
         {
-            throw new ArgumentException("A social reply requires player text.", nameof(playerMessage));
+            throw new ArgumentException("Farmer name must not be empty.", nameof(name));
         }
-
-        var message = playerMessage.Trim().ToLowerInvariant();
-        var hasYesterdayOutcome = GetYesterdayOutcome(yesterdayOutcome, snapshot.Day) is not null;
-
-        if (ContainsAny(message, "go ", "do it", "water", "mine", "buy", "fight", "去", "执行", "浇水", "挖矿", "购买", "战斗"))
+        if (money < 0) throw new ArgumentOutOfRangeException(nameof(money));
+        if (inventorySlotsUsed < 0) throw new ArgumentOutOfRangeException(nameof(inventorySlotsUsed));
+        if (inventorySlotCapacity < 0) throw new ArgumentOutOfRangeException(nameof(inventorySlotCapacity));
+        var listed = new List<InventoryItemSnapshot>();
+        var truncated = false;
+        foreach (var item in items)
         {
-            return new SocialReply(
-                "disagreement",
-                "I can talk through a plan, but a chat message cannot make me act in the world.",
-                hasYesterdayOutcome);
-        }
-
-        if (ContainsAny(message, "why", "what do you know", "为什么", "知道什么"))
-        {
-            return new SocialReply(
-                "reply",
-                $"I only know that it is {snapshot.Weather} at {snapshot.Location}, and that {snapshot.PendingTask}.",
-                hasYesterdayOutcome);
-        }
-
-        if (ContainsAny(message, "what should", "suggest", "plan", "做什么", "建议", "计划"))
-        {
-            return new SocialReply(
-                "suggestion",
-                $"Since it is {snapshot.Weather}, I suggest we keep the next plan small and check {snapshot.PendingTask} together.",
-                hasYesterdayOutcome);
-        }
-
-        if (hasYesterdayOutcome)
-        {
-            return new SocialReply(
-                "reply",
-                "I remember the one result we shared yesterday. What would you like to understand about today?",
-                true);
-        }
-
-        return new SocialReply(
-            "question",
-            "What outcome matters most to you today? I want to understand before suggesting a plan.",
-            false);
-    }
-
-    private static bool ContainsAny(string text, params string[] values)
-    {
-        foreach (var value in values)
-        {
-            if (text.Contains(value, StringComparison.Ordinal))
+            if (listed.Count >= DecisionBridgeRules.MaxInventoryItems)
             {
-                return true;
+                truncated = true;
+                break;
             }
+            var itemName = item.Name?.Trim() ?? string.Empty;
+            if (itemName.Length == 0)
+            {
+                continue;
+            }
+            if (itemName.Length > DecisionBridgeRules.MaxItemNameLength)
+            {
+                itemName = itemName[..DecisionBridgeRules.MaxItemNameLength];
+            }
+            listed.Add(new InventoryItemSnapshot(itemName, item.Count));
         }
+        return new FarmerSnapshot(name.Trim(), money, inventorySlotsUsed, inventorySlotCapacity, listed, truncated);
+    }
 
-        return false;
+    private static string Fill(string template, params (string Key, string Value)[] tokens)
+    {
+        foreach (var (key, value) in tokens) template = template.Replace("{" + key + "}", value, StringComparison.Ordinal);
+        return template;
     }
 }
 
-/// <summary>A whitelisted set of facts observed at the start of a game day.</summary>
-public sealed record WorldSnapshot(int Day, string Weather, string Location, string PendingTask);
+/// <summary>Direct game facts only; inferences belong to DSH and must be traceable there.</summary>
+public sealed record WorldSnapshot(int Day, string Weather, string Location, FarmerSnapshot? Self = null);
 
-/// <summary>A player-refutable plan with a single visible, non-economic scope.</summary>
-public sealed record Proposal(
-    int Day,
-    string Weather,
-    string Location,
-    string PendingTask,
-    string Goal,
-    string Reason,
-    int TargetTileX,
-    int TargetTileY,
-    string Scope);
+/// <summary>
+/// The bounded, direct facts about the farmer the companion plays beside:
+/// identity, purse, and a truncated inventory projection. The companion plans
+/// as a teammate only if it can see what the team is carrying.
+/// </summary>
+public sealed record FarmerSnapshot(
+    string Name,
+    int Money,
+    int InventorySlotsUsed,
+    int InventorySlotCapacity,
+    IReadOnlyList<InventoryItemSnapshot> Items,
+    bool InventoryTruncated);
 
-/// <summary>The approved plan retained in player-owned mod data.</summary>
-public sealed record Commitment(
-    int Version,
-    int Day,
-    int TargetTileX,
-    int TargetTileY,
-    string Goal,
-    string Scope);
+/// <summary>One bounded inventory line: the player-visible name and stack count.</summary>
+public sealed record InventoryItemSnapshot(string Name, int Count);
 
-/// <summary>The latest shared result retained in player-owned mod data.</summary>
-public sealed record SharedOutcome(
-    int Version,
-    int Day,
-    int TargetTileX,
-    int TargetTileY,
-    string Scope,
-    string Status);
+/// <summary>A Player-validated native DSH proposal waiting for explicit consent.</summary>
+public sealed record Proposal(int Day, string Weather, string Location, string Reason, int TargetTileX, int TargetTileY, string Scope);
 
-/// <summary>The two state records written for one explicitly accepted proposal.</summary>
+public sealed record Commitment(int Version, int Day, int TargetTileX, int TargetTileY, string Goal, string Scope);
+
+public sealed record SharedOutcome(int Version, int Day, int TargetTileX, int TargetTileY, string Scope, string Status);
+
 public sealed record AcceptedState(Commitment Commitment, SharedOutcome Outcome);
-
-/// <summary>A player-visible, actionless response from the text social turn.</summary>
-public sealed record SocialReply(string Kind, string Text, bool RecallsYesterdayOutcome);

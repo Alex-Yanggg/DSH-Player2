@@ -10,14 +10,47 @@ async function createBridge(): Promise<{ root: string; cleanup: () => Promise<vo
   return { root, cleanup: () => rm(root, { recursive: true, force: true }) };
 }
 
-async function writeTurn(root: string, sequence: number): Promise<void> {
+function validTurn(sequence: number): unknown {
+  return {
+    version: "0.1.0",
+    sequence,
+    createdAt: "2026-08-29T00:00:00.000Z",
+    gameDay: sequence,
+    adapter: {
+      id: "stardew-semantic",
+      gameId: "stardew-valley",
+      accessMode: "semantic",
+      capabilities: [{
+        id: "mark-target",
+        title: "Mark one agreed target",
+        scope: "one temporary marker",
+        accessMode: "semantic",
+        requiresExplicitConsent: true,
+        isReversible: true,
+        inputSchemaRef: "player2://mark-target/0.1",
+      }],
+    },
+    observations: [{
+      id: `weather-${sequence}`,
+      kind: "world",
+      observedAt: "2026-08-29T00:00:00.000Z",
+      expiresAt: null,
+      source: "stardew-mod",
+      accessMode: "semantic",
+      confidence: 1,
+      facts: { weather: "rain" },
+    }],
+  };
+}
+
+async function writeTurn(root: string, sequence: number, body: unknown = validTurn(sequence)): Promise<void> {
   await mkdir(join(root, "inbox"), { recursive: true });
-  await writeFile(join(root, "inbox", `turn-${sequence}.json`), `${JSON.stringify({ sequence })}\n`, "utf8");
+  await writeFile(join(root, "inbox", `turn-${sequence}.json`), `${JSON.stringify(body)}\n`, "utf8");
 }
 
 function validRequest(sequence: number): unknown {
   return {
-    version: "0.0.3",
+    version: "0.1.0",
     sequence,
     status: "awaiting-player",
     proposal: {
@@ -92,6 +125,30 @@ describe("BridgeDispatcher", () => {
     expect(script.calls).toEqual([1, 3]);
     const persisted = JSON.parse(await readFile(join(root, "outbox", "request-1.json"), "utf8"));
     expect(() => actionRequestSchema.parse(persisted)).not.toThrow();
+  });
+
+  it("fails a turn that violates the bridge contract without waking the DSH session", async () => {
+    const { root } = await newBridge();
+    const legacy = validTurn(9) as { adapter: { capabilities: Array<Record<string, unknown>> } };
+    delete legacy.adapter.capabilities[0].scope;
+    await writeTurn(root, 9, legacy);
+    const script = scriptedRunner(root, async (sequence) => writeRequest(root, sequence));
+    const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+    const dispatcher = new BridgeDispatcher({
+      bridgeDirectory: root,
+      runner: script.runner,
+      useWatcher: false,
+      logger,
+    });
+
+    await dispatcher.start();
+    await dispatcher.stop();
+
+    expect(script.calls).toEqual([]);
+    expect(dispatcher.stats).toEqual({ dispatched: 0, failed: 1 });
+    expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("does not match the bridge contract"));
+    expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("adapter.capabilities.0.scope"));
+    expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("rebuild and redeploy the mod"));
   });
 
   it("gives a sequence up after bounded attempts and keeps serving later turns", async () => {

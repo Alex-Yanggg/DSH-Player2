@@ -3,42 +3,25 @@ import { link, mkdir, open, readdir, unlink } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import {
   actionRequestSchema,
+  autonomousStatus,
+  awaitingPlayerStatus,
   bridgeFileLimit,
   decisionTurnEnvelopeSchema,
   decisionTurnVersion,
   proposalSchema,
-  receiptSchema,
   type ActionRequest,
+  type AutonomyMode,
   type DecisionTurnEnvelope,
   type Proposal,
 } from "@dsh-player2/contracts";
+import { collectReceiptDigest, type ReceiptDigest, type ReceiptDigestEntry } from "./memory/receipt-digest.js";
 
 const MAX_CITED_OBSERVATIONS = 8;
-const MAX_RECALLED_RECEIPTS = 8;
-const MAX_DIGEST_DETAIL_LENGTH = 200;
-const MAX_DIGEST_SCOPE_LENGTH = 120;
 const MAX_TARGET_LENGTH = 256;
 const MAX_SCOPE_LENGTH = 400;
 const MAX_REASON_LENGTH = 800;
 
-/** One receipt-backed shared outcome as recalled to the model. */
-export interface ReceiptDigestEntry {
-  readonly sequence: number;
-  readonly proposalId: string;
-  readonly capabilityId: string;
-  readonly status: "completed" | "failed" | "declined" | "expired";
-  readonly occurredAt: string;
-  readonly target: string | null;
-  readonly scope: string;
-  readonly detail: string;
-}
-
-/** Bounded, newest-first projection of Player-persisted receipts. */
-export interface ReceiptDigest {
-  readonly entries: ReceiptDigestEntry[];
-  /** Receipt files within the scanned window that were not readable as valid receipts. */
-  readonly skipped: number;
-}
+export type { ReceiptDigest, ReceiptDigestEntry } from "./memory/receipt-digest.js";
 
 /** Model-supplied fields from which Player2 constructs a proposal identity. */
 export interface ProposalDraftInput {
@@ -52,15 +35,18 @@ export interface ProposalDraftInput {
 /** A fixed-path, write-once bridge between Player and one DSH decision composition. */
 export class DecisionFileBridge {
   private readonly root: string;
+  private readonly autonomy: AutonomyMode;
 
   /**
    * @param bridgeDirectory - trusted deployment directory; model arguments never contribute paths.
+   * @param autonomy - the composition's resolved autonomy tier; consult keeps the consent flow.
    */
-  public constructor(bridgeDirectory: string) {
+  public constructor(bridgeDirectory: string, autonomy: AutonomyMode = "consult") {
     if (bridgeDirectory.trim().length === 0) {
       throw new Error("Decision mode requires a non-empty bridgeDirectory.");
     }
     this.root = resolve(bridgeDirectory);
+    this.autonomy = autonomy;
   }
 
   /**
@@ -70,7 +56,15 @@ export class DecisionFileBridge {
    */
   public async observe(sequence: number): Promise<DecisionTurnEnvelope> {
     this.assertSequence(sequence);
-    const envelope = decisionTurnEnvelopeSchema.parse(await this.readJson(this.turnPath(sequence), "decision turn"));
+    const parsed = decisionTurnEnvelopeSchema.safeParse(await this.readJson(this.turnPath(sequence), "decision turn"));
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      throw new Error(
+        `The persisted decision turn does not match the bridge contract at "${issue.path.join(".") || "(root)"}": ${issue.message}. ` +
+        "If the SMAPI mod was built at a different time than this plugin, rebuild and redeploy the mod so both bridge sides share one contract, then start a new game day.",
+      );
+    }
+    const envelope = parsed.data;
     if (envelope.sequence !== sequence) {
       throw new Error(`Decision turn sequence ${envelope.sequence} does not match requested sequence ${sequence}.`);
     }
@@ -122,10 +116,14 @@ export class DecisionFileBridge {
   }
 
   /**
-   * Promote the exact persisted proposal into an immutable request for Player consent.
+   * Promote the exact persisted proposal into an immutable bridge order.
+   *
+   * Consult tier: an awaiting-player request that waits for Player consent.
+   * Full tier: an autonomous order the Player host executes directly. Neither
+   * form ever executes a game capability from this side.
+   *
    * @param sequence - decision turn owning the proposal.
    * @param proposalId - deterministic proposal id returned by {@link propose}.
-   * @returns an awaiting-player request; this method never executes a game capability.
    */
   public async requestAction(sequence: number, proposalId: string): Promise<ActionRequest> {
     this.assertSequence(sequence);
@@ -140,68 +138,27 @@ export class DecisionFileBridge {
     const request = actionRequestSchema.parse({
       version: decisionTurnVersion,
       sequence,
-      status: "awaiting-player",
+      status: this.autonomy === "full" ? autonomousStatus : awaitingPlayerStatus,
       proposal,
     });
     return this.writeOnce(this.requestPath(sequence), request, actionRequestSchema, "action request");
   }
 
   /**
-   * Project the newest persisted receipts into a bounded read-only digest.
-   * Entries are historical context: they are never current observations and
-   * never grant authority. Damaged files are skipped and counted, never
-   * rewritten and never fatal.
+   * Project the newest persisted receipts into a bounded read-only digest via
+   * the receipt-memory module. Entries are historical context: they are never
+   * current observations and never grant authority.
    */
   public async recall(): Promise<ReceiptDigest> {
-    const entries: ReceiptDigestEntry[] = [];
-    let skipped = 0;
-    const names = await readdir(join(this.root, "receipts")).catch((error: unknown) => {
-      if (this.isNotFound(error)) {
-        return [] as string[];
-      }
-      throw error;
-    });
-    const sequences: number[] = [];
-    for (const name of names) {
-      const match = /^receipt-(\d+)\.json$/.exec(name);
-      if (match !== null) {
-        sequences.push(Number.parseInt(match[1], 10));
-      }
-    }
-    sequences.sort((a, b) => b - a);
-    for (const sequence of sequences) {
-      if (entries.length >= MAX_RECALLED_RECEIPTS) {
-        break;
-      }
-      const parsed = receiptSchema.safeParse(await this.readJsonOrNull(join(this.root, "receipts", `receipt-${sequence}.json`)));
-      if (!parsed.success) {
-        skipped += 1;
-        continue;
-      }
-      entries.push({
-        sequence,
-        proposalId: parsed.data.proposalId,
-        capabilityId: parsed.data.capabilityId,
-        status: parsed.data.status,
-        occurredAt: parsed.data.occurredAt,
-        target: parsed.data.target,
-        scope: this.truncate(parsed.data.scope, MAX_DIGEST_SCOPE_LENGTH),
-        detail: this.truncate(parsed.data.detail, MAX_DIGEST_DETAIL_LENGTH),
-      });
-    }
-    return { entries, skipped };
-  }
-
-  private async readJsonOrNull(path: string): Promise<unknown> {
-    try {
-      return await this.readJson(path, "receipt");
-    } catch {
-      return null;
-    }
-  }
-
-  private truncate(value: string, maxLength: number): string {
-    return value.length > maxLength ? `${value.slice(0, maxLength)}…` : value;
+    return collectReceiptDigest(
+      () => readdir(join(this.root, "receipts")).catch((error: unknown) => {
+        if (this.isNotFound(error)) {
+          return [] as string[];
+        }
+        throw error;
+      }),
+      async (name) => this.readJson(join(this.root, "receipts", name), "receipt"),
+    );
   }
 
   private async writeOnce<T>(
