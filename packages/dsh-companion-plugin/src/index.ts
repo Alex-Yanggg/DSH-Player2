@@ -7,10 +7,13 @@
 
 import type { Context } from "@deepseek-ai/cordis";
 import type {} from "@deepseek-ai/dsh-agent";
+import type {} from "@deepseek-ai/dsh-invariants";
 import type {} from "@deepseek-ai/dsh-skill";
 import type {} from "@deepseek-ai/dsh-system-prompt";
+import type {} from "@deepseek-ai/dsh-user-approval";
 import z from "@deepseek-ai/schemastery";
 import { companionSoulSchema, type CompanionSoul } from "@dsh-player2/contracts";
+import { answerCompanionAsk } from "./approval.js";
 import { resolveAutonomy, type AutonomyMode } from "./autonomy.js";
 import {
   createDecisionTools,
@@ -21,9 +24,17 @@ import {
   CONSULT_DECISION_SKILL_CONTENT,
 } from "./decision-loop.js";
 import { DecisionFileBridge } from "./decision-file-bridge.js";
+import { COMPANION_PACKAGE_NAME, createCompanionInvariantInstaller } from "./invariants.js";
 import { createTemperamentHandlers } from "./temperament.js";
 
 export { resolveAutonomy, AUTONOMY_MODES, type AutonomyMode, type AutonomyScopeInput } from "./autonomy.js";
+export { answerCompanionAsk, type CompanionAskDecision } from "./approval.js";
+export {
+  COMPANION_PACKAGE_NAME,
+  createCompanionInvariantInstaller,
+  validateReflectArguments,
+  validateRequestActionArguments,
+} from "./invariants.js";
 export { DECISION_TOOL_NAMES, GROUNDED_DECISION_SKILL } from "./decision-loop.js";
 export { DecisionFileBridge } from "./decision-file-bridge.js";
 export type { ProposalDraftInput, ReflectDraftInput, ReceiptDigest, ReceiptDigestEntry } from "./decision-file-bridge.js";
@@ -215,6 +226,25 @@ export function apply(ctx: Context, config: Config): void {
       ? undefined
       : `Player ${mode} turns deny the ${execution.name} tool; allowed tools: ${[...allowedTools].join(", ")}.`
   )), "player2-companion.social-tool-guard");
+
+  if (mode === "decision") {
+    // The autonomy tier is the companion's in-session approval policy: asks
+    // about companion tools are answered from the player's standing choice,
+    // asks about anyone else's tools fall through untouched.
+    ctx.effect(() => ctx.on("approval/request", (request, next) => {
+      const outcome = answerCompanionAsk(autonomy, request.toolName, allowedTools);
+      return outcome === undefined ? next() : Promise.resolve(outcome);
+    }), "player2-companion.approval");
+    // Package-owned composition invariants ride the optional registry seam: a
+    // deployment without one still mounts the companion (coexistence rule 7).
+    const invariants = ctx.get("invariants");
+    if (invariants !== undefined) {
+      ctx.effect(
+        () => invariants.register(COMPANION_PACKAGE_NAME, createCompanionInvariantInstaller()),
+        "player2-companion.invariants",
+      );
+    }
+  }
 }
 
 /** Renders the soul rows as the stable constitution the model must keep. */
