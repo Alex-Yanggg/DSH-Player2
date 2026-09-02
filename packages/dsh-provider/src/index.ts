@@ -46,3 +46,8 @@ export class DshSdkTextRunner implements DshTextRunner {
     return this.harness.close();
   }
 }
+
+export {
+  NativeSocialFileBridge,
+  type NativeSocialFileBridgeOptions,
+} from "./native-social-file-bridge.js";

@@ -1,26 +1,61 @@
 # Stardew SMAPI probe
 
-This is the first two Player2 technical gates. At the beginning of each game day, the mod captures a small world snapshot (day, weather, location, and one pending task), then asks the player to agree to or decline one weather-based plan. Agreeing creates a visible world receipt at a named target tile and persists two local `modData` values: the commitment and its most recent shared outcome. Declining creates no world or state change. On the next day, the mod recalls only that single prior outcome before asking a new plan.
+At the beginning of each game day, the mod captures only direct game facts (day, weather, and location). It does not invent a pending task from weather or fixed templates. DSH may use those facts plus receipt-backed history to form a proposal; the mod validates it, asks the player to agree or decline, then records a visible receipt and player-owned outcome.
 
 The world receipt is deliberately limited to one temporary visual marker and a sound. It does not change crops, inventory, maps, game automation, NPCs, or multiplayer state. This mod contains no LLM or DSH plugin; those remain later milestones.
 
-Press **F2** while the player is free to open the 0.0.2 text input. **Enter** submits one message and returns control to the game; **Esc** cancels. The mod deliberately logs only the message length. Its deterministic fallback immediately produces a reply, question, disagreement, or suggestion from the current whitelisted snapshot and at most one compatible yesterday outcome; free text never triggers a game action. The next integration step is an asynchronous DSH response that may replace that fallback: the game thread must never wait for Node or a model.
+Press **F2** (configurable via `ChatKey`) while the player is free to open the companion chat window; press **F2** again or **Esc** to close it. It behaves like the multiplayer ChatBox: recent lines stay visible above the input, the mouse wheel and PageUp/PageDown scroll back through history, **Up** recalls your last message, and **Enter** sends while keeping the window open. While DSH is replying, the header shows a waiting state and a second draft remains in the input instead of being discarded. The history is bounded (50 lines) and persists per save. A reply is displayed only after the mounted native DSH plugin returns validated output; a missing, malformed, or timed-out DSH result is an in-game error with a trace id, never a local reply.
 
-## Optional DSH decision bridge (0.0.4)
+The game shows this **F2** hint once after a save is loaded. The chat is a compact bottom-left overlay and is intentionally hidden until invoked; it does not remain on the desktop or cover the play area.
 
-The bridge is disabled by default. After the first launch, set a trusted directory dedicated to one save/session in the generated `config.json`:
+## Choosing a companion
+
+On the first day of a save the mod asks who your companion is through native question dialogue and remembers the choice on that farmer. Three defaults ship; rename them, add entries, or pin one via `config.json`:
 
 ```json
 {
-  "DecisionBridgeDirectory": "C:\\Player2\\bridge",
-  "PollIntervalTicks": 60,
-  "RequestTimeoutTicks": 3600
+  "CompanionName": "Mira",
+  "CompanionChoices": [{
+    "Name": "Mira",
+    "Role": "the player's candid farm partner",
+    "SoulValues": ["curiosity, kindness, and finding one small delight in each farm day"],
+    "SoulBonds": ["the player, as a trusted friend and equal partner"],
+    "SoulVoice": "Bright, gently playful, and honest about uncertainty.",
+    "SoulBoundaries": ["never invents a fact, memory, or completed action"]
+  }]
 }
 ```
 
-Set `PLAYER2_BRIDGE_DIRECTORY` to the exact same path before launching the dedicated [`companion-decision.cordis.yml`](../fixtures/dsh/companion-decision.cordis.yml) DSH composition. Do not share this directory between saves. The Mod writes `inbox/turn-N.json`; DSH writes `outbox/request-N.json`; the Mod writes `grants/grant-N.json` and `receipts/receipt-N.json`. Every file is limited to 64 KiB and write-once. No general DSH filesystem or shell tool is needed.
+Clearing `CompanionName` brings the choice dialog back on the next day. The choice rides on every decision turn as the turn's companion identity, so the DSH side addresses the player as that character. Every roster entry must carry a complete, non-empty soul (`SoulValues`, `SoulBonds`, `SoulVoice`, `SoulBoundaries`); an empty soul is invalid configuration and stops the mod at startup instead of silently composing a personality-free assistant. These values, bonds, voice, and hard boundaries become the persona constitution that turn data can never rewrite. The presence receipt still uses Stardew Valley's own farmer template on purpose: choosing a companion selects who the character is, not new art, and the presence is a brief, bounded appearance rather than a resident NPC.
 
-If no valid request arrives within `RequestTimeoutTicks`, the Mod offers the deterministic local proposal once. A DSH request never executes directly: it must cite the current world observation, select the advertised `visual-receipt` capability and exact location-qualified target, survive C# revalidation, and receive an unexpired native player agreement.
+### Daily prose and fixed text
+
+The actual daily proposal reason is generated by the DSH decision agent from the fresh world observations and the active soul; it is not a fixed dialogue list. Its workflow and prompt constraints live in `packages/dsh-companion-plugin/src/decision-loop.ts`. The fixed sentence shell around that generated reason lives in `player2-core/Player2TextSet.cs`, while buttons, hints, waiting states, and errors live in `stardew-mod/i18n/default.json` and `stardew-mod/i18n/zh.json`. Edit `config.json` for the active soul today; a novice-facing, conversational Soul workshop should produce a reviewed draft and require explicit activation rather than allowing ordinary chat to rewrite the active soul.
+
+## DSH-owned bridge
+
+The bridge is enabled by default at `%USERPROFILE%\\.dsh\\player2\\bridge`, the same root used by the Player2 DSH bundle. Install that bundle once into the profile you run, then restart DSH:
+
+```json
+{
+  "PollIntervalTicks": 60,
+  "DshStartupTimeoutSeconds": 60,
+  "RequestTimeoutSeconds": 60,
+  "ApiKeyMode": "InheritOnly"
+}
+```
+
+Run `dsh plugin --profile web add ./packages/dsh-host-plugin` from the repository root once. On each SMAPI startup the Mod checks port 3080; when normal DSH Web is not already running, it starts `dsh --profile web --port 3080 --no-open` as a hidden normal DSH process. `ApiKeyMode` controls credential hand-off: `InheritOnly` (default) passes `DEEPSEEK_API_KEY` through only when the SMAPI environment already carries it; `IncludeUserRegistry` restores the legacy user-registry fallback. The key is never logged, stored, displayed, or transmitted by Player2 either way. The game waits for the mounted Player2 bundle's fresh heartbeat before publishing the first day or chat turn; an open Web port alone is not treated as ready. Set `AutoStartDshWeb` to `false` only when diagnosing a startup failure, or change `DshProfile`/`DshWebPort` when your DSH installation uses a different profile or port.
+
+### One project per person, one session per save
+
+Every turn, grant, receipt, and social file lives under `<bridge>/projects/<person>/sessions/<saveId>/` — one project directory is one companion person, and each save is one session inside it, with the lane directories (`inbox/`, `outbox/`, `drafts/`, `grants/`, `receipts/`, `social-inbox/`, `social-outbox/`) per session. Conversations and receipt-backed memories therefore never leak across saves, and durable DSH sessions are keyed to one person on one save. Only `development-logs/` and the `runtime/` readiness heartbeat live at the root. A pre-layout flat bridge is migrated once into `projects/legacy/sessions/legacy` at SMAPI startup, before DSH starts. Consumed social files are deleted immediately, and any social-lane file older than seven days is swept at day start, so abandoned turns cannot accumulate. The layout is deliberately transport-neutral: a future real-time social channel can replace the file read/write ends without moving anything.
+
+If no valid request arrives within `RequestTimeoutSeconds` (wall-clock; game pauses do not stretch it — legacy `RequestTimeoutTicks` configs still work at Ticks/60), the Mod reports a traceable native-DSH error. A DSH request never executes directly: it must cite the current world observation, select an advertised capability and exact location-qualified target, survive C# revalidation, and receive an unexpired native player agreement.
+
+## Social lane tenancy and same-day retry
+
+The social lane has one tenant: the host farmer. A farmhand pressing **F2** gets a clear refusal instead of a turn that silently hangs. **F6** (`RetryDayKey`) re-opens a settled day turn after a same-day failure; a day whose receipt recorded a completed shared outcome refuses with an explanation, and the consent flow itself never changes.
 
 ## Build and verify
 
@@ -33,6 +68,17 @@ If no valid request arrives within `RequestTimeoutTicks`, the Mod offers the det
 7. Begin the next day. Confirm the HUD recalls only the previous day's one outcome before the new proposal appears.
 8. On a separate day choose **Not today**. Confirm that the HUD acknowledges the refusal and that no marker, sound, or new Player2 state is produced.
 9. For bridge validation, enable the config and DSH composition, then confirm the SMAPI log reports a published sequence followed by a grounded proposal. Move to another location before agreeing and confirm the result is `failed` with no misplaced marker. Repeat without moving and confirm a single completed receipt; reload the day and confirm the same sequence is not shown or executed again.
+10. On a fresh save, confirm the companion choice dialog offers the configured roster; pick one and confirm the HUD acknowledges it and the day's proposal follows. Load the save again and confirm the dialog does not return.
+11. Open the chat window, press F2 again to close it, reopen it, then send two messages and confirm both sides remain visible. While the first reply is pending, type a second draft and press Enter; confirm the draft stays in the input and no `DSH_SOCIAL_TURN_BUSY` development error is written. Scroll back with the mouse wheel or PageUp, recall your last message with Up, and confirm the history reopens with the save.
+12. With the game language set to Chinese, confirm the dialogs, HUD lines, and native DSH replies render in Chinese.
+13. Stop the DSH profile, trigger a day turn and F2 turn, and confirm each produces a traceable error rather than a local fallback.
+14. Inspect the bridge root: confirm the session layout `projects/<companion>/sessions/<saveId>/…` was created with this save's turn, grant, and receipt files, and that `social-inbox`/`social-outbox` are empty after a consumed chat reply. Load a second save with the same companion and confirm it gets its own session directory and its own receipts.
+15. Delete a test session's empty `social-outbox`, send one chat message, and confirm the game recreates the reply lane before publishing; after the reply arrives, confirm the pair of files for that turn is gone from `social-inbox`/`social-outbox`.
+16. Pause the game (open an in-game menu) right after publishing a day turn with DSH stopped; confirm the timeout error appears after roughly `RequestTimeoutSeconds` of real time, not stretched by the pause.
+17. On a farmhand client, press **F2** and confirm the refusal HUD appears and no social turn is published.
+18. With DSH stopped, let a day turn fail, then press **F6** and confirm the day turn is retried after the bundle becomes ready. Complete an action, then press **F6** again and confirm the completed day refuses to retry.
+19. Set the game language and propose on a save where the chosen companion is not Mira (for example Rowan); confirm the consent dialogue names the chosen companion, not a template default.
+20. With the temperament layer enabled (default), confirm `development-logs/dsh-player2-host.jsonl` shows decision turns completing through `game_request_action` and that a deliberately incomplete turn produces a corrective continuation instead of ending silently.
 
 Passing these gates proves the event-driven game entry point, a refutable permission turn, a bounded world receipt, and two local state values with next-day recall. A companion body and gameplay action are separate questions; DSH integration is intentionally later.
 

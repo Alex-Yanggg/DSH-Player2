@@ -1,7 +1,7 @@
 {
   "id": "decision-stardew-visual-receipt-v1",
   "turn": {
-    "version": "0.0.3",
+    "version": "0.1.0",
     "sequence": 12,
     "createdAt": "2026-08-29T00:00:00.000Z",
     "gameDay": 12,
@@ -40,7 +40,7 @@
     ]
   },
   "expectedRequest": {
-    "version": "0.0.3",
+    "version": "0.1.0",
     "sequence": 12,
     "status": "awaiting-player",
     "proposal": {

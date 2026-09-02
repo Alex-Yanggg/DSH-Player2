@@ -1,3 +1,5 @@
+using System;
+using System.Linq;
 using System.Text.Json;
 using DSHPlayer2.Core;
 using Xunit;
@@ -7,154 +9,89 @@ namespace DSHPlayer2.Core.Tests;
 public sealed class Player2RulesTests
 {
     [Fact]
-    public void RainSnapshotCreatesMinePreparationProposal()
+    public void SnapshotContainsOnlyDirectGameFactsAndNeverInventsATask()
     {
-        var snapshot = Player2Rules.CreateSnapshot(42, "rain", "Farm");
-        var proposal = Player2Rules.CreateProposal(snapshot, 12, 8);
+        var snapshot = Player2Rules.CreateSnapshot(0, "clear", "FarmHouse");
 
-        Assert.Equal("crops do not need watering today", snapshot.PendingTask);
-        Assert.Equal("prepare tomorrow's mine supplies", proposal.Goal);
-        Assert.Equal("rain removes today's watering pressure", proposal.Reason);
-        Assert.Equal(12, proposal.TargetTileX);
-        Assert.Equal(8, proposal.TargetTileY);
+        Assert.Equal(0, snapshot.Day);
+        Assert.Equal("clear", snapshot.Weather);
+        Assert.Equal("FarmHouse", snapshot.Location);
+        Assert.DoesNotContain("task", JsonSerializer.Serialize(snapshot), StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("crop", JsonSerializer.Serialize(snapshot), StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public void ClearSnapshotCreatesCropAttentionProposal()
+    public void NativeProposalDisplaysItsOwnGroundedReasonWithoutALocalGoal()
     {
-        var snapshot = Player2Rules.CreateSnapshot(42, "clear", "Farm");
-        var proposal = Player2Rules.CreateProposal(snapshot, 12, 8);
+        var proposal = new Proposal(1, "clear", "FarmHouse", "I only know the current weather and location, so I suggest meeting here first.", 12, 8, "temporary visual receipt only");
 
-        Assert.Equal("nearby crops may still need attention", snapshot.PendingTask);
-        Assert.Equal("keep three nearby crops in view before anything else", proposal.Goal);
-        Assert.Equal("clear weather leaves crop care visible", proposal.Reason);
+        var rendered = Player2Rules.FormatProposal(proposal, "Kai", "雨天", Player2TextSet.SimplifiedChinese);
+
+        Assert.Contains(proposal.Reason, rendered);
+        Assert.Contains("Kai基于当前信息的理由", rendered);
+        Assert.Contains("地块（12，8）", rendered);
     }
 
     [Fact]
-    public void PermissionTextNamesTargetScopeAndNonMutationBoundary()
+    public void ProposalRendersTheCompanionIdentityInsteadOfATemplateDefault()
     {
-        var proposal = Player2Rules.CreateProposal(
-            Player2Rules.CreateSnapshot(42, "rain", "Farm"),
-            12,
-            8);
+        var proposal = new Proposal(1, "clear", "FarmHouse", "A grounded DSH reason.", 12, 8, "temporary visual receipt only");
 
-        var text = Player2Rules.FormatProposal(proposal);
+        var english = Player2Rules.FormatProposal(proposal, "Rowan", "clear");
+        var fallback = Player2Rules.FormatProposal(proposal, "  ", "clear");
 
-        Assert.Contains("tile 12, 8", text);
-        Assert.Contains("No crops, inventory, map, or multiplayer state will change.", text);
-        Assert.Contains("May I do that?", text);
-    }
-
-    [Theory]
-    [InlineData(true, "completed")]
-    [InlineData(false, "failed")]
-    public void OutcomeReportsWhetherTheWorldReceiptWasShown(bool receiptShown, string expectedStatus)
-    {
-        var proposal = Player2Rules.CreateProposal(
-            Player2Rules.CreateSnapshot(42, "clear", "Farm"),
-            12,
-            8);
-
-        var outcome = Player2Rules.CreateOutcome(proposal, receiptShown);
-
-        Assert.Equal(Player2Rules.StateVersion, outcome.Version);
-        Assert.Equal(expectedStatus, outcome.Status);
-        Assert.Equal(proposal.Scope, outcome.Scope);
+        Assert.Contains("Rowan's grounded reason: A grounded DSH reason.", english);
+        Assert.Contains("Player2's grounded reason: A grounded DSH reason.", fallback);
     }
 
     [Fact]
     public void OnlyTheImmediatelyPriorCompatibleOutcomeCanBeRecalled()
     {
-        var proposal = Player2Rules.CreateProposal(
-            Player2Rules.CreateSnapshot(42, "clear", "Farm"),
-            12,
-            8);
-        var yesterday = Player2Rules.CreateOutcome(proposal, true);
-        var old = yesterday with { Day = 40 };
-        var incompatible = yesterday with { Version = Player2Rules.StateVersion + 1 };
+        var outcome = new SharedOutcome(Player2Rules.StateVersion, 41, 12, 8, "temporary visual receipt only", "completed");
 
-        Assert.Equal(yesterday, Player2Rules.GetYesterdayOutcome(yesterday, 43));
-        Assert.Null(Player2Rules.GetYesterdayOutcome(yesterday, 42));
-        Assert.Null(Player2Rules.GetYesterdayOutcome(old, 43));
-        Assert.Null(Player2Rules.GetYesterdayOutcome(incompatible, 43));
+        Assert.Equal(outcome, Player2Rules.GetYesterdayOutcome(outcome, 42));
+        Assert.Null(Player2Rules.GetYesterdayOutcome(outcome, 41));
+        Assert.Null(Player2Rules.GetYesterdayOutcome(outcome with { Day = 40 }, 42));
+        Assert.Null(Player2Rules.GetYesterdayOutcome(outcome with { Version = 2 }, 42));
     }
 
     [Fact]
-    public void AgreementCreatesBothStateRecordsWithTheSameTargetAndScope()
+    public void AgreementCreatesPlayerOwnedOutcomeFromTheNativeReason()
     {
-        var proposal = Player2Rules.CreateProposal(
-            Player2Rules.CreateSnapshot(42, "rain", "Farm"),
-            12,
-            8);
+        var proposal = new Proposal(1, "clear", "FarmHouse", "A grounded DSH reason.", 12, 8, "temporary visual receipt only");
+        var accepted = Player2Rules.CreateAcceptedState(proposal, true, true);
 
-        var acceptedState = Player2Rules.CreateAcceptedState(proposal, playerAgreed: true, receiptShown: true);
-
-        Assert.NotNull(acceptedState);
-        var commitment = acceptedState.Commitment;
-        var outcome = acceptedState.Outcome;
-
-        Assert.Equal(Player2Rules.StateVersion, commitment.Version);
-        Assert.Equal(commitment.TargetTileX, outcome.TargetTileX);
-        Assert.Equal(commitment.TargetTileY, outcome.TargetTileY);
-        Assert.Equal(commitment.Scope, outcome.Scope);
+        Assert.NotNull(accepted);
+        Assert.Equal("A grounded DSH reason.", accepted!.Commitment.Goal);
+        Assert.Equal("completed", accepted.Outcome.Status);
     }
 
     [Fact]
-    public void RefusalCreatesNoRetainedState()
+    public void TranscriptCapsItsHistoryAndRecallsTheLastPlayerLine()
     {
-        var proposal = Player2Rules.CreateProposal(
-            Player2Rules.CreateSnapshot(42, "clear", "Farm"),
-            12,
-            8);
+        var transcript = new ChatTranscript();
+        for (var day = 0; day < ChatTranscript.MaxLines + 5; day++)
+        {
+            transcript.Append("Mira", $"turn {day}");
+            transcript.Append("Alex", $"hello {day}");
+        }
 
-        var acceptedState = Player2Rules.CreateAcceptedState(proposal, playerAgreed: false, receiptShown: false);
-
-        Assert.Null(acceptedState);
+        Assert.Equal(ChatTranscript.MaxLines, transcript.Lines.Count);
+        Assert.Equal("hello 54", transcript.LastPlayerLine("Alex")?.Text);
+        Assert.Equal("turn 54", transcript.LastPlayerLine("Mira")?.Text);
     }
 
     [Fact]
-    public void RetainedStateRoundTripsThroughJson()
+    public void TranscriptRoundTripsThroughItsPersistenceShape()
     {
-        var proposal = Player2Rules.CreateProposal(
-            Player2Rules.CreateSnapshot(42, "rain", "Farm"),
-            12,
-            8);
-        var acceptedState = Player2Rules.CreateAcceptedState(proposal, playerAgreed: true, receiptShown: true);
+        var transcript = new ChatTranscript();
+        transcript.Append("Alex", "你好");
+        transcript.Append("Mira", "我只会在原生 DSH 反馈后回答。");
 
-        Assert.NotNull(acceptedState);
-        var commitment = JsonSerializer.Deserialize<Commitment>(JsonSerializer.Serialize(acceptedState.Commitment));
-        var outcome = JsonSerializer.Deserialize<SharedOutcome>(JsonSerializer.Serialize(acceptedState.Outcome));
+        var restored = ChatTranscript.Import(transcript.Export());
 
-        Assert.Equal(acceptedState.Commitment, commitment);
-        Assert.Equal(acceptedState.Outcome, outcome);
-    }
-
-    [Theory]
-    [InlineData("为什么？", "reply")]
-    [InlineData("今天该做什么？", "suggestion")]
-    [InlineData("去浇水吧", "disagreement")]
-    [InlineData("你好", "question")]
-    public void TextFallbackSelectsAnActionlessSocialResponse(string message, string expectedKind)
-    {
-        var snapshot = Player2Rules.CreateSnapshot(42, "rain", "Farm");
-
-        var reply = Player2Rules.CreateSocialReply(snapshot, message, null);
-
-        Assert.Equal(expectedKind, reply.Kind);
-        Assert.NotEmpty(reply.Text);
-    }
-
-    [Fact]
-    public void TextFallbackCanRecallOnlyYesterdayOutcome()
-    {
-        var snapshot = Player2Rules.CreateSnapshot(42, "clear", "Farm");
-        var yesterday = Player2Rules.CreateOutcome(
-            Player2Rules.CreateProposal(Player2Rules.CreateSnapshot(41, "rain", "Farm"), 12, 8),
-            true);
-
-        var reply = Player2Rules.CreateSocialReply(snapshot, "hello", yesterday);
-
-        Assert.Equal("reply", reply.Kind);
-        Assert.True(reply.RecallsYesterdayOutcome);
+        Assert.Equal(transcript.Lines, restored.Lines);
+        Assert.Throws<ArgumentException>(() => transcript.Append("", "still here"));
+        Assert.Equal("我只会在原生 DSH 反馈后回答。", restored.Lines.Last().Text);
     }
 }

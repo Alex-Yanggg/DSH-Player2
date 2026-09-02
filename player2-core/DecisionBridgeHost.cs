@@ -10,24 +10,35 @@ public sealed class DecisionBridgeHost : IDisposable
 {
     private readonly DecisionBridgeFiles files;
     private readonly int pollIntervalTicks;
-    private readonly int requestTimeoutTicks;
+    private readonly TimeSpan requestTimeout;
     private readonly CancellationTokenSource cancellation = new();
     private DecisionTurnEnvelope? turn;
     private Task<BridgeActionReceipt?>? recoveryTask;
     private Task? publishTask;
     private Task<BridgeActionRequest?>? pollTask;
+    private Task<BridgeRuntimeError?>? errorPollTask;
     private Task? settlementTask;
     private int pollCountdown;
-    private int waitedTicks;
+    private DateTimeOffset? deadline;
     private bool published;
     private bool closed;
     private bool settlementFailureReported;
 
-    public DecisionBridgeHost(string bridgeDirectory, int pollIntervalTicks, int requestTimeoutTicks)
+    /// <summary>
+    /// The request timeout is a wall-clock deadline, not a tick count: game
+    /// pauses, loading stutters, and menu time otherwise inflate or shrink the
+    /// real wait. Pass <see cref="System.Threading.Timeout.InfiniteTimeSpan"/>
+    /// to disable the deadline entirely (headless harnesses only).
+    /// </summary>
+    public DecisionBridgeHost(string bridgeDirectory, int pollIntervalTicks, TimeSpan requestTimeout)
     {
         this.files = new DecisionBridgeFiles(bridgeDirectory);
+        if (requestTimeout <= TimeSpan.Zero && requestTimeout != System.Threading.Timeout.InfiniteTimeSpan)
+        {
+            throw new ArgumentOutOfRangeException(nameof(requestTimeout));
+        }
         this.pollIntervalTicks = Math.Clamp(pollIntervalTicks, 1, 600);
-        this.requestTimeoutTicks = Math.Max(requestTimeoutTicks, this.pollIntervalTicks);
+        this.requestTimeout = requestTimeout;
     }
 
     public void Start(DecisionTurnEnvelope decisionTurn)
@@ -83,7 +94,7 @@ public sealed class DecisionBridgeHost : IDisposable
                     return this.CloseWith(error);
                 }
             }
-            this.publishTask = this.files.PublishTurnAsync(activeTurn, this.cancellation.Token);
+            this.publishTask = this.PublishTurnForRetryAsync(activeTurn);
         }
 
         if (this.publishTask is not null)
@@ -100,16 +111,40 @@ public sealed class DecisionBridgeHost : IDisposable
             this.publishTask = null;
             this.published = true;
             this.pollCountdown = 0;
+            // The deadline starts once the turn is actually on the bridge.
+            // InfiniteTimeSpan is a sentinel, not a duration to add to now:
+            // adding it would produce a deadline one millisecond in the past.
+            if (this.requestTimeout != System.Threading.Timeout.InfiniteTimeSpan)
+            {
+                this.deadline ??= DateTimeOffset.UtcNow + this.requestTimeout;
+            }
         }
 
         if (!this.published)
         {
             return DecisionBridgeHostUpdate.None;
         }
-        this.waitedTicks++;
-        if (this.waitedTicks > this.requestTimeoutTicks)
+        if (this.deadline is { } deadline && DateTimeOffset.UtcNow > deadline)
         {
-            return this.CloseWith(new TimeoutException("DSH did not produce a decision request before the local fallback deadline."));
+            return this.CloseWith(new TimeoutException("DSH did not produce a decision request before the DSH bridge deadline."));
+        }
+
+        if (this.errorPollTask is not null)
+        {
+            if (!this.errorPollTask.IsCompleted)
+            {
+                return DecisionBridgeHostUpdate.None;
+            }
+            if (this.errorPollTask.IsFaulted)
+            {
+                return this.CloseWith(this.FailureOf(this.errorPollTask));
+            }
+            var runtimeError = this.errorPollTask.GetAwaiter().GetResult();
+            this.errorPollTask = null;
+            if (runtimeError is not null)
+            {
+                return this.CloseWith(new InvalidOperationException($"{runtimeError.Code} trace={runtimeError.TraceId}: {runtimeError.Message}"));
+            }
         }
 
         if (this.pollTask is not null)
@@ -136,9 +171,10 @@ public sealed class DecisionBridgeHost : IDisposable
         {
             this.pollCountdown--;
         }
-        else if (this.pollTask is null)
+        else if (this.pollTask is null && this.errorPollTask is null)
         {
             this.pollTask = this.files.TryReadRequestAsync(activeTurn, this.cancellation.Token);
+            this.errorPollTask = this.files.TryReadErrorAsync(activeTurn, this.cancellation.Token);
         }
         return DecisionBridgeHostUpdate.None;
     }
@@ -154,6 +190,22 @@ public sealed class DecisionBridgeHost : IDisposable
         this.settlementTask = this.PersistSettlementAsync(activeTurn.Sequence, grant, receipt);
     }
 
+    /// <summary>
+    /// Persists one autonomous execution. No grant file exists because no
+    /// player answer was produced; the receipt (with its autonomy marker) is
+    /// the only fact the next day's memory is projected from.
+    /// </summary>
+    public void RecordAutonomousSettlement(BridgeActionReceipt receipt)
+    {
+        var activeTurn = this.turn ?? throw new InvalidOperationException("Decision bridge host has not started.");
+        if (this.settlementTask is not null)
+        {
+            throw new InvalidOperationException("Decision bridge settlement is already being persisted.");
+        }
+        this.closed = true;
+        this.settlementTask = this.files.WriteReceiptAsync(activeTurn.Sequence, receipt, this.cancellation.Token);
+    }
+
     public void Dispose()
     {
         this.closed = true;
@@ -165,6 +217,20 @@ public sealed class DecisionBridgeHost : IDisposable
     {
         await this.files.WriteGrantAsync(sequence, grant, this.cancellation.Token).ConfigureAwait(false);
         await this.files.WriteReceiptAsync(sequence, receipt, this.cancellation.Token).ConfigureAwait(false);
+    }
+
+    private async Task PublishTurnForRetryAsync(DecisionTurnEnvelope activeTurn)
+    {
+        await this.files.ClearRuntimeErrorAsync(activeTurn.Sequence, this.cancellation.Token).ConfigureAwait(false);
+        try
+        {
+            await this.files.PublishTurnAsync(activeTurn, this.cancellation.Token).ConfigureAwait(false);
+        }
+        catch (InvalidOperationException error) when (error.Message == "Refusing to overwrite a conflicting decision bridge file.")
+        {
+            await this.files.ResetUnsettledTurnAsync(activeTurn.Sequence, this.cancellation.Token).ConfigureAwait(false);
+            await this.files.PublishTurnAsync(activeTurn, this.cancellation.Token).ConfigureAwait(false);
+        }
     }
 
     private DecisionBridgeHostUpdate CloseWith(Exception error)

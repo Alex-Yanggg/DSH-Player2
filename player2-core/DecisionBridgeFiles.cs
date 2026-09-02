@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -20,6 +21,10 @@ public sealed class DecisionBridgeFiles
 
     private readonly string root;
 
+    private static readonly Regex SequenceFileName = new(
+        @"^(?:turn|proposal|request|error|grant|receipt)-(\d+)\.json$",
+        RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
     public DecisionBridgeFiles(string bridgeDirectory)
     {
         if (string.IsNullOrWhiteSpace(bridgeDirectory))
@@ -34,6 +39,87 @@ public sealed class DecisionBridgeFiles
         return this.WriteOnceAsync(this.PathFor("inbox", "turn", turn.Sequence), turn, cancellationToken);
     }
 
+    /// <summary>
+    /// Allocates a bridge-wide monotonic sequence instead of reusing game-day
+    /// numbers such as <c>turn-1</c> for every save. Existing immutable bridge
+    /// artifacts are included, so a new save or a restarted game cannot consume
+    /// another turn's stale request or error.
+    /// </summary>
+    public int NextAvailableSequence(DateTimeOffset now)
+    {
+        var unixSeconds = now.ToUnixTimeSeconds();
+        if (unixSeconds is < 1 or >= int.MaxValue)
+        {
+            throw new ArgumentOutOfRangeException(nameof(now), "The current time cannot be represented as a decision sequence.");
+        }
+        var candidate = (int)unixSeconds;
+        foreach (var directoryName in new[] { "inbox", "drafts", "outbox", "grants", "receipts" })
+        {
+            var directory = Path.Combine(this.root, directoryName);
+            if (!Directory.Exists(directory))
+            {
+                continue;
+            }
+            foreach (var path in Directory.EnumerateFiles(directory, "*.json"))
+            {
+                var match = SequenceFileName.Match(Path.GetFileName(path));
+                if (match.Success && int.TryParse(match.Groups[1].Value, out var existing) && existing >= candidate)
+                {
+                    if (existing == int.MaxValue)
+                    {
+                        throw new InvalidOperationException("The decision bridge sequence space is exhausted.");
+                    }
+                    candidate = existing + 1;
+                }
+            }
+        }
+        return candidate;
+    }
+
+    /// <summary>
+    /// Clears only a prior DSH runtime error before a deliberate game-side
+    /// retry. The immutable input and the DSH JSONL trace remain intact, while
+    /// a repaired DSH process may answer the same day instead of being held
+    /// hostage by yesterday's launch error.
+    /// </summary>
+    public Task ClearRuntimeErrorAsync(int sequence, CancellationToken cancellationToken = default)
+    {
+        var path = this.PathFor("outbox", "error", sequence);
+        return Task.Run(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (File.Exists(path)) File.Delete(path);
+        }, cancellationToken);
+    }
+
+    /// <summary>
+    /// Resets only an unreceived request after a bridge contract upgrade. This
+    /// is a development migration for a conflicting immutable turn; grants and
+    /// receipts are intentionally never removed, so settled player history is
+    /// preserved.
+    /// </summary>
+    public async Task ResetUnsettledTurnAsync(int sequence, CancellationToken cancellationToken = default)
+    {
+        if (await this.TryReadReceiptAsync(sequence, cancellationToken).ConfigureAwait(false) is not null)
+        {
+            throw new InvalidOperationException("Refusing to reset a settled decision bridge turn.");
+        }
+        await Task.Run(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            foreach (var path in new[]
+            {
+                this.PathFor("inbox", "turn", sequence),
+                this.PathFor("drafts", "proposal", sequence),
+                this.PathFor("outbox", "request", sequence),
+                this.PathFor("outbox", "error", sequence),
+            })
+            {
+                if (File.Exists(path)) File.Delete(path);
+            }
+        }, cancellationToken).ConfigureAwait(false);
+    }
+
     public async Task<BridgeActionRequest?> TryReadRequestAsync(
         DecisionTurnEnvelope turn,
         CancellationToken cancellationToken = default)
@@ -42,6 +128,27 @@ public sealed class DecisionBridgeFiles
             this.PathFor("outbox", "request", turn.Sequence),
             cancellationToken).ConfigureAwait(false);
         return request is null ? null : DecisionBridgeRules.ValidateRequest(turn, request).Request;
+    }
+
+    /// <summary>Reads the DSH-owned terminal error channel for a decision turn.</summary>
+    public async Task<BridgeRuntimeError?> TryReadErrorAsync(
+        DecisionTurnEnvelope turn,
+        CancellationToken cancellationToken = default)
+    {
+        var error = await this.TryReadAsync<BridgeRuntimeError>(
+            this.PathFor("outbox", "error", turn.Sequence),
+            cancellationToken).ConfigureAwait(false);
+        if (error is null)
+        {
+            return null;
+        }
+        if (error.Version != DecisionBridgeRules.WireVersion || error.Sequence != turn.Sequence ||
+            string.IsNullOrWhiteSpace(error.TraceId) || string.IsNullOrWhiteSpace(error.Code) ||
+            string.IsNullOrWhiteSpace(error.Message))
+        {
+            throw new InvalidDataException("DSH decision error does not belong to the active bridge turn.");
+        }
+        return error;
     }
 
     public Task WriteGrantAsync(

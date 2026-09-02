@@ -20,9 +20,20 @@ public static class Program
     public static int Main(string[] args)
     {
         var options = Options.Parse(args);
-        using var host = new DecisionBridgeHost(options.Bridge, pollIntervalTicks: 1, requestTimeoutTicks: int.MaxValue);
-        var turn = DecisionBridgeRules.CreateTurn(
-            new WorldSnapshot(options.Sequence, "rain", "Farm", "none"),
+        using var host = new DecisionBridgeHost(options.Bridge, pollIntervalTicks: 1, Timeout.InfiniteTimeSpan);
+        var self = Player2Rules.CreateFarmerSnapshot(
+            "Alex",
+            money: 1250,
+            inventorySlotsUsed: 3,
+            inventorySlotCapacity: 12,
+            new[]
+            {
+                new InventoryItemSnapshot("Axe", 1),
+                new InventoryItemSnapshot("Watering Can", 1),
+                new InventoryItemSnapshot("Parsnip Seeds", 15),
+            });
+        var turn = DecisionBridgeRules.CreateTurn(AdapterProfile.StardewValley,
+            new WorldSnapshot(options.Sequence, "rain", "Farm", self),
             options.Sequence,
             DecisionBridgeRules.TimestampNow(),
             targetTileX: 12,
@@ -53,7 +64,9 @@ public static class Program
             }
             if (update.Request is not null)
             {
-                settled = Settle(host, turn, update.Request, options);
+                settled = options.Autonomy == AutonomyTier.Full
+                    ? SettleAutonomously(host, turn, update.Request)
+                    : SettleWithConsent(host, turn, update.Request, options);
             }
             Thread.Sleep(options.PollMilliseconds);
         }
@@ -61,6 +74,10 @@ public static class Program
         WaitPersisted(options, deadline);
         var receipt = new DecisionBridgeFiles(options.Bridge).TryReadReceiptAsync(options.Sequence).GetAwaiter().GetResult()
             ?? throw new InvalidOperationException("Settlement reported done but the receipt file is missing.");
+        if (options.Autonomy == AutonomyTier.Full && receipt.Autonomy != DecisionBridgeRules.FullAutonomy)
+        {
+            throw new InvalidOperationException("An autonomous dual-end run must produce a receipt with the full-autonomy marker.");
+        }
         Console.Out.WriteLine(JsonSerializer.Serialize(new Outcome(
             options.Sequence,
             receipt.Status,
@@ -69,7 +86,7 @@ public static class Program
         return 0;
     }
 
-    private static bool Settle(DecisionBridgeHost host, DecisionTurnEnvelope turn, BridgeActionRequest request, Options options)
+    private static bool SettleWithConsent(DecisionBridgeHost host, DecisionTurnEnvelope turn, BridgeActionRequest request, Options options)
     {
         var decidedAt = DecisionBridgeRules.TimestampNow();
         var grant = DecisionBridgeRules.CreateGrant(
@@ -82,6 +99,20 @@ public static class Program
             ? DecisionBridgeRules.CompleteGranted(authorization, receiptShown: true, decidedAt).Receipt
             : authorization.TerminalReceipt ?? throw new InvalidOperationException("Denied authorization without a terminal receipt.");
         host.RecordSettlement(grant, receipt);
+        return true;
+    }
+
+    /// <summary>Full-autonomy lane: validate, execute without consent, receipt with the autonomy marker, no grant file.</summary>
+    private static bool SettleAutonomously(DecisionBridgeHost host, DecisionTurnEnvelope turn, BridgeActionRequest request)
+    {
+        var decidedAt = DecisionBridgeRules.TimestampNow();
+        var authorization = DecisionBridgeRules.AuthorizeAutonomous(turn, request, decidedAt);
+        var receipt = DecisionBridgeRules.CompleteGranted(
+            authorization,
+            receiptShown: true,
+            decidedAt,
+            DecisionBridgeRules.FullAutonomy).Receipt;
+        host.RecordAutonomousSettlement(receipt);
         return true;
     }
 
@@ -110,10 +141,17 @@ public static class Program
         Decline,
     }
 
+    private enum AutonomyTier
+    {
+        Consult,
+        Full,
+    }
+
     private sealed record Options(
         string Bridge,
         int Sequence,
         ConsentChoice Consent,
+        AutonomyTier Autonomy,
         int TimeoutSeconds,
         int PollMilliseconds)
     {
@@ -122,6 +160,7 @@ public static class Program
             string? bridge = null;
             var sequence = 12;
             var consent = ConsentChoice.Grant;
+            var autonomy = AutonomyTier.Consult;
             var timeoutSeconds = 40;
             var pollMilliseconds = 10;
             for (var index = 0; index < args.Length; index += 2)
@@ -138,6 +177,9 @@ public static class Program
                     case "--consent" when Enum.TryParse<ConsentChoice>(value, ignoreCase: true, out var parsed):
                         consent = parsed;
                         break;
+                    case "--autonomy" when Enum.TryParse<AutonomyTier>(value, ignoreCase: true, out var parsed):
+                        autonomy = parsed;
+                        break;
                     case "--timeout-seconds" when int.TryParse(value, out var parsed):
                         timeoutSeconds = parsed;
                         break;
@@ -152,7 +194,7 @@ public static class Program
             {
                 throw new ArgumentException("The dual host requires --bridge <directory>.");
             }
-            return new Options(bridge, sequence, consent, timeoutSeconds, pollMilliseconds);
+            return new Options(bridge, sequence, consent, autonomy, timeoutSeconds, pollMilliseconds);
         }
     }
 }

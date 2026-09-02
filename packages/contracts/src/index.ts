@@ -52,6 +52,12 @@ export const permissionGrantSchema = z.object({
   granted: z.boolean(),
   grantedAt: z.string().datetime(),
   expiresAt: z.string().datetime(),
+  /**
+   * Present only on the runtime's own autonomous authorization record, when a
+   * `companion.autonomy: full` composition executes without a player answer.
+   * It is a Player-side marker, never data the DSH side can produce.
+   */
+  autonomy: z.literal("full").optional(),
 });
 export type PermissionGrant = z.infer<typeof permissionGrantSchema>;
 
@@ -63,6 +69,13 @@ export const receiptSchema = z.object({
   target: z.string().nullable(),
   scope: z.string().min(1),
   detail: z.string().min(1),
+  /**
+   * Autonomous-execution marker. Receipts written by the consult lane carry no
+   * marker (their authorization was a player answer); receipts produced
+   * without per-action consent must say so, because the receipt is the fact
+   * source the next day's memory is projected from.
+   */
+  autonomy: z.literal("full").optional(),
 });
 export type ActionReceipt = z.infer<typeof receiptSchema>;
 
@@ -172,7 +185,83 @@ export interface SocialPresenter {
   presentSocial(response: SocialResponse): Promise<void>;
 }
 
-export const decisionTurnVersion = "0.0.3" as const;
+/**
+ * Player-authored stable persona commitments: the soul layer of the
+ * companion's five-layer personality. Values, bonds, voice, and hard
+ * boundaries travel beside the identity on every turn so the DSH side can
+ * bind them into its system prompt as a constitution that turn data can
+ * never rewrite.
+ */
+export const companionSoulSchema = z.object({
+  values: z.array(z.string().trim().min(1).max(160)).min(1).max(8),
+  bonds: z.array(z.string().trim().min(1).max(160)).min(1).max(8),
+  voice: z.string().trim().min(1).max(240),
+  boundaries: z.array(z.string().trim().min(1).max(160)).min(1).max(8),
+});
+export type CompanionSoul = z.infer<typeof companionSoulSchema>;
+
+/** The player-chosen companion identity carried on one bridge turn. */
+export const companionIdentitySchema = z.object({
+  name: z.string().min(1),
+  role: z.string().min(1),
+  soul: companionSoulSchema,
+});
+export type CompanionIdentity = z.infer<typeof companionIdentitySchema>;
+
+/** Versioned, Player-owned file envelope for a live native DSH social turn. */
+export const socialBridgeVersion = "0.0.9" as const;
+
+export const socialBridgeTurnSchema = z.object({
+  version: z.literal(socialBridgeVersion),
+  id: z.string().uuid(),
+  createdAt: z.string().datetime(),
+  gameDay: z.number().int().positive(),
+  companion: companionIdentitySchema,
+  adapter: adapterDescriptorSchema,
+  observations: z.array(observationSchema).min(1).max(8),
+  priorMemory: sharedOutcomeMemorySchema.nullable(),
+  latestReceipt: receiptSchema.nullable(),
+  message: playerMessageSchema,
+});
+export type SocialBridgeTurn = z.infer<typeof socialBridgeTurnSchema>;
+
+/** Only a completed DSH run may write a player-visible social response. */
+export const socialBridgeResultSchema = z.discriminatedUnion("status", [
+  z.object({
+    version: z.literal(socialBridgeVersion),
+    id: z.string().uuid(),
+    status: z.literal("completed"),
+    source: z.literal("dsh"),
+    traceId: z.string().min(1),
+    sessionId: z.string().min(1),
+    response: socialResponseSchema,
+  }),
+  z.object({
+    version: z.literal(socialBridgeVersion),
+    id: z.string().uuid(),
+    status: z.literal("error"),
+    source: z.literal("dsh"),
+    traceId: z.string().min(1),
+    code: z.string().min(1),
+    message: z.string().min(1).max(800),
+  }),
+]);
+export type SocialBridgeResult = z.infer<typeof socialBridgeResultSchema>;
+
+export const decisionTurnVersion = "0.1.0" as const;
+
+/**
+ * Autonomy tier of one composition. `consult` (default) keeps the
+ * proposal → consent → execute chain; `full` skips per-action consent and the
+ * Player host executes grounded proposals directly, still writing receipts.
+ * Invalid values must fail loudly at mount time, never fall back silently.
+ */
+export const autonomyModeSchema = z.enum(["consult", "full"]);
+export type AutonomyMode = z.infer<typeof autonomyModeSchema>;
+
+/** The two request statuses the decision bridge knows. */
+export const awaitingPlayerStatus = "awaiting-player" as const;
+export const autonomousStatus = "autonomous" as const;
 
 /**
  * Single byte bound for one persisted bridge file. Writers refuse more and
@@ -192,14 +281,34 @@ export const decisionTurnEnvelopeSchema = z.object({
   gameDay: z.number().int().positive(),
   adapter: decisionAdapterDescriptorSchema,
   observations: z.array(observationSchema).min(1).max(32),
+  // The C# writer omits the field entirely when no identity is chosen
+  // (JsonIgnoreCondition.WhenWritingNull), so absence is the null case.
+  companion: companionIdentitySchema.optional(),
 });
 export type DecisionTurnEnvelope = z.infer<typeof decisionTurnEnvelopeSchema>;
 
-/** A DSH-authored proposal waiting for Player to ask for consent. */
+/**
+ * A DSH-authored request for one persisted proposal.
+ *
+ * `awaiting-player` (consult lane) waits for an explicit player answer.
+ * `autonomous` (full lane) orders immediate Player-side execution through the
+ * game adapter; the DSH side still cannot reach `GameAdapter.execute` — the
+ * Player host performs and receipts every execution itself.
+ */
 export const actionRequestSchema = z.object({
   version: z.literal(decisionTurnVersion),
   sequence: z.number().int().positive(),
-  status: z.literal("awaiting-player"),
+  status: z.union([z.literal(awaitingPlayerStatus), z.literal(autonomousStatus)]),
   proposal: proposalSchema,
 });
 export type ActionRequest = z.infer<typeof actionRequestSchema>;
+
+/** A terminal DSH-host failure for a decision turn; never a local fallback. */
+export const decisionBridgeErrorSchema = z.object({
+  version: z.literal(decisionTurnVersion),
+  sequence: z.number().int().positive(),
+  traceId: z.string().min(1),
+  code: z.string().min(1),
+  message: z.string().min(1).max(800),
+});
+export type DecisionBridgeError = z.infer<typeof decisionBridgeErrorSchema>;

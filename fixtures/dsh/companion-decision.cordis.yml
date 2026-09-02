@@ -1,5 +1,12 @@
 # Dedicated DSH composition for the 0.0.3 permission-seeking decision lane.
 # Set PLAYER2_BRIDGE_DIRECTORY to the trusted local bridge root before launch.
+#
+# companion.autonomy (the P2-0011 autonomy switch) is set on the plugin config
+# where the composition mounts it: `autonomy` is the agent-level choice and
+# `presetAutonomy` the recommendation a companion role (preset) directory
+# carries. Nearest scope shadows; the value must be "consult" (default: propose
+# then wait for consent) or "full" (grounded orders execute without per-action
+# consent, receipts are still written). Any other value fails the mount.
 
 - id: sdk-jsonrpc-server
   name: '@deepseek-ai/dsh-sdk-jsonrpc-server'
@@ -30,4 +37,6 @@
     characterName: Mira
     relationshipRole: the player's candid farm partner
     mode: decision
+    autonomy: consult
     bridgeDirectory: !!js process.env.PLAYER2_BRIDGE_DIRECTORY
+    responseLanguage: 简体中文

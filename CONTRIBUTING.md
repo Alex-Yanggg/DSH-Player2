@@ -14,3 +14,4 @@ Thank you for helping build a reliable game companion.
 - Add or update focused tests where automation is practical; otherwise provide exact manual reproduction and verification steps.
 - Update the README when prerequisites, supported platforms, configuration, or user-facing behavior change.
 - Propose upstream DeepSeek Harness changes separately. A Player2 pull request may depend on an upstream release, but it must not carry an upstream core patch.
+- Follow the [operating model](docs/operating-model.md) for task intake, commits, rebasing, owner gates, release candidates, and the public-remote safety rules.

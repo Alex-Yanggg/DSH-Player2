@@ -23,6 +23,7 @@ function readFlag(name) {
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const bridgeDirectory = resolve(readFlag("bridge") ?? "");
 const sequence = Number.parseInt(readFlag("sequence") ?? "12", 10);
+const autonomy = readFlag("autonomy") === "full" ? "full" : "consult";
 const timeoutMs = Number.parseInt(readFlag("timeout-ms") ?? "60000", 10);
 if (!bridgeDirectory) {
   throw new Error("The dual-end model process requires --bridge <directory>.");
@@ -37,6 +38,7 @@ await ctx.plugin(companionPlugin, {
   characterName: "Mira",
   relationshipRole: "the player's candid farm partner",
   mode: "decision",
+  autonomy,
   bridgeDirectory,
 });
 
@@ -66,7 +68,7 @@ const dispatcher = new BridgeDispatcher({
           arguments: {
             sequence: turnSequence,
             capabilityId: "visual-receipt",
-            basedOnObservationIds: [`world-${turnSequence}`],
+            basedOnObservationIds: [`world-${turnSequence}`, `self-${turnSequence}`],
             // The exact location-qualified target the dual host advertises for
             // its WorldSnapshot("Farm", tile 12,8); C# revalidates it strictly.
             target: "stardew-location:Farm:tile:12,8",

@@ -1,0 +1,91 @@
+{
+  "id": "decision-farm-autonomous-v1",
+  "autonomy": "full",
+  "turn": {
+    "version": "0.1.0",
+    "sequence": 12,
+    "createdAt": "2026-08-29T00:00:00.000Z",
+    "gameDay": 12,
+    "adapter": {
+      "id": "stardew-smapi",
+      "gameId": "stardew-valley",
+      "accessMode": "semantic",
+      "capabilities": [
+        {
+          "id": "visual-receipt",
+          "title": "Show one temporary world marker",
+          "accessMode": "semantic",
+          "requiresExplicitConsent": true,
+          "isReversible": true,
+          "inputSchemaRef": "player2://visual-receipt/0.1",
+          "scope": "visual marker + sound only"
+        },
+        {
+          "id": "companion-presence",
+          "title": "Stand beside the agreed target as a temporary farmer-template presence",
+          "accessMode": "semantic",
+          "requiresExplicitConsent": true,
+          "isReversible": true,
+          "inputSchemaRef": "player2://presence-sprite/0.1",
+          "scope": "temporary presence sprite only"
+        }
+      ]
+    },
+    "observations": [
+      {
+        "id": "world-12",
+        "kind": "world",
+        "observedAt": "2026-08-29T00:00:00.000Z",
+        "expiresAt": null,
+        "source": "stardew-smapi",
+        "accessMode": "semantic",
+        "confidence": 1,
+        "facts": {
+          "weather": "rain",
+          "location": "Farm",
+          "target": "stardew-location:Farm:tile:12,8"
+        }
+      },
+      {
+        "id": "self-12",
+        "kind": "self",
+        "observedAt": "2026-08-29T00:00:00.000Z",
+        "expiresAt": null,
+        "source": "stardew-smapi",
+        "accessMode": "semantic",
+        "confidence": 1,
+        "facts": {
+          "farmerName": "Alex",
+          "money": 1250,
+          "inventorySlotsUsed": 3,
+          "inventorySlotCapacity": 12,
+          "inventory": [
+            { "name": "Axe", "count": 1 },
+            { "name": "Watering Can", "count": 1 },
+            { "name": "Parsnip Seeds", "count": 15 }
+          ],
+          "inventoryTruncated": false
+        }
+      }
+    ]
+  },
+  "expectedRequest": {
+    "version": "0.1.0",
+    "sequence": 12,
+    "status": "autonomous",
+    "proposal": {
+      "id": "turn-12:proposal",
+      "createdAt": "2026-08-29T00:00:00.000Z",
+      "basedOnObservationIds": [
+        "world-12",
+        "self-12"
+      ],
+      "capabilityId": "visual-receipt",
+      "intent": {
+        "target": "stardew-location:Farm:tile:12,8"
+      },
+      "scope": "visual marker + sound only",
+      "reason": "Rain is falling and the backpack still has room, so marking today's planning spot is worth doing on my own."
+    }
+  }
+}

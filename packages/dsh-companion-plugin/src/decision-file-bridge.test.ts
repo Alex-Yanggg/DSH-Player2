@@ -11,7 +11,7 @@ async function createBridge() {
   roots.push(root);
   await mkdir(join(root, "inbox"), { recursive: true });
   await writeFile(join(root, "inbox", "turn-1.json"), JSON.stringify({
-    version: "0.0.3",
+    version: "0.1.0",
     sequence: 1,
     createdAt: "2026-08-29T00:00:00.000Z",
     gameDay: 12,
@@ -107,6 +107,24 @@ describe("DecisionFileBridge", () => {
     await expect(bridge.propose(1, { ...valid, reason: "A conflicting reason." }))
       .rejects.toThrow("Refusing to overwrite conflicting proposal");
     await expect(bridge.observe(2)).rejects.toThrow("No decision turn exists");
+  });
+
+  it("explains a turn envelope written by an older mod build", async () => {
+    const { root, bridge } = await createBridge();
+    const legacy = JSON.parse(await readFile(join(root, "inbox", "turn-1.json"), "utf8")) as {
+      adapter: { capabilities: Array<Record<string, unknown>> };
+    };
+    delete legacy.adapter.capabilities[0].scope;
+    await writeFile(join(root, "inbox", "turn-1.json"), JSON.stringify(legacy), "utf8");
+
+    const error = await bridge.observe(1).then(
+      () => null,
+      (value: unknown) => value,
+    );
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toContain("does not match the bridge contract");
+    expect((error as Error).message).toContain("adapter.capabilities.0.scope");
+    expect((error as Error).message).toContain("rebuild and redeploy the mod");
   });
 
   it("rejects oversized bridge input and proposal fields before persistence", async () => {
@@ -209,5 +227,47 @@ describe("DecisionFileBridge", () => {
     expect(digest.entries[0].scope.endsWith("…")).toBe(true);
     expect(digest.entries[0].detail).toHaveLength(201);
     expect(digest.entries[0].detail.endsWith("…")).toBe(true);
+  });
+
+  it("writes an autonomous order on the full autonomy tier", async () => {
+    const { root, bridge } = await createBridge();
+    const fullBridge = new DecisionFileBridge(root, "full");
+    const input = {
+      capabilityId: "mark-target",
+      basedOnObservationIds: ["weather-12"],
+      target: "farm:tile:12,8",
+      scope: "one temporary marker",
+      reason: "Rain makes a shared planning marker useful.",
+    };
+
+    const proposal = await fullBridge.propose(1, input);
+    const order = await fullBridge.requestAction(1, proposal.id);
+
+    expect(order).toMatchObject({ sequence: 1, status: "autonomous", proposal: { id: "turn-1:proposal" } });
+    // The consult bridge stays byte-consistent with the same proposal: the
+    // tier changes only the request status, never the proposal identity.
+    const consultRequest = await bridge.requestAction(1, proposal.id).then(
+      (value) => value,
+      (error: unknown) => error,
+    );
+    expect(consultRequest).toBeInstanceOf(Error);
+    expect((consultRequest as Error).message).toContain("Refusing to overwrite conflicting action request");
+  });
+
+  it("surfaces the autonomous marker of past receipts in the digest", async () => {
+    const { root, bridge } = await createBridge();
+    await mkdir(join(root, "receipts"), { recursive: true });
+    await writeFile(join(root, "receipts", "receipt-6.json"), JSON.stringify({
+      ...JSON.parse(receiptFile(6, "completed")),
+      autonomy: "full",
+    }), "utf8");
+    await writeFile(join(root, "receipts", "receipt-5.json"), receiptFile(5, "declined"), "utf8");
+
+    const digest = await bridge.recall();
+
+    expect(digest.entries).toHaveLength(2);
+    expect(digest.entries[0]).toMatchObject({ sequence: 6, autonomy: "full" });
+    expect(digest.entries[1]).toMatchObject({ sequence: 5 });
+    expect(digest.entries[1].autonomy).toBeUndefined();
   });
 });

@@ -1,7 +1,7 @@
 {
   "id": "decision-rainy-marker-v1",
   "turn": {
-    "version": "0.0.3",
+    "version": "0.1.0",
     "sequence": 1,
     "createdAt": "2026-08-29T00:00:00.000Z",
     "gameDay": 12,
@@ -46,7 +46,7 @@
     "reason": "The observed rain makes a shared planning marker useful."
   },
   "expectedRequest": {
-    "version": "0.0.3",
+    "version": "0.1.0",
     "sequence": 1,
     "status": "awaiting-player",
     "proposal": {

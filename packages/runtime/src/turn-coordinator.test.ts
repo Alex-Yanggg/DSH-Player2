@@ -109,4 +109,33 @@ describe("TurnCoordinator", () => {
     ).rejects.toThrow("does not belong");
     expect(adapter.execute).not.toHaveBeenCalled();
   });
+
+  it("executes a proposal autonomously on a full coordinator with a marked authorization record", async () => {
+    const adapter = createAdapter();
+
+    const receipt = await new TurnCoordinator({ now: () => now, autonomy: "full" })
+      .settleAutonomously(adapter, proposal);
+
+    expect(receipt.status).toBe("completed");
+    expect(adapter.execute).toHaveBeenCalledOnce();
+    const command = (adapter.execute as ReturnType<typeof vi.fn>).mock.calls[0][0] as { grant: PermissionGrant };
+    expect(command.grant).toMatchObject({
+      proposalId: proposal.id,
+      granted: true,
+      autonomy: "full",
+    });
+    expect(command.grant.grantedAt).toBe(now.toISOString());
+    expect(adapter.present).toHaveBeenCalledWith(receipt);
+  });
+
+  it("refuses autonomous settlement on a consult coordinator and rejects an unknown tier", async () => {
+    const adapter = createAdapter();
+
+    await expect(new TurnCoordinator({ now: () => now }).settleAutonomously(adapter, proposal))
+      .rejects.toThrow('requires a TurnCoordinator constructed with autonomy "full"');
+    expect(adapter.execute).not.toHaveBeenCalled();
+    expect(() => new TurnCoordinator({ autonomy: "cheat" as never })).toThrow(
+      'companion.autonomy must be "consult" or "full"',
+    );
+  });
 });

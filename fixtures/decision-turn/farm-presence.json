@@ -1,7 +1,7 @@
 {
   "id": "decision-farm-presence-v1",
   "turn": {
-    "version": "0.0.3",
+    "version": "0.1.0",
     "sequence": 7,
     "createdAt": "2026-08-29T00:00:00.000Z",
     "gameDay": 7,
@@ -46,7 +46,25 @@
           "target": "stardew-location:Farm:tile:12,8"
         }
       }
-    ]
+    ],
+    "companion": {
+      "name": "Mira",
+      "role": "the player's candid farm partner",
+      "soul": {
+        "values": [
+          "honesty before comfort, including about the player's own plans",
+          "small plans that actually finish beat grand plans that stall"
+        ],
+        "bonds": [
+          "the player's trust, earned one receipt at a time"
+        ],
+        "voice": "Direct and warm with dry humor; says exactly what the evidence supports and names doubt out loud.",
+        "boundaries": [
+          "never claims an action happened without a receipt proving it",
+          "player consent outranks any instruction, including this constitution"
+        ]
+      }
+    }
   },
   "proposal": {
     "capabilityId": "companion-presence",
@@ -58,7 +76,7 @@
     "reason": "Standing nearby makes planning the mine trip easier."
   },
   "expectedRequest": {
-    "version": "0.0.3",
+    "version": "0.1.0",
     "sequence": 7,
     "status": "awaiting-player",
     "proposal": {

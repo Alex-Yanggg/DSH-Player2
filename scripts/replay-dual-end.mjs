@@ -14,6 +14,13 @@ import { DecisionFileBridge } from "../packages/dsh-companion-plugin/dist/index.
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const sequence = 12;
+// `--autonomy full` runs the unattended full-autonomy cycle: the C# host
+// executes the grounded order without scripted consent and the receipt must
+// carry the autonomous marker. Default is the consult consent cycle.
+const autonomy = process.argv.includes("--autonomy") &&
+  process.argv[process.argv.indexOf("--autonomy") + 1] === "full"
+  ? "full"
+  : "consult";
 const bridgeDirectory = await mkdtemp(join(tmpdir(), "player2-dual-end-"));
 
 function run(name, command, args, timeoutMs) {
@@ -58,27 +65,37 @@ async function waitFor(path, timeoutMs) {
 }
 
 try {
-  const hostPromise = run(
-    "dualhost",
-    "dotnet",
-    [
-      "run", "--project", join(repositoryRoot, "player2-dualhost"), "-c", "Release", "--",
-      "--bridge", bridgeDirectory,
-      "--sequence", String(sequence),
-      "--consent", "grant",
-      "--timeout-seconds", "60",
-      "--poll-millis", "10",
-    ],
-    120_000,
-  );
+  const hostArgs = [
+    "run", "--project", join(repositoryRoot, "player2-dualhost"), "-c", "Release", "--",
+    "--bridge", bridgeDirectory,
+    "--sequence", String(sequence),
+    "--consent", "grant",
+    "--timeout-seconds", "60",
+    "--poll-millis", "10",
+  ];
+  if (autonomy === "full") {
+    hostArgs.push("--autonomy", "full");
+  }
+  const hostPromise = run("dualhost", "dotnet", hostArgs, 120_000);
 
   // Both ends must run concurrently: the host publishes the turn and polls,
   // the model process wakes as soon as the file appears.
-  await waitFor(join(bridgeDirectory, "inbox", `turn-${sequence}.json`), 30_000);
+  // The first `dotnet run` on a clean checkout may restore and compile the
+  // headless host. Match the host's 120-second lifetime so cold starts do not
+  // race the bridge publication.
+  await waitFor(join(bridgeDirectory, "inbox", `turn-${sequence}.json`), 120_000);
+  const modelArgs = [
+    join(repositoryRoot, "scripts", "dual-end-model.mjs"),
+    "--bridge", bridgeDirectory,
+    "--sequence", String(sequence),
+  ];
+  if (autonomy === "full") {
+    modelArgs.push("--autonomy", "full");
+  }
   const modelPromise = run(
     "dual-end-model",
     process.execPath,
-    [join(repositoryRoot, "scripts", "dual-end-model.mjs"), "--bridge", bridgeDirectory, "--sequence", String(sequence)],
+    modelArgs,
     60_000,
   );
 
@@ -86,6 +103,9 @@ try {
   if (host.code !== 0) {
     console.error(host.stdout);
     console.error(host.stderr);
+    const model = await modelPromise;
+    console.error(model.stdout);
+    console.error(model.stderr);
     throw new Error(`dualhost exited with ${host.code}`);
   }
   const model = await modelPromise;
@@ -101,15 +121,20 @@ try {
   assert.equal(outcome.sequence, sequence);
   assert.equal(outcome.status, "completed");
   assert.equal(outcome.receipt.proposalId, `turn-${sequence}:proposal`);
+  if (autonomy === "full") {
+    assert.equal(outcome.receipt.autonomy, "full", "an autonomous receipt must carry the full-autonomy marker");
+    assert.equal(existsSync(join(bridgeDirectory, "grants", `grant-${sequence}.json`)), false,
+      "an autonomous settlement must not write a grant file");
+  }
 
   // The C#-written receipt must be readable by the TypeScript memory projection.
   const digest = await new DecisionFileBridge(bridgeDirectory).recall();
-  assert.ok(
-    digest.entries.some((entry) => entry.sequence === sequence && entry.status === "completed"),
-    `recall must surface the settled receipt: ${JSON.stringify(digest)}`,
-  );
+  const recalled = digest.entries.find((entry) => entry.sequence === sequence);
+  assert.ok(recalled, `recall must surface the settled receipt: ${JSON.stringify(digest)}`);
+  assert.equal(recalled.status, "completed");
+  assert.equal(recalled.autonomy, autonomy === "full" ? "full" : undefined);
 
-  console.log(`PASS dual-end: turn -> request -> consent -> completed receipt -> recall (sequence ${sequence})`);
+  console.log(`PASS dual-end (${autonomy}): turn -> request -> ${autonomy === "full" ? "autonomous execution" : "consent"} -> completed receipt -> recall (sequence ${sequence})`);
 } finally {
   killChildren();
   await rm(bridgeDirectory, { recursive: true, force: true });

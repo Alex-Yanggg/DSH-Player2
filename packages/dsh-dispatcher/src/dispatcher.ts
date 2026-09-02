@@ -1,7 +1,7 @@
 import { existsSync, watch, type FSWatcher } from "node:fs";
 import { readFile, readdir, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { actionRequestSchema } from "@dsh-player2/contracts";
+import { actionRequestSchema, bridgeFileLimit, decisionTurnEnvelopeSchema } from "@dsh-player2/contracts";
 import type { DecisionTurnRunner } from "./decision-runner.js";
 
 /** Minimal logging surface so hosts can route dispatcher events to SMAPI or console. */
@@ -224,7 +224,56 @@ export class BridgeDispatcher {
     return true;
   }
 
+  /**
+   * Reject turns this bridge contract cannot legally observe before any model
+   * session is woken. A stale mod build writes envelopes the current plugin
+   * refuses; failing fast here keeps that diagnosis local, immediate, and free
+   * of wasted model calls.
+   */
+  private async preflightTurn(sequence: number): Promise<void> {
+    const path = join(this.root, "inbox", `turn-${sequence}.json`);
+    let serialized: string;
+    try {
+      serialized = await readFile(path, "utf8");
+    } catch (error) {
+      if (isNotFound(error)) {
+        throw new Error(`inbox/turn-${sequence}.json disappeared before dispatch.`);
+      }
+      throw error;
+    }
+    if (Buffer.byteLength(serialized, "utf8") > bridgeFileLimit) {
+      throw new Error(`inbox/turn-${sequence}.json exceeds the ${bridgeFileLimit} byte bridge limit.`);
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(serialized) as unknown;
+    } catch {
+      throw new Error(`inbox/turn-${sequence}.json is not valid JSON.`);
+    }
+    const envelope = decisionTurnEnvelopeSchema.safeParse(parsed);
+    if (!envelope.success) {
+      const issue = envelope.error.issues[0];
+      throw new Error(
+        `inbox/turn-${sequence}.json does not match the bridge contract at "${issue.path.join(".") || "(root)"}": ${issue.message}. ` +
+        "This usually means the deployed SMAPI mod is older than this dispatcher's plugin build; " +
+        "rebuild and redeploy the mod (see stardew-mod/README.md), then start a new game day.",
+      );
+    }
+  }
+
   private async processOne(sequence: number): Promise<void> {
+    try {
+      await this.preflightTurn(sequence);
+    } catch (error) {
+      // The turn file is Player-authored and immutable: a violation is
+      // deterministic, so retrying a model session cannot repair it.
+      this.failedSequences.add(sequence);
+      this.failedCount += 1;
+      this.logger.error(
+        `Decision turn ${sequence} cannot be dispatched: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return;
+    }
     for (let attempt = 1; attempt <= this.maxAttempts; attempt += 1) {
       try {
         await this.runner.runDecisionTurn(sequence);

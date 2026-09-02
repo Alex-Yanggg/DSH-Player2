@@ -23,7 +23,7 @@ async function createBridge(): Promise<{ root: string; cleanup: () => Promise<vo
 
 function validRequest(sequence: number): unknown {
   return {
-    version: "0.0.3",
+    version: "0.1.0",
     sequence,
     status: "awaiting-player",
     proposal: {

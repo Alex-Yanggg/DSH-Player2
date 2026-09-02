@@ -113,3 +113,26 @@ npm run typecheck
 npm run build
 npm test
 ```
+
+## Project/Session Layout (0.1.1)
+
+Every turn, grant, receipt, and social file lives under `<bridge>/projects/<person>/sessions/<saveId>/` — one project directory is one companion person, and each save is one session inside it. This is the engineering file system that keeps conversations and receipt-backed memories from leaking across saves, keys each durable DSH lane session to one person on one save, and leaves a future real-time social transport free to replace the file read/write ends without moving anything. Only `development-logs/` and the `runtime/` readiness heartbeat live at the bridge root. A pre-layout flat bridge migrates once into `projects/legacy/sessions/legacy` at SMAPI startup, before DSH starts; the host scans sessions and never flat lanes.
+
+The social lane hardening accompanies it: bounded 64 KiB reads, full result validation (version, status, response shape, kinds, citation grounding, memory consistency), typed world/self facts at the C# writer, consumed-file cleanup, a seven-day stale sweep, and a single converged policy implementation in `@dsh-player2/runtime` with two thin transports — the host-plugin drain (production) and the SDK file bridge (keyless replay and smoke only). Timelines are wall-clock: every host timeout is a real-time deadline, so game pauses never stretch the wait.
+
+## Companion Personality (0.1.1)
+
+The five-layer personality now covers all five layers. Body: the presence capability (vanilla farmer template, no custom art). Experience: the receipt-backed memory projection. Soul: bounded persona rows — values, bonds, voice, hard boundaries — authored per roster entry, carried beside the companion identity on every bridge turn, and bound as a `player2:companion-soul` system-prompt constitution the DSH side treats as rewrite-proof. Temperament: the checkpoint module — pre-step attention (the receipt digest weighted against the current turn's targets, injected before the first step of every turn on both lanes), a pre-execute reflection guard (observe before propose, propose before ordering), and turn-stopping closure (a turn ending without its completion evidence is steered to continue, at most twice). Memory closure: recall now participates in turn attention instead of being passively queryable. Lane agents compose from the turn's envelope identity — no default name — and their session ids hash that identity, so a changed persona starts a fresh durable session. Mounting a preset directory upstream is recorded as a concrete requirement in `docs/upstream-requirements.md` (UR-1) rather than patched into Harness.
+
+## Audit Conformance (2026-08-30)
+
+The eight-item audit recorded on 2026-08-30 and its remediation:
+
+1. **人格五层只落了"身体+经历"** — resolved: soul rows on the wire plus a persona-constitution section, and the temperament checkpoint plugin (pre-step attention / pre-execute reflection / turn-stopping); `agentPresets.mount()` remains unavailable upstream and is recorded as UR-1.
+2. **记忆→行为闭环未闭合** — resolved: pre-step attention injects the receipt digest into every turn, social turns included.
+3. **live 桌面玩家验证仍是最高优先未偿债** — open by design: all automated gates remain keyless/gameless golden replays; `stardew-mod/README.md` now carries the twenty-step manual verification path for a player-run desktop session.
+4. **文档-代码漂移** — resolved on 2026-08-30 in place; this section supersedes the lost draft with the current state.
+5. **社交通道是二等公民** — resolved: bounded reads, full validation, typed facts, consumed-file cleanup and stale sweep, one policy implementation with two thin transports, and the project/session layout.
+6. **核心语义未中立** — resolved: the companion name follows the player-chosen identity everywhere (no template default, no host-side default), and `AdapterProfile` carries adapter id, game id, and target schemes so the core names no game; weather display words resolve in the adapter.
+7. **ModEntry 上帝类** — resolved along the audit's named seams: `DshProcessSupervisor`, `ReceiptRenderer`, `CompanionTranscriptStore`, the development-log writer, plus `WorldSnapshotBuilder` and the game-free `CompanionSettlementStore`; ModEntry keeps only the SMAPI adapter role. `stardew-mod` still has no own test project because the mod assembly cannot build without a game install — the game-free logic moved into `player2-core`, where it is tested.
+8. **杂项** — resolved: wall-clock deadlines everywhere (config in seconds, legacy Ticks migrated), a farmhand social refusal instead of the tenant asymmetry, an explicit **F6** same-day retry entry that never re-runs a completed day, and `ApiKeyMode` making the registry credential fallback an explicit opt-in with the security note in `stardew-mod/README.md`.
