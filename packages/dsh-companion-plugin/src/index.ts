@@ -26,7 +26,7 @@ import { createTemperamentHandlers } from "./temperament.js";
 export { resolveAutonomy, AUTONOMY_MODES, type AutonomyMode, type AutonomyScopeInput } from "./autonomy.js";
 export { DECISION_TOOL_NAMES, GROUNDED_DECISION_SKILL } from "./decision-loop.js";
 export { DecisionFileBridge } from "./decision-file-bridge.js";
-export type { ProposalDraftInput, ReceiptDigest, ReceiptDigestEntry } from "./decision-file-bridge.js";
+export type { ProposalDraftInput, ReflectDraftInput, ReceiptDigest, ReceiptDigestEntry } from "./decision-file-bridge.js";
 export { collectReceiptDigest } from "./memory/receipt-digest.js";
 
 /** Cordis plugin name. */

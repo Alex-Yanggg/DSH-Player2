@@ -270,4 +270,50 @@ describe("DecisionFileBridge", () => {
     expect(digest.entries[1]).toMatchObject({ sequence: 5 });
     expect(digest.entries[1].autonomy).toBeUndefined();
   });
+
+  it("persists an idempotent growth proposal grounded in recalled receipts", async () => {
+    const { root, bridge } = await createBridge();
+    await mkdir(join(root, "receipts"), { recursive: true });
+    await writeFile(join(root, "receipts", "receipt-4.json"), receiptFile(4, "completed"), "utf8");
+    const input = {
+      insights: [
+        { text: "Rainy markers tend to be granted; the player likes shared plans.", basedOnReceiptSequences: [4] },
+      ],
+      focus: "Learn what the player enjoys planning together.",
+    };
+
+    const [growth, concurrentGrowth] = await Promise.all([
+      bridge.reflect(1, input),
+      bridge.reflect(1, input),
+    ]);
+    expect(concurrentGrowth).toEqual(growth);
+    await expect(bridge.reflect(1, input)).resolves.toEqual(growth);
+
+    expect(growth).toMatchObject({ version: "0.1.0", sequence: 1, focus: input.focus });
+    expect(growth.insights).toHaveLength(1);
+    expect(growth.insights[0]).toMatchObject({ text: input.insights[0].text, basedOnReceiptSequences: [4] });
+    expect(JSON.parse(await readFile(join(root, "outbox", "growth-1.json"), "utf8"))).toEqual(growth);
+  });
+
+  it("rejects reflections that cite unrecalled receipts or break the bounds", async () => {
+    const { root, bridge } = await createBridge();
+    await mkdir(join(root, "receipts"), { recursive: true });
+    await writeFile(join(root, "receipts", "receipt-4.json"), receiptFile(4, "completed"), "utf8");
+    const insight = { text: "A grounded insight.", basedOnReceiptSequences: [4] };
+
+    await expect(bridge.reflect(1, { insights: [{ text: "Invented.", basedOnReceiptSequences: [9] }], focus: null }))
+      .rejects.toThrow("did not return this turn");
+    await expect(bridge.reflect(1, { insights: [], focus: null }))
+      .rejects.toThrow("between 1 and 3 insights");
+    await expect(bridge.reflect(1, { insights: [{ text: "x".repeat(241), basedOnReceiptSequences: [4] }], focus: null }))
+      .rejects.toThrow("insight text may contain at most 240 characters");
+    await expect(bridge.reflect(1, { insights: [insight], focus: "f".repeat(161) }))
+      .rejects.toThrow("focus may contain at most 160 characters");
+    await expect(bridge.reflect(1, { insights: [{ ...insight, basedOnReceiptSequences: [4, 4] }], focus: null }))
+      .rejects.toThrow("distinct cited receipt sequences");
+
+    await bridge.reflect(1, { insights: [insight], focus: null });
+    await expect(bridge.reflect(1, { insights: [{ text: "A conflicting insight.", basedOnReceiptSequences: [4] }], focus: null }))
+      .rejects.toThrow("Refusing to overwrite conflicting growth proposal");
+  });
 });

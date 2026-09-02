@@ -1,0 +1,126 @@
+{
+  "id": "decision-rainy-reflect-v1",
+  "receipts": [
+    {
+      "name": "receipt-6.json",
+      "body": {
+        "proposalId": "turn-6:proposal",
+        "capabilityId": "mark-target",
+        "status": "completed",
+        "occurredAt": "2026-08-28T00:00:00.000Z",
+        "target": "farm:tile:12,8",
+        "scope": "one temporary marker",
+        "detail": "The rainy marker stood where the player agreed it should."
+      }
+    },
+    {
+      "name": "receipt-5.json",
+      "body": {
+        "proposalId": "turn-5:proposal",
+        "capabilityId": "mark-target",
+        "status": "declined",
+        "occurredAt": "2026-08-27T00:00:00.000Z",
+        "target": "farm:tile:4,6",
+        "scope": "one temporary marker",
+        "detail": "The player declined a marker far from the crops."
+      }
+    }
+  ],
+  "turn": {
+    "version": "0.1.0",
+    "sequence": 7,
+    "createdAt": "2026-08-29T00:00:00.000Z",
+    "gameDay": 13,
+    "adapter": {
+      "id": "stardew-semantic",
+      "gameId": "stardew-valley",
+      "accessMode": "semantic",
+      "capabilities": [
+        {
+          "id": "mark-target",
+          "title": "Mark one agreed target",
+          "accessMode": "semantic",
+          "requiresExplicitConsent": true,
+          "isReversible": true,
+          "inputSchemaRef": "player2://mark-target/0.1",
+          "scope": "one temporary marker"
+        }
+      ]
+    },
+    "observations": [
+      {
+        "id": "weather-13",
+        "kind": "world",
+        "observedAt": "2026-08-29T00:00:00.000Z",
+        "expiresAt": null,
+        "source": "stardew-mod",
+        "accessMode": "semantic",
+        "confidence": 1,
+        "facts": {
+          "weather": "sunny"
+        }
+      }
+    ],
+    "growth": {
+      "version": "0.1.0",
+      "revision": 6,
+      "insights": [
+        {
+          "id": "growth-6-1",
+          "text": "The player prefers markers near what they tend that day.",
+          "basedOnReceiptSequences": [5],
+          "createdAt": "2026-08-28T00:00:00.000Z"
+        }
+      ],
+      "focus": "Plan markers the player actually grants."
+    }
+  },
+  "reflect": {
+    "sequence": 7,
+    "insights": [
+      {
+        "text": "Granted markers were near the crops; distant ones were declined.",
+        "basedOnReceiptSequences": [6, 5]
+      }
+    ],
+    "focus": "Learn which plans the player grants without hesitation."
+  },
+  "expectedGrowth": {
+    "version": "0.1.0",
+    "sequence": 7,
+    "insights": [
+      {
+        "text": "Granted markers were near the crops; distant ones were declined.",
+        "basedOnReceiptSequences": [6, 5]
+      }
+    ],
+    "focus": "Learn which plans the player grants without hesitation."
+  },
+  "proposal": {
+    "capabilityId": "mark-target",
+    "basedOnObservationIds": [
+      "weather-13"
+    ],
+    "target": "farm:tile:14,9",
+    "scope": "one temporary marker",
+    "reason": "A sunny day near the crops is a good shared planning spot."
+  },
+  "expectedRequest": {
+    "version": "0.1.0",
+    "sequence": 7,
+    "status": "awaiting-player",
+    "proposal": {
+      "id": "turn-7:proposal",
+      "createdAt": "2026-08-29T00:00:00.000Z",
+      "basedOnObservationIds": [
+        "weather-13"
+      ],
+      "capabilityId": "mark-target",
+      "intent": {
+        "target": "farm:tile:14,9"
+      },
+      "scope": "one temporary marker",
+      "reason": "A sunny day near the crops is a good shared planning spot."
+    }
+  }
+}

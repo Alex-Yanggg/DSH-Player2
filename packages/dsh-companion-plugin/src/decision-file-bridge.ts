@@ -8,10 +8,12 @@ import {
   bridgeFileLimit,
   decisionTurnEnvelopeSchema,
   decisionTurnVersion,
+  growthProposalSchema,
   proposalSchema,
   type ActionRequest,
   type AutonomyMode,
   type DecisionTurnEnvelope,
+  type GrowthProposal,
   type Proposal,
 } from "@dsh-player2/contracts";
 import { collectReceiptDigest, type ReceiptDigest, type ReceiptDigestEntry } from "./memory/receipt-digest.js";
@@ -20,6 +22,10 @@ const MAX_CITED_OBSERVATIONS = 8;
 const MAX_TARGET_LENGTH = 256;
 const MAX_SCOPE_LENGTH = 400;
 const MAX_REASON_LENGTH = 800;
+const MAX_REFLECTION_INSIGHTS = 3;
+const MAX_INSIGHT_LENGTH = 240;
+const MAX_CITED_RECEIPTS = 8;
+const MAX_FOCUS_LENGTH = 160;
 
 export type { ReceiptDigest, ReceiptDigestEntry } from "./memory/receipt-digest.js";
 
@@ -30,6 +36,15 @@ export interface ProposalDraftInput {
   readonly target: string;
   readonly scope: string;
   readonly reason: string;
+}
+
+/** Model-supplied fields of one bounded self-reflection about shared history. */
+export interface ReflectDraftInput {
+  readonly insights: ReadonlyArray<{
+    readonly text: string;
+    readonly basedOnReceiptSequences: readonly number[];
+  }>;
+  readonly focus: string | null;
 }
 
 /** A fixed-path, write-once bridge between Player and one DSH decision composition. */
@@ -161,6 +176,56 @@ export class DecisionFileBridge {
     );
   }
 
+  /**
+   * Persist one write-once self-reflection for this turn: bounded insights
+   * that must cite receipt sequences the recall digest actually returned, plus
+   * an optional self-chosen focus. The proposal is data for Player validation
+   * and application to the Player-owned growth asset — it never changes this
+   * companion's soul, tools, or authority, and it never executes anything.
+   *
+   * @param sequence - decision turn owning this reflection.
+   * @param input - bounded model-authored reflection fields.
+   * @returns the newly written or byte-equivalent existing growth proposal.
+   */
+  public async reflect(sequence: number, input: ReflectDraftInput): Promise<GrowthProposal> {
+    this.assertSequence(sequence);
+    if (input.insights.length === 0 || input.insights.length > MAX_REFLECTION_INSIGHTS) {
+      throw new Error(
+        `A growth proposal requires between 1 and ${MAX_REFLECTION_INSIGHTS} insights.`);
+    }
+    const digest = await this.recall();
+    const recalledSequences = new Set(digest.entries.map((entry) => entry.sequence));
+    const insights = input.insights.map((insight) => ({
+      text: this.boundedText(insight.text, "insight text", MAX_INSIGHT_LENGTH),
+      basedOnReceiptSequences: this.citedReceiptSequences(insight.basedOnReceiptSequences, recalledSequences),
+    }));
+    const focus = input.focus === null || input.focus === undefined
+      ? null
+      : this.boundedText(input.focus, "focus", MAX_FOCUS_LENGTH);
+    const proposal = growthProposalSchema.parse({
+      version: decisionTurnVersion,
+      sequence,
+      insights,
+      focus,
+    });
+    return this.writeOnce(this.growthPath(sequence), proposal, growthProposalSchema, "growth proposal");
+  }
+
+  /** Validates that cited receipt sequences are distinct and were actually recalled. */
+  private citedReceiptSequences(cited: readonly number[], recalled: ReadonlySet<number>): number[] {
+    if (cited.length === 0 || cited.length > MAX_CITED_RECEIPTS || new Set(cited).size !== cited.length) {
+      throw new Error(
+        `Each insight requires distinct cited receipt sequences, at most ${MAX_CITED_RECEIPTS}.`);
+    }
+    const unknown = cited.find((sequence) => !recalled.has(sequence));
+    if (unknown !== undefined) {
+      throw new Error(
+        `Growth insight cited receipt sequence ${unknown}, which companion_recall did not return this turn. ` +
+        "Growth must stay grounded in recalled shared outcomes.");
+    }
+    return [...cited];
+  }
+
   private async writeOnce<T>(
     path: string,
     value: T,
@@ -260,6 +325,10 @@ export class DecisionFileBridge {
 
   private requestPath(sequence: number): string {
     return resolve(this.root, "outbox", `request-${sequence}.json`);
+  }
+
+  private growthPath(sequence: number): string {
+    return resolve(this.root, "outbox", `growth-${sequence}.json`);
   }
 
   private proposalId(sequence: number): string {

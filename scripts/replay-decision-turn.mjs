@@ -29,6 +29,14 @@ try {
     `${JSON.stringify(fixture.turn, null, 2)}\n`,
     "utf8",
   );
+  // A reflect fixture seeds prior shared outcomes so companion_reflect can be
+  // grounded in exactly what companion_recall would return.
+  if (fixture.receipts) {
+    await mkdir(join(bridgeDirectory, "receipts"), { recursive: true });
+    for (const receipt of fixture.receipts) {
+      await writeFile(join(bridgeDirectory, "receipts", receipt.name), `${JSON.stringify(receipt.body, null, 2)}\n`, "utf8");
+    }
+  }
 
   const ctx = new Context();
   await ctx.plugin(SystemPrompt);
@@ -50,6 +58,16 @@ try {
       arguments: { sequence: fixture.turn.sequence },
       signal,
     },
+  ];
+  if (fixture.reflect) {
+    calls.push({
+      callId: CallId("replay-reflect"),
+      name: companionPlugin.DECISION_TOOL_NAMES.reflect,
+      arguments: fixture.reflect,
+      signal,
+    });
+  }
+  calls.push(
     {
       callId: CallId("replay-propose"),
       name: companionPlugin.DECISION_TOOL_NAMES.propose,
@@ -62,7 +80,7 @@ try {
       arguments: { sequence: fixture.turn.sequence, proposalId: `turn-${fixture.turn.sequence}:proposal` },
       signal,
     },
-  ];
+  );
   for (const call of calls) {
     const result = await ctx.tools.execute(call);
     if (result.isError) {
@@ -70,12 +88,19 @@ try {
     }
   }
 
+  if (fixture.expectedGrowth) {
+    const actualGrowth = JSON.parse(await readFile(
+      join(bridgeDirectory, "outbox", `growth-${fixture.turn.sequence}.json`),
+      "utf8",
+    ));
+    assert.deepStrictEqual(actualGrowth, fixture.expectedGrowth);
+  }
   const actual = JSON.parse(await readFile(
     join(bridgeDirectory, "outbox", `request-${fixture.turn.sequence}.json`),
     "utf8",
   ));
   assert.deepStrictEqual(actual, fixture.expectedRequest);
-  console.log(`PASS ${fixture.id}: observe -> propose -> ${autonomy === "full" ? "autonomous order" : "awaiting-player"}`);
+  console.log(`PASS ${fixture.id}: observe -> ${fixture.reflect ? "reflect -> " : ""}propose -> ${autonomy === "full" ? "autonomous order" : "awaiting-player"}`);
 } finally {
   await rm(bridgeDirectory, { recursive: true, force: true });
 }
