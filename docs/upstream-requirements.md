@@ -8,10 +8,17 @@ workaround can be retired cleanly if the requirement lands upstream.
 
 ## UR-1 Agent preset composition (`agentPresets.mount()`)
 
-**Status:** not present in `@deepseek-ai/*` 0.1.1-rc.2. Grep across every
-shipped `.d.ts` finds no `agentPresets` service and no `mount()` for presets;
-`agentPreset` exists only as passive metadata (`CreateAgentOptions.meta.agentPreset`,
-`SessionHeader.agentPreset`), and no shipped service consumes it.
+**Status:** the service is not present in the Player2 dependency tree
+(`@deepseek-ai/*` 0.1.1-rc.2 as installed). Re-verified on 2026-09-03: the
+upstream package `@deepseek-ai/dsh-agent-presets@0.1.1-rc.2` **is published on
+npm** on the same version line as the installed set (with the related
+`@deepseek-ai/dsh-persona`), so the requirement is now known to be solvable
+strictly in-boundary — one official dependency addition, no Harness change.
+Adopting it still requires the owner to approve the `package.json` +
+lockfile change, because contributor rules do not let an agent touch the
+dependency lockfile. Grep across every shipped `.d.ts` in the current tree
+finds no `agentPresets` service; `agentPreset` exists only as passive metadata
+(`CreateAgentOptions.meta.agentPreset`, `SessionHeader.agentPreset`).
 
 **What Player2 needs:** the ability to compose an agent from a named preset
 directory that durably carries the companion's identity — persona rows, voice,
