@@ -2,6 +2,8 @@ import { z } from "zod";
 
 export const contractVersion = "0.1" as const;
 
+export const decisionTurnVersion = "0.1.0" as const;
+
 export const accessModeSchema = z.enum(["semantic", "network", "vision"]);
 export type AccessMode = z.infer<typeof accessModeSchema>;
 
@@ -208,6 +210,48 @@ export const companionIdentitySchema = z.object({
 });
 export type CompanionIdentity = z.infer<typeof companionIdentitySchema>;
 
+/** One receipt-grounded insight the companion drew about itself. */
+export const companionGrowthInsightSchema = z.object({
+  id: z.string().min(1),
+  text: z.string().trim().min(1).max(240),
+  basedOnReceiptSequences: z.array(z.number().int().positive()).min(1).max(8),
+  createdAt: z.string().datetime(),
+});
+export type CompanionGrowthInsight = z.infer<typeof companionGrowthInsightSchema>;
+
+/**
+ * Player-owned growth asset: the companion's self-authored interpretation of
+ * its receipt-backed shared history, applied only from validated DSH reflect
+ * proposals. There is deliberately no soul field — the deposit-model ruling
+ * keeps the soul read-only, and this type makes that structurally true. The
+ * asset is bounded (insights are trimmed oldest-first) and its revision is the
+ * sequence of the last applied proposal, so stale proposals are rejected.
+ */
+export const companionGrowthSchema = z.object({
+  version: z.literal(decisionTurnVersion),
+  revision: z.number().int().nonnegative(),
+  insights: z.array(companionGrowthInsightSchema).max(12),
+  focus: z.string().trim().max(160).nullable(),
+});
+export type CompanionGrowth = z.infer<typeof companionGrowthSchema>;
+
+/**
+ * A DSH-authored, write-once growth proposal for one decision turn: bounded
+ * insights grounded in receipt sequences the recall digest actually returned,
+ * plus an optional self-chosen focus. The Player validates and applies it;
+ * like an action request it is never executed from the DSH side.
+ */
+export const growthProposalSchema = z.object({
+  version: z.literal(decisionTurnVersion),
+  sequence: z.number().int().positive(),
+  insights: z.array(z.object({
+    text: z.string().trim().min(1).max(240),
+    basedOnReceiptSequences: z.array(z.number().int().positive()).min(1).max(8),
+  })).min(1).max(3),
+  focus: z.string().trim().min(1).max(160).nullable(),
+});
+export type GrowthProposal = z.infer<typeof growthProposalSchema>;
+
 /** Versioned, Player-owned file envelope for a live native DSH social turn. */
 export const socialBridgeVersion = "0.0.9" as const;
 
@@ -248,8 +292,6 @@ export const socialBridgeResultSchema = z.discriminatedUnion("status", [
 ]);
 export type SocialBridgeResult = z.infer<typeof socialBridgeResultSchema>;
 
-export const decisionTurnVersion = "0.1.0" as const;
-
 /**
  * Autonomy tier of one composition. `consult` (default) keeps the
  * proposal → consent → execute chain; `full` skips per-action consent and the
@@ -284,6 +326,10 @@ export const decisionTurnEnvelopeSchema = z.object({
   // The C# writer omits the field entirely when no identity is chosen
   // (JsonIgnoreCondition.WhenWritingNull), so absence is the null case.
   companion: companionIdentitySchema.optional(),
+  // The companion's applied growth asset, attached by the Player host when one
+  // exists. Same omission rule as `companion`; a mod built before the growth
+  // lane simply never sends it, so both ends drift together, never apart.
+  growth: companionGrowthSchema.optional(),
 });
 export type DecisionTurnEnvelope = z.infer<typeof decisionTurnEnvelopeSchema>;
 
