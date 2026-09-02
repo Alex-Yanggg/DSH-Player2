@@ -32,13 +32,16 @@ public static class Program
                 new InventoryItemSnapshot("Watering Can", 1),
                 new InventoryItemSnapshot("Parsnip Seeds", 15),
             });
+        var growthStore = new CompanionGrowthStore(options.Bridge);
+        var growth = growthStore.TryLoadAsync().GetAwaiter().GetResult();
         var turn = DecisionBridgeRules.CreateTurn(AdapterProfile.StardewValley,
             new WorldSnapshot(options.Sequence, "rain", "Farm", self),
             options.Sequence,
             DecisionBridgeRules.TimestampNow(),
             targetTileX: 12,
             targetTileY: 8,
-            yesterdayOutcome: null);
+            yesterdayOutcome: null,
+            growth: growth);
         host.Start(turn);
 
         var deadline = DateTime.UtcNow.AddSeconds(options.TimeoutSeconds);
@@ -72,6 +75,16 @@ public static class Program
         }
 
         WaitPersisted(options, deadline);
+        // Player-side growth consumption: validate and apply the turn's reflect
+        // proposal when the DSH side wrote one, then clear the consumed file.
+        int? appliedGrowthRevision = null;
+        var growthProposal = growthStore.TryReadProposalAsync(options.Sequence).GetAwaiter().GetResult();
+        if (growthProposal is not null)
+        {
+            var applied = growthStore.ApplyProposalAsync(growthProposal).GetAwaiter().GetResult();
+            growthStore.ClearProposalAsync(options.Sequence).GetAwaiter().GetResult();
+            appliedGrowthRevision = applied.Revision;
+        }
         var receipt = new DecisionBridgeFiles(options.Bridge).TryReadReceiptAsync(options.Sequence).GetAwaiter().GetResult()
             ?? throw new InvalidOperationException("Settlement reported done but the receipt file is missing.");
         if (options.Autonomy == AutonomyTier.Full && receipt.Autonomy != DecisionBridgeRules.FullAutonomy)
@@ -82,6 +95,8 @@ public static class Program
             options.Sequence,
             receipt.Status,
             receipt,
+            growth?.Revision,
+            appliedGrowthRevision,
             "dualhost-ok")));
         return 0;
     }
@@ -133,6 +148,8 @@ public static class Program
         [property: JsonPropertyName("sequence")] int Sequence,
         [property: JsonPropertyName("status")] string Status,
         [property: JsonPropertyName("receipt")] BridgeActionReceipt Receipt,
+        [property: JsonPropertyName("envelopeGrowthRevision")] int? EnvelopeGrowthRevision,
+        [property: JsonPropertyName("appliedGrowthRevision")] int? AppliedGrowthRevision,
         [property: JsonPropertyName("marker")] string Marker);
 
     private enum ConsentChoice
