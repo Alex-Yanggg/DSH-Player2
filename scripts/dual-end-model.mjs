@@ -24,6 +24,7 @@ const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const bridgeDirectory = resolve(readFlag("bridge") ?? "");
 const sequence = Number.parseInt(readFlag("sequence") ?? "12", 10);
 const autonomy = readFlag("autonomy") === "full" ? "full" : "consult";
+const reflect = process.argv.includes("--reflect");
 const timeoutMs = Number.parseInt(readFlag("timeout-ms") ?? "60000", 10);
 if (!bridgeDirectory) {
   throw new Error("The dual-end model process requires --bridge <directory>.");
@@ -62,6 +63,28 @@ const dispatcher = new BridgeDispatcher({
           arguments: {},
           signal,
         },
+      ];
+      if (reflect) {
+        // Grounded self-reflection: cite only receipt sequences this bridge
+        // actually holds, mirroring what companion_recall returned.
+        const cited = (await receiptSequences(bridgeDirectory)).slice(0, 8);
+        if (cited.length > 0) {
+          calls.push({
+            callId: CallId(`dual-reflect-${turnSequence}`),
+            name: companionPlugin.DECISION_TOOL_NAMES.reflect,
+            arguments: {
+              sequence: turnSequence,
+              insights: [{
+                text: "The shared marker plan completed; the player follows through on grounded plans.",
+                basedOnReceiptSequences: cited,
+              }],
+              focus: "Plan one grounded marker the player will grant without hesitation.",
+            },
+            signal,
+          });
+        }
+      }
+      calls.push(
         {
           callId: CallId(`dual-propose-${turnSequence}`),
           name: companionPlugin.DECISION_TOOL_NAMES.propose,
@@ -83,7 +106,7 @@ const dispatcher = new BridgeDispatcher({
           arguments: { sequence: turnSequence, proposalId: `turn-${turnSequence}:proposal` },
           signal,
         },
-      ];
+      );
       for (const call of calls) {
         const result = await ctx.tools.execute(call);
         if (result.isError) {
@@ -116,4 +139,19 @@ async function exists(path) {
   } catch {
     return false;
   }
+}
+
+/** Lists the persisted receipt sequences for this bridge, newest first. */
+async function receiptSequences(directory) {
+  const { readdir } = await import("node:fs/promises");
+  const names = await readdir(join(directory, "receipts")).catch((error) => {
+    if (error.code === "ENOENT") return [];
+    throw error;
+  });
+  const sequences = [];
+  for (const name of names) {
+    const match = /^receipt-(\d+)\.json$/.exec(name);
+    if (match !== null) sequences.push(Number.parseInt(match[1], 10));
+  }
+  return sequences.sort((left, right) => right - left);
 }

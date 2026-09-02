@@ -124,6 +124,33 @@ The social lane hardening accompanies it: bounded 64 KiB reads, full result vali
 
 The five-layer personality now covers all five layers. Body: the presence capability (vanilla farmer template, no custom art). Experience: the receipt-backed memory projection. Soul: bounded persona rows — values, bonds, voice, hard boundaries — authored per roster entry, carried beside the companion identity on every bridge turn, and bound as a `player2:companion-soul` system-prompt constitution the DSH side treats as rewrite-proof. Temperament: the checkpoint module — pre-step attention (the receipt digest weighted against the current turn's targets, injected before the first step of every turn on both lanes), a pre-execute reflection guard (observe before propose, propose before ordering), and turn-stopping closure (a turn ending without its completion evidence is steered to continue, at most twice). Memory closure: recall now participates in turn attention instead of being passively queryable. Lane agents compose from the turn's envelope identity — no default name — and their session ids hash that identity, so a changed persona starts a fresh durable session. Mounting a preset directory upstream is recorded as a concrete requirement in `docs/upstream-requirements.md` (UR-1) rather than patched into Harness.
 
+## Self-Evolution Lane (0.1.2, P2-0012)
+
+The companion's growth is the first capability built on kernel seams the bridge had never touched, and it deliberately crosses all three deposit layers without giving the model a single new authority.
+
+```text
+DSH lane (kernel seams)                    Player host (authority)
+companion_recall ─┐
+                  ├─ companion_reflect ──▶ outbox/growth-<sequence>.json (write-once)
+envelope.growth ──┘                            │ validated + applied
+                                               ▼
+                                     growth/growth.json (L2 asset:
+                                     revision = last applied sequence,
+                                     ≤12 FIFO insights, focus; no soul
+                                     field — the soul stays read-only)
+                                               │ next turn envelope
+                                               ▼
+                                     observe render shows the growth;
+                                     prompt sections never change
+```
+
+- **`companion_reflect`** (decision mode, both autonomy tiers) accepts one to three insights; every insight must cite receipt sequences `companion_recall` actually returned this turn, so growth is grounded in shared history, not invention. The tool writes a write-once proposal with the same byte-equivalence and conflict rules as action requests. Growth is self-knowledge: it is never citable as an observation and never authorizes an action.
+- **`CompanionGrowthStore`** (player2-core, game-free and tested) validates each proposal against the Player contract, rejects stale sequences, trims insights oldest-first at twelve, and writes the versioned asset atomically. A damaged asset is a traceable error, never a silent reset. The envelope carries the applied asset as an optional field, so a mod built before the lane simply never sends it and both ends drift together.
+- **Autonomy-tier approval answerer**: the plugin answers DSH's native `approval/request` waterfall for companion-owned tools only — `consult` rejects in-session asks (the game consent bridge is the only voice of the player), `full` grants from the player's standing authorization, and any other plugin's tool falls through to later answerers. Every ask/outcome pair is audited by DSH into the session log.
+- **Package-owned invariants**: when the deployment composes DSH's invariant registry, the plugin registers stream checks that re-validate the reflect and action-order call contracts on `session/event`; without a registry the companion mounts unchanged (graceful degradation).
+
+The lane consumes only installed kernel surfaces (`ctx.tools`, `ctx.approval`, `ctx.invariants`, the skill registry). Whole-persona preset composition remains UR-1: `@deepseek-ai/dsh-agent-presets` is published upstream on the installed version line, recorded in `docs/upstream-requirements.md` as the in-bounds resolution path.
+
 ## Audit Conformance (2026-08-30)
 
 The eight-item audit recorded on 2026-08-30 and its remediation:
