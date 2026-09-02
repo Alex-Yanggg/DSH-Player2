@@ -383,7 +383,7 @@ internal sealed class ModEntry : Mod
         var yesterdayOutcome = Player2Rules.GetYesterdayOutcome(
             this.ReadState<SharedOutcome>(Game1.player, Player2Rules.LastSharedOutcomeStateKey),
             snapshot.Day);
-        this.activeBridgeTurn = DecisionBridgeRules.CreateTurn(AdapterProfile.StardewValley, 
+        this.activeBridgeTurn = DecisionBridgeRules.CreateTurn(AdapterProfile.StardewValley,
             snapshot,
             sequence,
             DecisionBridgeRules.TimestampNow(),

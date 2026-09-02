@@ -32,7 +32,7 @@ public static class Program
                 new InventoryItemSnapshot("Watering Can", 1),
                 new InventoryItemSnapshot("Parsnip Seeds", 15),
             });
-        var turn = DecisionBridgeRules.CreateTurn(AdapterProfile.StardewValley, 
+        var turn = DecisionBridgeRules.CreateTurn(AdapterProfile.StardewValley,
             new WorldSnapshot(options.Sequence, "rain", "Farm", self),
             options.Sequence,
             DecisionBridgeRules.TimestampNow(),

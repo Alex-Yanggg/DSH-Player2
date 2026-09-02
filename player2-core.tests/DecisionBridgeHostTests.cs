@@ -151,7 +151,7 @@ public sealed class DecisionBridgeHostTests : IDisposable
     [Fact]
     public void DecisionSequenceAndGameDayAreIndependent()
     {
-        var turn = DecisionBridgeRules.CreateTurn(AdapterProfile.StardewValley, 
+        var turn = DecisionBridgeRules.CreateTurn(AdapterProfile.StardewValley,
             new WorldSnapshot(2, "clear", "Farm"),
             1_000_000,
             "2026-08-30T03:00:00.000Z",

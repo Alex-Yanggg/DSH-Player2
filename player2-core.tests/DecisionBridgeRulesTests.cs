@@ -77,7 +77,7 @@ public sealed class DecisionBridgeRulesTests
     public void CreatedTurnCarriesOnlyOneEligibleYesterdayOutcome()
     {
         var outcome = new SharedOutcome(1, 11, 12, 8, DecisionBridgeRules.AllowedScope, "completed");
-        var turn = DecisionBridgeRules.CreateTurn(AdapterProfile.StardewValley, 
+        var turn = DecisionBridgeRules.CreateTurn(AdapterProfile.StardewValley,
             new WorldSnapshot(12, "rain", "Farm"),
             13,
             "2026-08-29T00:00:00.000Z",
@@ -93,7 +93,7 @@ public sealed class DecisionBridgeRulesTests
     [Fact]
     public void CreatedTurnCarriesThePlayerChosenCompanionIdentity()
     {
-        var turn = DecisionBridgeRules.CreateTurn(AdapterProfile.StardewValley, 
+        var turn = DecisionBridgeRules.CreateTurn(AdapterProfile.StardewValley,
             new WorldSnapshot(12, "rain", "Farm"),
             12,
             "2026-08-29T00:00:00.000Z",
@@ -106,7 +106,7 @@ public sealed class DecisionBridgeRulesTests
         var serialized = JsonSerializer.Serialize(turn, new JsonSerializerOptions());
         Assert.Contains("\"companion\"", serialized);
 
-        var anonymous = DecisionBridgeRules.CreateTurn(AdapterProfile.StardewValley, 
+        var anonymous = DecisionBridgeRules.CreateTurn(AdapterProfile.StardewValley,
             new WorldSnapshot(12, "rain", "Farm"),
             12,
             "2026-08-29T00:00:00.000Z",
@@ -125,7 +125,7 @@ public sealed class DecisionBridgeRulesTests
             new[] { "the player's trust, earned one receipt at a time" },
             "Direct and warm with dry humor.",
             new[] { "never claims an action happened without a receipt proving it" });
-        var turn = DecisionBridgeRules.CreateTurn(AdapterProfile.StardewValley, 
+        var turn = DecisionBridgeRules.CreateTurn(AdapterProfile.StardewValley,
             new WorldSnapshot(12, "rain", "Farm"),
             12,
             "2026-08-29T00:00:00.000Z",
@@ -211,7 +211,7 @@ public sealed class DecisionBridgeRulesTests
     public void AdvertisesAndValidatesThePresenceCapabilityWithItsOwnScope()
     {
         var createdAt = "2026-08-29T00:00:00.000Z";
-        var turn = DecisionBridgeRules.CreateTurn(AdapterProfile.StardewValley, 
+        var turn = DecisionBridgeRules.CreateTurn(AdapterProfile.StardewValley,
             new WorldSnapshot(12, "rain", "Farm"),
             12,
             createdAt,
@@ -329,7 +329,7 @@ public sealed class DecisionBridgeRulesTests
             "rain",
             "Farm",
             Player2Rules.CreateFarmerSnapshot("Alex", 1250, 15, 24, items));
-        var turn = DecisionBridgeRules.CreateTurn(AdapterProfile.StardewValley, 
+        var turn = DecisionBridgeRules.CreateTurn(AdapterProfile.StardewValley,
             snapshot,
             12,
             "2026-08-29T00:00:00.000Z",

@@ -151,7 +151,7 @@ public sealed class DecisionBridgeFilesTests : IDisposable
 
     private static DecisionTurnEnvelope CreateTurn()
     {
-        return DecisionBridgeRules.CreateTurn(AdapterProfile.StardewValley, 
+        return DecisionBridgeRules.CreateTurn(AdapterProfile.StardewValley,
             new WorldSnapshot(11, "rain", "Farm"),
             12,
             "2026-08-29T00:00:00.000Z",
