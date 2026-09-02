@@ -101,13 +101,18 @@ public static class DecisionBridgeRules
         int targetTileX,
         int targetTileY,
         SharedOutcome? yesterdayOutcome,
-        BridgeCompanionIdentity? companion = null)
+        BridgeCompanionIdentity? companion = null,
+        BridgeGrowthAsset? growth = null)
     {
         AssertSequence(sequence);
         AssertTimestamp(createdAt, nameof(createdAt));
         if (companion?.Soul is not null)
         {
             ValidateCompanionSoul(companion.Soul);
+        }
+        if (growth is not null)
+        {
+            CompanionGrowthStore.ValidateAsset(growth);
         }
         var target = adapter.FormatLocationTarget(snapshot.Location, targetTileX, targetTileY);
         var observations = new List<BridgeObservation>
@@ -195,7 +200,8 @@ public static class DecisionBridgeRules
                         capability.InputSchemaRef))
                     .ToArray()),
             observations.ToArray(),
-            companion);
+            companion,
+            growth);
     }
 
     /// <summary>
@@ -576,7 +582,45 @@ public sealed record DecisionTurnEnvelope(
     [property: JsonPropertyName("observations")] BridgeObservation[] Observations,
     [property: JsonPropertyName("companion")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    BridgeCompanionIdentity? Companion = null);
+    BridgeCompanionIdentity? Companion = null,
+    [property: JsonPropertyName("growth")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    BridgeGrowthAsset? Growth = null);
+
+/// <summary>One receipt-grounded insight the companion drew about itself.</summary>
+public sealed record BridgeGrowthInsight(
+    [property: JsonPropertyName("id")] string Id,
+    [property: JsonPropertyName("text")] string Text,
+    [property: JsonPropertyName("basedOnReceiptSequences")] int[] BasedOnReceiptSequences,
+    [property: JsonPropertyName("createdAt")] string CreatedAt);
+
+/// <summary>
+/// The Player-owned growth asset: the companion's self-authored interpretation
+/// of its receipt-backed shared history, applied only from validated reflect
+/// proposals. There is deliberately no soul field — the deposit-model ruling
+/// keeps the soul read-only, and this type makes that structurally true.
+/// </summary>
+public sealed record BridgeGrowthAsset(
+    [property: JsonPropertyName("version")] string Version,
+    [property: JsonPropertyName("revision")] int Revision,
+    [property: JsonPropertyName("insights")] BridgeGrowthInsight[] Insights,
+    [property: JsonPropertyName("focus")] string? Focus);
+
+/// <summary>One bounded model-authored insight awaiting Player validation.</summary>
+public sealed record BridgeGrowthProposalInsight(
+    [property: JsonPropertyName("text")] string Text,
+    [property: JsonPropertyName("basedOnReceiptSequences")] int[] BasedOnReceiptSequences);
+
+/// <summary>
+/// A DSH-authored, write-once growth proposal for one decision turn. Like an
+/// action request it is data for Player validation — it never changes the
+/// companion's soul, tools, or authority from the DSH side.
+/// </summary>
+public sealed record BridgeGrowthProposal(
+    [property: JsonPropertyName("version")] string Version,
+    [property: JsonPropertyName("sequence")] int Sequence,
+    [property: JsonPropertyName("insights")] BridgeGrowthProposalInsight[] Insights,
+    [property: JsonPropertyName("focus")] string? Focus);
 
 public sealed record BridgeProposalIntent([property: JsonPropertyName("target")] string Target);
 
