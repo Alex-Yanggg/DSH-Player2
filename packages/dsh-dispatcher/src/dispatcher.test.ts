@@ -12,7 +12,7 @@ async function createBridge(): Promise<{ root: string; cleanup: () => Promise<vo
 
 function validTurn(sequence: number): unknown {
   return {
-    version: "0.1.0",
+    version: "0.1.1",
     sequence,
     createdAt: "2026-08-29T00:00:00.000Z",
     gameDay: sequence,
@@ -50,7 +50,7 @@ async function writeTurn(root: string, sequence: number, body: unknown = validTu
 
 function validRequest(sequence: number): unknown {
   return {
-    version: "0.1.0",
+    version: "0.1.1",
     sequence,
     status: "awaiting-player",
     proposal: {
@@ -61,6 +61,7 @@ function validRequest(sequence: number): unknown {
       intent: { target: "farm:tile:12,8" },
       scope: "one temporary marker",
       reason: "The observed rain makes a shared planning marker useful.",
+      utterance: "The rain has bought us a quiet minute on the Farm; want me to mark our planning spot?",
     },
   };
 }

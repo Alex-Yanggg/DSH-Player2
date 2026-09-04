@@ -10,7 +10,7 @@ namespace DSHPlayer2.Core;
 /// <summary>Wire constants and host-side validation for one DSH decision turn.</summary>
 public static class DecisionBridgeRules
 {
-    public const string WireVersion = "0.1.0";
+    public const string WireVersion = "0.1.1";
     public const string AwaitingPlayerStatus = "awaiting-player";
     public const string AutonomousStatus = "autonomous";
     public const string ConsultAutonomy = "consult";
@@ -19,6 +19,7 @@ public static class DecisionBridgeRules
     public const string AllowedScope = "visual marker + sound only";
     public const int MaxCitedObservations = 8;
     public const int MaxReasonLength = 800;
+    public const int MaxUtteranceLength = 800;
     public const int MaxInventoryItems = 12;
     public const int MaxItemNameLength = 50;
     public const int MaxSoulItems = 8;
@@ -129,6 +130,10 @@ public static class DecisionBridgeRules
                 {
                     ["weather"] = JsonSerializer.SerializeToElement(snapshot.Weather),
                     ["location"] = JsonSerializer.SerializeToElement(snapshot.Location),
+                    ["locationDisplayName"] = JsonSerializer.SerializeToElement(
+                        string.IsNullOrWhiteSpace(snapshot.LocationDisplayName)
+                            ? snapshot.Location
+                            : snapshot.LocationDisplayName),
                     ["target"] = JsonSerializer.SerializeToElement(target),
                 }),
         };
@@ -289,6 +294,15 @@ public static class DecisionBridgeRules
 
         var expectedTarget = GetStringFact(world, "target");
         var location = GetStringFact(world, "location");
+        var locationDisplayName = GetStringFact(world, "locationDisplayName");
+        if (string.IsNullOrWhiteSpace(proposal.Utterance) ||
+            proposal.Utterance.Length > MaxUtteranceLength ||
+            !proposal.Utterance.Contains(locationDisplayName, StringComparison.Ordinal) ||
+            proposal.Utterance.Contains(expectedTarget, StringComparison.Ordinal) ||
+            ContainsTargetCoordinates(proposal.Utterance, expectedTarget))
+        {
+            throw new InvalidOperationException("Action request has invalid player-facing companion speech.");
+        }
         if (proposal.Intent.Target != expectedTarget ||
             !TryParseTarget(expectedTarget, out var targetLocation, out var targetTileX, out var targetTileY) ||
             targetLocation != location)
@@ -302,7 +316,9 @@ public static class DecisionBridgeRules
             proposal.Reason,
             targetTileX,
             targetTileY,
-            proposal.Scope);
+            proposal.Scope,
+            proposal.Utterance.Trim(),
+            locationDisplayName);
         return new ValidatedDecision(request, gameProposal);
     }
 
@@ -510,6 +526,20 @@ public static class DecisionBridgeRules
             x >= 0 && y >= 0;
     }
 
+    private static bool ContainsTargetCoordinates(string utterance, string target)
+    {
+        if (!TryParseTarget(target, out _, out var x, out var y))
+        {
+            return false;
+        }
+        var coordinate = $"{x},{y}";
+        var spacedCoordinate = $"{x}, {y}";
+        var chineseCoordinate = $"{x}，{y}";
+        return utterance.Contains(coordinate, StringComparison.Ordinal) ||
+            utterance.Contains(spacedCoordinate, StringComparison.Ordinal) ||
+            utterance.Contains(chineseCoordinate, StringComparison.Ordinal);
+    }
+
     private static void AssertSequence(int sequence)
     {
         if (sequence < 1)
@@ -631,7 +661,8 @@ public sealed record BridgeProposal(
     [property: JsonPropertyName("capabilityId")] string CapabilityId,
     [property: JsonPropertyName("intent")] BridgeProposalIntent Intent,
     [property: JsonPropertyName("scope")] string Scope,
-    [property: JsonPropertyName("reason")] string Reason);
+    [property: JsonPropertyName("reason")] string Reason,
+    [property: JsonPropertyName("utterance")] string Utterance = "");
 
 public sealed record BridgeActionRequest(
     [property: JsonPropertyName("version")] string Version,

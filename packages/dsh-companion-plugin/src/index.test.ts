@@ -29,7 +29,7 @@ async function createDecisionBridgeRoot(): Promise<string> {
   roots.push(root);
   await mkdir(join(root, "inbox"), { recursive: true });
   await writeFile(join(root, "inbox", "turn-1.json"), JSON.stringify({
-    version: "0.1.0",
+    version: "0.1.1",
     sequence: 1,
     createdAt: "2026-08-29T00:00:00.000Z",
     gameDay: 12,
@@ -55,7 +55,7 @@ async function createDecisionBridgeRoot(): Promise<string> {
       source: "stardew-mod",
       accessMode: "semantic",
       confidence: 1,
-      facts: { weather: "rain" },
+      facts: { weather: "rain", locationDisplayName: "Farm" },
     }],
     companion: {
       name: "Mira",
@@ -197,6 +197,7 @@ describe("Player DSH companion composition", () => {
         target: "farm:tile:12,8",
         scope: "one temporary marker",
         reason: "The observed rain makes a shared planning marker useful.",
+        utterance: "The rain has bought us a quiet minute on the Farm; want me to mark our planning spot?",
       },
       signal,
     });
@@ -247,6 +248,7 @@ describe("Player DSH companion composition", () => {
         target: "farm:tile:12,8",
         scope: "one temporary marker",
         reason: "The observed rain makes a shared planning marker useful.",
+        utterance: "The rain has bought us a quiet minute on the Farm; I'm marking our planning spot.",
       },
       signal,
     });

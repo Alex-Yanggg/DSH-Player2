@@ -204,6 +204,16 @@ internal sealed class ModConfig
     /// <summary>Key that retries the companion day turn after a same-day failure; the consent flow itself never changes.</summary>
     public SButton RetryDayKey { get; set; } = SButton.F6;
 
+    /// <summary>Key that reopens Stardew Valley's native appearance editor for the companion.</summary>
+    public SButton CustomizeCompanionKey { get; set; } = SButton.F7;
+
+    /// <summary>
+    /// Default-off permission gate for future capabilities explicitly marked
+    /// as cheats. Player2 currently advertises no such capability, so enabling
+    /// this does not widen the present action catalog.
+    /// </summary>
+    public bool AllowCheatCapabilities { get; set; }
+
     /// <summary>Soul is identity, so an empty roster entry is invalid configuration.</summary>
     public void ValidateRequiredCompanionSouls()
     {

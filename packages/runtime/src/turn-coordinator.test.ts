@@ -17,6 +17,7 @@ const proposal: Proposal = {
   intent: { targetTile: [12, 8] },
   scope: "visual marker + sound only",
   reason: "The player explicitly agreed to a bounded world receipt.",
+  utterance: "Let's mark this meeting spot on the Farm.",
 };
 
 const grant = (granted: boolean, expiresAt = "2026-08-28T00:05:00.000Z"): PermissionGrant => ({

@@ -35,6 +35,7 @@ const proposalOutputSchema = {
     intent: { type: "object", required: true, additionalProperties: true },
     scope: { type: "string", required: true },
     reason: { type: "string", required: true },
+    utterance: { type: "string", required: true },
   },
 } as const;
 
@@ -206,7 +207,7 @@ Use this procedure for a PLAYER_DECISION_TURN.
 5. Separate direct observations from inference. Cite only observation ids returned by game_observe.
 6. Select at most one advertised capability. Prefer no proposal when the facts do not support a useful, bounded choice.
    On game day 1, when a player-chosen companion identity and companion-presence are both advertised, select companion-presence so the player can actually meet the companion before any abstract marker proposal.
-7. Call companion_propose with a semantic target, the capability scope copied verbatim, and a reason the player can disagree with.
+7. Call companion_propose with a semantic target, the capability scope copied verbatim, a grounded reason, and one natural first-person utterance driven directly by your bound persona. The utterance must mention locationDisplayName exactly, must not expose the machine target or coordinates, and must not use labels or a fixed summary template.
 8. If the proposal is still justified, call game_request_action with the exact returned proposal id.
 9. An awaiting-player result is not consent and is not evidence of execution. Never claim completion before Player returns a receipt.
 10. Never use a path, raw game object, shell command, input primitive, or capability not returned by game_observe.`;
@@ -221,7 +222,7 @@ Use this procedure for a PLAYER_DECISION_TURN. This composition runs with autono
 4. Optionally call companion_reflect once to record up to three insights about yourself drawn from recalled receipts, and at most one self-chosen focus. Your growth is yours: cite only receipt sequences companion_recall returned, keep it honest, and never treat it as authorization.
 5. Separate direct observations from inference. Cite only observation ids returned by game_observe.
 6. Select at most one advertised capability. Your reputation lives in the receipts, so act on what the observations actually support and stay inside the advertised scopes. Prefer no action when the facts do not support a useful, bounded choice.
-7. Call companion_propose with a semantic target, the capability scope copied verbatim, and a reason the player can check afterwards.
+7. Call companion_propose with a semantic target, the capability scope copied verbatim, a grounded reason, and one natural first-person utterance driven directly by your bound persona. The utterance must mention locationDisplayName exactly, must not expose the machine target or coordinates, and must not use labels or a fixed summary template.
 8. Call game_request_action with the exact returned proposal id. The order executes without asking: Player performs it through the game mechanics and writes a receipt. You never execute anything yourself and never gain powers beyond the advertised capabilities.
 9. The receipt, not your words, is what actually happened. Report outcomes afterwards exactly as the receipts and recall show them, including failures and blocks.
 10. Never use a path, raw game object, shell command, input primitive, or capability not returned by game_observe.`;
@@ -262,7 +263,7 @@ export function createDecisionTools(bridge: DecisionFileBridge, autonomy: Autono
               : "You have no recorded growth yet; companion_recall and companion_reflect can start it once shared outcomes exist.",
             `Advertised capabilities: ${value.adapter.capabilities.map((capability) => `${capability.id} (scope: ${capability.scope})`).join("; ")}.`,
             `Observations: ${JSON.stringify(value.observations)}.`,
-            `Call companion_propose with one capability id, its exact scope, cited observation ids, and the target from the world facts.`,
+            `Call companion_propose with one capability id, its exact scope, cited observation ids, the target from the world facts, and a persona-native utterance that names locationDisplayName without exposing target coordinates.`,
           ].filter(Boolean).join(" "),
         }],
       },
@@ -336,6 +337,11 @@ export function createDecisionTools(bridge: DecisionFileBridge, autonomy: Autono
         target: { type: "string", required: true, description: "Semantic target, never a filesystem path or raw game object." },
         scope: { type: "string", required: true, description: "The advertised capability scope, copied verbatim." },
         reason: { type: "string", required: true, description: "Short grounded reason the player can disagree with." },
+        utterance: {
+          type: "string",
+          required: true,
+          description: "Natural first-person speech in the bound persona. Mention locationDisplayName exactly; never expose target coordinates, field labels, or a fixed template.",
+        },
       },
       output: {
         schema: proposalOutputSchema,

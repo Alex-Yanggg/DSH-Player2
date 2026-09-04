@@ -42,7 +42,7 @@ function userMessage(text: string): UserMessage {
 
 const decisionPrompt = [
   "Handle this PLAYER_DECISION_TURN using the installed Player2 companion skill and tools.",
-  'PLAYER_DECISION_TURN={"version":"0.1.0","sequence":7}',
+  'PLAYER_DECISION_TURN={"version":"0.1.1","sequence":7}',
 ].join("\n");
 
 function receiptEntry(overrides: Partial<ReceiptDigestEntry> = {}): ReceiptDigestEntry {

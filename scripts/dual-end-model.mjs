@@ -97,6 +97,7 @@ const dispatcher = new BridgeDispatcher({
             target: "stardew-location:Farm:tile:12,8",
             scope: "visual marker + sound only",
             reason: "The observed rain makes a shared planning marker useful.",
+            utterance: "The rain has given us room to think, so I'd like to mark our planning spot here on the Farm.",
           },
           signal,
         },

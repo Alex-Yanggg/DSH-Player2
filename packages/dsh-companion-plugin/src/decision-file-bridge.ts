@@ -22,6 +22,7 @@ const MAX_CITED_OBSERVATIONS = 8;
 const MAX_TARGET_LENGTH = 256;
 const MAX_SCOPE_LENGTH = 400;
 const MAX_REASON_LENGTH = 800;
+const MAX_UTTERANCE_LENGTH = 800;
 const MAX_REFLECTION_INSIGHTS = 3;
 const MAX_INSIGHT_LENGTH = 240;
 const MAX_CITED_RECEIPTS = 8;
@@ -36,6 +37,7 @@ export interface ProposalDraftInput {
   readonly target: string;
   readonly scope: string;
   readonly reason: string;
+  readonly utterance: string;
 }
 
 /** Model-supplied fields of one bounded self-reflection about shared history. */
@@ -97,6 +99,7 @@ export class DecisionFileBridge {
     const target = this.boundedText(input.target, "target", MAX_TARGET_LENGTH);
     const scope = this.boundedText(input.scope, "scope", MAX_SCOPE_LENGTH);
     const reason = this.boundedText(input.reason, "reason", MAX_REASON_LENGTH);
+    const utterance = this.boundedText(input.utterance, "utterance", MAX_UTTERANCE_LENGTH);
     const observationIds = new Set(turn.observations.map((observation) => observation.id));
     const citedIds = [...input.basedOnObservationIds];
     if (citedIds.length > MAX_CITED_OBSERVATIONS) {
@@ -117,6 +120,17 @@ export class DecisionFileBridge {
       throw new Error(
         `Proposal scope must copy the advertised capability scope verbatim: ${JSON.stringify(capability.scope)}.`);
     }
+    const world = turn.observations.find((observation) => observation.kind === "world");
+    const locationDisplayName = world?.facts.locationDisplayName;
+    if (typeof locationDisplayName !== "string" || locationDisplayName.trim().length === 0) {
+      throw new Error("The world observation is missing its player-facing locationDisplayName.");
+    }
+    if (!utterance.includes(locationDisplayName)) {
+      throw new Error(`Companion speech must naturally name the observed game location ${JSON.stringify(locationDisplayName)}.`);
+    }
+    if (utterance.includes(target) || this.containsTargetCoordinates(utterance, target)) {
+      throw new Error("Companion speech must not expose the machine target or tile coordinates to the player.");
+    }
 
     const proposal = proposalSchema.parse({
       id: this.proposalId(sequence),
@@ -126,8 +140,18 @@ export class DecisionFileBridge {
       intent: { target },
       scope,
       reason,
+      utterance,
     });
     return this.writeOnce(this.proposalPath(sequence), proposal, proposalSchema, "proposal");
+  }
+
+  private containsTargetCoordinates(utterance: string, target: string): boolean {
+    const match = /:tile:(\d+),(\d+)$/.exec(target);
+    if (match === null) return false;
+    const [, x, y] = match;
+    return utterance.includes(`${x},${y}`) ||
+      utterance.includes(`${x}, ${y}`) ||
+      utterance.includes(`${x}，${y}`);
   }
 
   /**

@@ -1,6 +1,6 @@
 # P2-0013 task contract: native persona runtime
 
-Status: implemented and focused acceptance passed (2026-09-05)  
+Status: implemented and focused acceptance passed (2026-09-05)
 Risk: L1 — changes agent composition and the durable session identity, but adds no game authority or network route.
 
 ## Outcome

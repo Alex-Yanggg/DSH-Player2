@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const contractVersion = "0.1" as const;
 
-export const decisionTurnVersion = "0.1.0" as const;
+export const decisionTurnVersion = "0.1.1" as const;
 
 export const accessModeSchema = z.enum(["semantic", "network", "vision"]);
 export type AccessMode = z.infer<typeof accessModeSchema>;
@@ -46,6 +46,8 @@ export const proposalSchema = z.object({
   intent: z.record(z.string(), z.json()),
   scope: z.string().min(1),
   reason: z.string().min(1),
+  /** Persona-authored player-facing speech; hosts display it verbatim. */
+  utterance: z.string().trim().min(1).max(800),
 });
 export type Proposal = z.infer<typeof proposalSchema>;
 

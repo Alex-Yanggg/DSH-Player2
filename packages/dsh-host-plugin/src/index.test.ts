@@ -53,7 +53,7 @@ describe("Player2 DSH host bundle", () => {
       expect(files).toHaveLength(1);
       expect(files[0]).toMatch(/^ready-\d+-[0-9a-f-]+\.json$/);
       const marker = JSON.parse(await readFile(join(runtime, files[0]!), "utf8")) as Record<string, unknown>;
-      expect(marker).toMatchObject({ version: "0.1.0", status: "ready", source: "dsh", pid: process.pid });
+      expect(marker).toMatchObject({ version: "0.1.1", status: "ready", source: "dsh", pid: process.pid });
 
       await host.stop();
       expect(await readdir(runtime)).toEqual([]);
