@@ -6,11 +6,12 @@
  * publishes immutable game envelopes and consumes DSH-authored result files.
  */
 import { createHash, randomUUID } from "node:crypto";
-import { link, mkdir, open, readdir, unlink, utimes } from "node:fs/promises";
+import { link, mkdir, open, readdir, unlink, utimes, writeFile } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
 import type { Context } from "@deepseek-ai/cordis";
 import type {} from "@deepseek-ai/dsh-agent";
 import type {} from "@deepseek-ai/dsh-agent-default-model";
+import type {} from "@deepseek-ai/dsh-agent-presets";
 import { createUserMessage } from "@deepseek-ai/dsh-llm";
 import { SessionId } from "@deepseek-ai/dsh-session";
 import type {} from "@deepseek-ai/dsh-session-persistence";
@@ -32,17 +33,15 @@ import {
 import * as companion from "@dsh-player2/dsh-companion-plugin";
 
 export const name = "player2-dsh-host";
-export const inject = ["agents", "agentDefaultModel", "sessions", "sessionPersistence"];
+export const inject = ["agents", "agentDefaultModel", "agentPresets", "sessions", "sessionPersistence"];
 
-export interface Config { bridgeDirectory: string; pollIntervalMs?: number; autonomy?: AutonomyMode | ""; presetAutonomy?: AutonomyMode | ""; }
+export interface Config { bridgeDirectory: string; pollIntervalMs?: number; autonomy?: AutonomyMode | ""; }
 export const Config: z<Config> = z.object({
   bridgeDirectory: z.string().required(),
   pollIntervalMs: z.number().min(50).max(10_000).default(250),
   // The companion.autonomy switch for every agent this host mounts. Invalid
   // values fail the bundle mount instead of degrading to another tier.
   autonomy: z.union(["consult", "full", ""] as const).default(""),
-  // Autonomy recommendation carried by the companion role (preset) directory.
-  presetAutonomy: z.union(["consult", "full", ""] as const).default(""),
 });
 
 type AgentHandle = Awaited<ReturnType<Context["agents"]["create"]>>;
@@ -110,7 +109,7 @@ export class Player2DshHost {
     this.intervalMs = config.pollIntervalMs ?? 250;
     // Fail loudly on a malformed tier; the host must never mount a different
     // kind of companion than the settings page configured.
-    this.autonomy = companion.resolveAutonomy({ agent: config.autonomy, preset: config.presetAutonomy });
+    this.autonomy = companion.resolveAutonomy({ agent: config.autonomy });
     this.traceFile = join(this.root, "development-logs", "dsh-player2-host.jsonl");
     this.readyFile = join(this.root, "runtime", `ready-${process.pid}-${this.instanceId}.json`);
   }
@@ -261,27 +260,33 @@ export class Player2DshHost {
    * identity is the only source of truth.
    */
   private async laneAgent(session: string, lane: string, mode: "decision" | "social", identity: CompanionIdentity): Promise<AgentHandle> {
-    const key = `${session}:${lane}:${identity.name}:${JSON.stringify(identity.soul ?? null)}`;
+    const presetId = await ensureCompanionPreset(this.ctx, identity);
+    const key = `${session}:${lane}:${presetId}`;
     const current = this.lanes.get(key);
     if (current !== undefined) return current.handle;
-    const handle = await this.createAgent(session, lane, mode, identity);
+    const handle = await this.createAgent(session, lane, mode, identity, presetId);
     this.lanes.set(key, { key, handle });
     return handle;
   }
-  private async createAgent(session: string, lane: string, mode: "decision" | "social", identity: CompanionIdentity): Promise<AgentHandle> {
+  private async createAgent(session: string, lane: string, mode: "decision" | "social", identity: CompanionIdentity, presetId: string): Promise<AgentHandle> {
     const selection = this.ctx.agentDefaultModel.currentSelection();
-    const identityHash = createHash("sha256").update(`${this.root}:${sessionRootOf(this.root, session)}:${lane}:${JSON.stringify(identity)}`).digest("hex").slice(0, 16);
+    // A native preset starts a new durable lane. Older sessions have no
+    // agentPreset header and cannot truthfully resume under a composition they
+    // never recorded; receipt memory remains the relationship fact source.
+    const identityHash = createHash("sha256").update(`${this.root}:${sessionRootOf(this.root, session)}:${lane}:native-preset-v1:${presetId}`).digest("hex").slice(0, 16);
     const sessionId = SessionId(`player2-${lane}-${identityHash}`);
     const agentOptions = { provider: selection.provider, model: selection.model };
     const setup = async (agentCtx: Parameters<NonNullable<Parameters<Context["agents"]["create"]>[0]["setup"]>>[0]) => {
+        // DSH resolves agent -> preset -> global. Join the stable person first;
+        // lane-local tools and policy then mount at the nearest agent scope.
+        await this.ctx.agentPresets.mount(agentCtx, presetId);
         await agentCtx.plugin(toolSkill);
         await agentCtx.plugin(companion, {
           characterName: identity.name,
           relationshipRole: identity.role,
-          soul: identity.soul,
           mode,
           bridgeDirectory: session,
-          // Decision agents inherit the composition's autonomy tier; the
+          // Autonomy is a host policy, separate from the identity preset; the
           // social lane ignores it because it can never execute actions.
           ...(mode === "decision" ? { autonomy: this.autonomy } : {}),
         });
@@ -294,7 +299,7 @@ export class Player2DshHost {
     return resumeOrCreate(
       persisted,
       () => this.ctx.agents.resume({ resumeSessionId: sessionId, agentOptions, setup }),
-      () => this.ctx.agents.create({ sessionId, meta: { cwd: this.root }, agentOptions, setup }),
+      () => this.ctx.agents.create({ sessionId, meta: { cwd: this.root, agentPreset: presetId }, agentOptions, setup }),
     );
   }
 
@@ -336,6 +341,58 @@ export class Player2DshHost {
     const handle = await open(this.traceFile, "a");
     try { await handle.writeFile(rendered); } finally { await handle.close(); }
   }
+}
+
+/** A stable, filesystem-safe id for one exact Player-authored person. */
+export function companionPresetId(identity: CompanionIdentity): string {
+  const slug = identity.name.normalize("NFKD").toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 24) || "companion";
+  const digest = createHash("sha256").update(JSON.stringify(identity)).digest("hex").slice(0, 12);
+  return `player2-${slug}-${digest}`;
+}
+
+/** The complete native DSH preset composition for one companion identity. */
+export function companionPresetComposition(identity: CompanionIdentity): string {
+  const persona = [
+    `You are ${identity.name}, ${identity.role}.`,
+    companion.personaConstitutionText(identity.soul),
+  ].join("\n\n");
+  const indented = persona.split(/\r?\n/).map((line) => `      ${line}`).join("\n");
+  return [
+    "# Generated once by DSH-Player2 from a Player-authored companion identity.",
+    "# The content hash is part of the directory id; edits require a new identity.",
+    "- id: persona",
+    "  name: '@deepseek-ai/dsh-persona'",
+    "  config:",
+    "    text: |-",
+    indented,
+    "",
+  ].join("\n");
+}
+
+/** Materialize and reuse one content-addressed persona through DSH's roster. */
+export async function ensureCompanionPreset(ctx: Context, identity: CompanionIdentity): Promise<string> {
+  const id = companionPresetId(identity);
+  const expected = companionPresetComposition(identity);
+  const existing = (await ctx.agentPresets.list()).find((preset) => preset.id === id);
+  if (existing !== undefined) {
+    const actual = await ctx.agentPresets.read(id);
+    if (actual !== expected) throw new Error(`Player2 persona preset ${id} conflicts with its content-addressed identity.`);
+    return id;
+  }
+
+  // Copy is the roster's only creation authority. The copy is specialized
+  // before any agent mounts it, and its hash makes later identity edits a new
+  // preset rather than a mutation of a person already in session history.
+  await ctx.agentPresets.copy("minimal", id, identity.name);
+  const created = await ctx.agentPresets.resolve(id);
+  await writeFile(created.path, expected, "utf8");
+  await writeFile(join(dirname(created.path), "preset.yml"), [
+    `name: ${JSON.stringify(identity.name)}`,
+    `description: ${JSON.stringify(`Player2 native persona for ${identity.name}.`)}`,
+    "",
+  ].join("\n"), "utf8");
+  return id;
 }
 
 export function apply(ctx: Context, config: Config): void {

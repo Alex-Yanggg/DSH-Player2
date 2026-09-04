@@ -122,7 +122,7 @@ The social lane hardening accompanies it: bounded 64 KiB reads, full result vali
 
 ## Companion Personality (0.1.1)
 
-The five-layer personality now covers all five layers. Body: the presence capability (vanilla farmer template, no custom art). Experience: the receipt-backed memory projection. Soul: bounded persona rows — values, bonds, voice, hard boundaries — authored per roster entry, carried beside the companion identity on every bridge turn, and bound as a `player2:companion-soul` system-prompt constitution the DSH side treats as rewrite-proof. Temperament: the checkpoint module — pre-step attention (the receipt digest weighted against the current turn's targets, injected before the first step of every turn on both lanes), a pre-execute reflection guard (observe before propose, propose before ordering), and turn-stopping closure (a turn ending without its completion evidence is steered to continue, at most twice). Memory closure: recall now participates in turn attention instead of being passively queryable. Lane agents compose from the turn's envelope identity — no default name — and their session ids hash that identity, so a changed persona starts a fresh durable session. Mounting a preset directory upstream is recorded as a concrete requirement in `docs/upstream-requirements.md` (UR-1) rather than patched into Harness.
+The five-layer personality now covers all five layers. Body: the presence capability (vanilla farmer template, no custom art). Experience: the receipt-backed memory projection. Soul: bounded persona rows — values, bonds, voice, hard boundaries — authored per roster entry and carried beside the companion identity on every bridge turn as the Player-owned bootstrap. P2-0013 materializes that exact identity as a content-addressed DSH Agent Preset whose sole row is the official persona plugin; both lanes mount it before their local policy. Temperament: the checkpoint module — pre-step attention (the receipt digest weighted against the current turn's targets, injected before the first step of every turn on both lanes), a pre-execute reflection guard (observe before propose, propose before ordering), and turn-stopping closure (a turn ending without its completion evidence is steered to continue, at most twice). Memory closure: recall now participates in turn attention instead of being passively queryable. A changed identity creates a fresh preset and durable lane, while receipt-backed experience remains continuous.
 
 ## Self-Evolution Lane (0.1.2, P2-0012)
 
@@ -149,13 +149,19 @@ envelope.growth ──┘                            │ validated + applied
 - **Autonomy-tier approval answerer**: the plugin answers DSH's native `approval/request` waterfall for companion-owned tools only — `consult` rejects in-session asks (the game consent bridge is the only voice of the player), `full` grants from the player's standing authorization, and any other plugin's tool falls through to later answerers. Every ask/outcome pair is audited by DSH into the session log.
 - **Package-owned invariants**: when the deployment composes DSH's invariant registry, the plugin registers stream checks that re-validate the reflect and action-order call contracts on `session/event`; without a registry the companion mounts unchanged (graceful degradation).
 
-The lane consumes only installed kernel surfaces (`ctx.tools`, `ctx.approval`, `ctx.invariants`, the skill registry). Whole-persona preset composition remains UR-1: `@deepseek-ai/dsh-agent-presets` is published upstream on the installed version line, recorded in `docs/upstream-requirements.md` as the in-bounds resolution path.
+The lane consumes only installed kernel surfaces (`ctx.tools`, `ctx.approval`, `ctx.invariants`, the skill registry). P2-0013 adds `ctx.agentPresets`: the stable Soul now lives on DSH's native composition plane while changing growth continues through per-turn data so prompt-prefix caching remains valid.
+
+## Native Persona Runtime (0.1.3, P2-0013)
+
+`@deepseek-ai/dsh-agent-presets` is now a real runtime dependency rather than a researched possibility. The host derives `player2-<name>-<identity-hash>` from the complete validated identity, creates it through the roster's copy authoring seam, and specializes the composition to one `@deepseek-ai/dsh-persona` row before any agent can mount it. Reuse requires byte-identical content; a collision fails loudly. The decision/social setup order is preset first, then the lane-local skill/tool/policy plugin, yielding DSH's intended `agent → preset → global` lookup chain. `meta.agentPreset` makes the identity reconstructable from the durable session header.
+
+The migration deliberately changes the session-id salt. A pre-0.1.3 session cannot be resumed under an identity composition it never recorded; the new lane starts clean while Player-owned receipts and growth assets carry the relationship across. Soul remains on the wire for bootstrap and older hosts, but the model-facing stable identity is no longer assembled by a Player2-specific Soul prompt section.
 
 ## Audit Conformance (2026-08-30)
 
 The eight-item audit recorded on 2026-08-30 and its remediation:
 
-1. **人格五层只落了"身体+经历"** — resolved: soul rows on the wire plus a persona-constitution section, and the temperament checkpoint plugin (pre-step attention / pre-execute reflection / turn-stopping); `agentPresets.mount()` remains unavailable upstream and is recorded as UR-1.
+1. **人格五层只落了"身体+经历"** — resolved: Soul rows bootstrap a native DSH persona preset, both lanes call `agentPresets.mount()`, and the temperament checkpoint plugin supplies pre-step attention / pre-execute reflection / turn-stopping.
 2. **记忆→行为闭环未闭合** — resolved: pre-step attention injects the receipt digest into every turn, social turns included.
 3. **live 桌面玩家验证仍是最高优先未偿债** — open by design: all automated gates remain keyless/gameless golden replays; `stardew-mod/README.md` now carries the twenty-step manual verification path for a player-run desktop session.
 4. **文档-代码漂移** — resolved on 2026-08-30 in place; this section supersedes the lost draft with the current state.

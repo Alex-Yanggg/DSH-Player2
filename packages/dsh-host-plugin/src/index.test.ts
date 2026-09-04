@@ -1,15 +1,37 @@
-import { mkdtemp, mkdir, readFile, readdir, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { Context } from "@deepseek-ai/cordis";
-import { Config, inject, listSessionDirectories, name, Player2DshHost, resumeOrCreate } from "./index.js";
+import type { CompanionIdentity } from "@dsh-player2/contracts";
+import {
+  companionPresetComposition,
+  companionPresetId,
+  Config,
+  ensureCompanionPreset,
+  inject,
+  listSessionDirectories,
+  name,
+  Player2DshHost,
+  resumeOrCreate,
+} from "./index.js";
+
+const MIRA: CompanionIdentity = {
+  name: "Mira",
+  role: "the player's candid farm partner",
+  soul: {
+    values: ["curiosity and kindness"],
+    bonds: ["the player as an equal"],
+    voice: "Bright, candid, and concise.",
+    boundaries: ["never invent a shared memory"],
+  },
+};
 
 describe("Player2 DSH host bundle", () => {
   it("declares the DSH services needed to create owned native agents", () => {
     expect(name).toBe("player2-dsh-host");
-    expect(inject).toEqual(["agents", "agentDefaultModel", "sessions", "sessionPersistence"]);
+    expect(inject).toEqual(["agents", "agentDefaultModel", "agentPresets", "sessions", "sessionPersistence"]);
     expect(Config).toBeDefined();
   });
 
@@ -91,6 +113,53 @@ describe("Player2 DSH host bundle", () => {
       expect(entries).toEqual(["development-logs", "runtime"]);
     } finally {
       await host.stop();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("content-addresses the exact Player-authored identity as a persona-only preset", () => {
+    expect(companionPresetId(MIRA)).toMatch(/^player2-mira-[0-9a-f]{12}$/);
+    expect(companionPresetId({ ...MIRA, role: "a changed role" })).not.toBe(companionPresetId(MIRA));
+
+    const composition = companionPresetComposition(MIRA);
+    expect(composition).toContain("name: '@deepseek-ai/dsh-persona'");
+    expect(composition).toContain("You are Mira, the player's candid farm partner.");
+    expect(composition).toContain("Hard boundaries: never invent a shared memory");
+    expect(composition).not.toContain("dsh-tool-");
+  });
+
+  it("materializes once through the DSH roster and rejects a conflicting preset", async () => {
+    const root = await mkdtemp(join(tmpdir(), "player2-persona-preset-"));
+    const presets = new Map<string, { id: string; path: string }>();
+    let copies = 0;
+    const agentPresets = {
+      list: async () => [...presets.values()],
+      read: async (id: string) => readFile(presets.get(id)!.path, "utf8"),
+      copy: async (_from: string, id: string) => {
+        copies++;
+        const directory = join(root, id);
+        await mkdir(directory, { recursive: true });
+        const path = join(directory, "agent.cordis.yml");
+        await writeFile(path, "copied\n");
+        presets.set(id, { id, path });
+      },
+      resolve: async (id: string) => presets.get(id)!,
+    };
+    const ctx = { agentPresets } as unknown as Context;
+    try {
+      const id = await ensureCompanionPreset(ctx, MIRA);
+      expect(copies).toBe(1);
+      expect(await readFile(join(root, id, "agent.cordis.yml"), "utf8"))
+        .toBe(companionPresetComposition(MIRA));
+      expect(await readFile(join(root, id, "preset.yml"), "utf8"))
+        .toContain('name: "Mira"');
+
+      await expect(ensureCompanionPreset(ctx, MIRA)).resolves.toBe(id);
+      expect(copies).toBe(1);
+
+      await writeFile(join(root, id, "agent.cordis.yml"), "conflict\n");
+      await expect(ensureCompanionPreset(ctx, MIRA)).rejects.toThrow("conflicts");
+    } finally {
       await rm(root, { recursive: true, force: true });
     }
   });

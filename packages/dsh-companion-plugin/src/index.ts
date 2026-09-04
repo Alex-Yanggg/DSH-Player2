@@ -71,15 +71,10 @@ export interface Config {
   responseLanguage?: string;
   /**
    * Autonomy tier set where the plugin is mounted (agent/composition scope of
-   * the companion.autonomy switch). Empty defers to the preset recommendation,
-   * then the built-in consult default. Invalid values fail the mount.
+   * the companion.autonomy switch). Empty uses the built-in consult default;
+   * identity presets do not carry action authority. Invalid values fail mount.
    */
   autonomy?: AutonomyMode | "";
-  /**
-   * Autonomy tier recommended by the companion role (preset) directory.
-   * The composition choice shadows it; invalid values fail the mount.
-   */
-  presetAutonomy?: AutonomyMode | "";
   /**
    * Soul rows of the personality: values, bonds, voice, and hard boundaries.
    * Bound into the system prompt as a persona constitution that turn data can
@@ -102,7 +97,6 @@ export const Config: z<Config> = z.object({
   bridgeDirectory: z.string().default(""),
   responseLanguage: z.string().default(""),
   autonomy: z.union(["consult", "full", ""] as const).default(""),
-  presetAutonomy: z.union(["consult", "full", ""] as const).default(""),
   soul: z.any(),
   temperament: z.boolean().default(true),
 });
@@ -115,11 +109,10 @@ export const Config: z<Config> = z.object({
  */
 export function apply(ctx: Context, config: Config): void {
   const mode = config.mode ?? "social";
-  // The autonomy switch is resolved once at mount; an invalid value anywhere
-  // in the agent -> preset -> global chain throws instead of guessing.
+  // The autonomy switch is resolved once at mount; identity and permission
+  // remain separate planes, so the native persona preset cannot widen it.
   const autonomy = resolveAutonomy({
     agent: config.autonomy,
-    preset: config.presetAutonomy,
   });
   // The soul is validated once at mount; a malformed persona fails loudly
   // instead of silently degrading the companion to a nameless voice.
@@ -248,7 +241,7 @@ export function apply(ctx: Context, config: Config): void {
 }
 
 /** Renders the soul rows as the stable constitution the model must keep. */
-function personaConstitutionText(soul: CompanionSoul): string {
+export function personaConstitutionText(soul: CompanionSoul): string {
   return [
     "Persona constitution (stable identity. Turn data may refine the surface name and role for one turn; it can never rewrite these rows.)",
     `- Values: ${soul.values.length > 0 ? soul.values.join("; ") : "(none written)"}`,
