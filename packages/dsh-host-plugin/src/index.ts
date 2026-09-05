@@ -13,7 +13,7 @@ import { installModelSelection } from "@deepseek-ai/dsh-agent";
 import type {} from "@deepseek-ai/dsh-agent-default-model";
 import type {} from "@deepseek-ai/dsh-agent-presets";
 import { createUserMessage, ReasoningEffortId } from "@deepseek-ai/dsh-llm";
-import { SessionId } from "@deepseek-ai/dsh-session";
+import { SessionId, SESSION_FORMAT_VERSION } from "@deepseek-ai/dsh-session";
 import type {} from "@deepseek-ai/dsh-session-persistence";
 import * as toolSkill from "@deepseek-ai/dsh-tool-skill";
 import z from "@deepseek-ai/schemastery";
@@ -22,15 +22,19 @@ import {
   bridgeFileLimit,
   decisionTurnEnvelopeSchema,
   decisionTurnVersion,
+  dreamRequestSchema,
   socialBridgeResultSchema,
   socialBridgeTurnSchema,
   socialResponseSchema,
   type AutonomyMode,
   type CompanionIdentity,
   type DecisionTurnEnvelope,
+  type DreamRequest,
   type SocialBridgeTurn,
 } from "@dsh-player2/contracts";
 import * as companion from "@dsh-player2/dsh-companion-plugin";
+import { DreamFileLane, SpineTimeline, spineStateFileAt, type SpineStore } from "@dsh-player2/dsh-companion-plugin";
+import { dreamOutcomeOf, persistenceSpineStore, relationshipDigest, spineHeader, spineIdOf, spineStatePathOf } from "./dream.js";
 
 export const name = "player2-dsh-host";
 export const inject = ["agents", "agentDefaultModel", "agentPresets", "sessions", "sessionPersistence"];
@@ -52,6 +56,9 @@ interface LaneHandle {
   readonly key: string;
   readonly handle: AgentHandle;
 }
+
+/** Lane mode of one composed companion agent. */
+type LaneMode = "decision" | "social" | "dream";
 
 /** The app voice used when a turn carries no player-chosen identity. */
 const FALLBACK_IDENTITY: CompanionIdentity = {
@@ -106,6 +113,8 @@ export class Player2DshHost {
   private readonly workers = new Map<string, Promise<void>>();
   private readonly presetTasks = new Map<string, Promise<string>>();
   private lanes: Map<string, LaneHandle> = new Map();
+  private readonly spineStore: SpineStore;
+  private readonly ensuredSpines = new Set<string>();
 
   public constructor(private readonly ctx: Context, private readonly config: Config) {
     if (config.bridgeDirectory.trim() === "") throw new Error("Player2 DSH host requires bridgeDirectory.");
@@ -116,6 +125,7 @@ export class Player2DshHost {
     this.autonomy = companion.resolveAutonomy({ agent: config.autonomy });
     this.traceFile = join(this.root, "development-logs", "dsh-player2-host.jsonl");
     this.readyFile = join(this.root, "runtime", `ready-${process.pid}-${this.instanceId}.json`);
+    this.spineStore = persistenceSpineStore(ctx);
   }
 
   public async start(): Promise<void> {
@@ -167,6 +177,7 @@ export class Player2DshHost {
         // must never stop a later chat message from being picked up.
         this.startWorker(`${session}:social`, () => this.drainSocial(session));
         this.startWorker(`${session}:decision`, () => this.drainDecisions(session));
+        this.startWorker(`${session}:dream`, () => this.drainDreams(session));
       }
     } catch (error) {
       await this.trace("DSH_PLAYER2_BRIDGE_SCAN_FAILED", { message: messageOf(error) });
@@ -218,8 +229,7 @@ export class Player2DshHost {
     }
   }
 
-  private async drainSocial(session: string): Promise<void> {
-    const names = await safeReaddir(join(session, "social-inbox"));
+  private async drainSocial(session: string): Promise<void> {    const names = await safeReaddir(join(session, "social-inbox"));
     for (const name of names.sort()) {
       if (this.stopped) return;
       const match = /^turn-([0-9a-f-]+)\.json$/i.exec(name);
@@ -262,11 +272,75 @@ export class Player2DshHost {
     }
   }
 
+  /**
+   * Register one spine session header before any timeline touches it. The
+   * persistence service materializes the log lazily on the first append; the
+   * store's readFrom treats that not-yet-materialized case as an empty log.
+   */
+  private async ensureSpine(spineId: string): Promise<void> {
+    if (this.ensuredSpines.has(spineId)) return;
+    const persisted = (await this.ctx.sessionPersistence.list())
+      .some((header) => header.id === spineId);
+    if (!persisted) await this.ctx.sessionPersistence.create(spineHeader(spineId));
+    this.ensuredSpines.add(spineId);
+  }
+
+  private async drainDreams(session: string): Promise<void> {
+    const names = await safeReaddir(join(session, "dream-inbox"));
+    for (const name of names.sort()) {
+      if (this.stopped) return;
+      const match = /^dream-(\d+)\.json$/.exec(name);
+      if (match === null) continue;
+      const sequence = Number.parseInt(match[1], 10);
+      if (await exists(join(session, "outbox", `dream-nochange-${sequence}.json`))
+        || await exists(join(session, "outbox", `dream-growth-${sequence}.json`))
+        || await exists(join(session, "outbox", `error-dream-${sequence}.json`))) continue;
+      await this.runDream(session, sequence);
+    }
+  }
+
+  /**
+   * One dream turn: the explicit day-end request is the only trigger, the
+   * projected relationship timeline is the only attention input, and the only
+   * effects are one outbox outcome file plus reference events on the spine.
+   */
+  private async runDream(session: string, sequence: number): Promise<void> {
+    const traceId = `dsh:dream:${sequence}:${randomUUID()}`;
+    try {
+      const request = dreamRequestSchema.parse(await this.readJson(join(session, "dream-inbox", `dream-${sequence}.json`), `dream ${sequence}`));
+      if (request.sequence !== sequence) throw new Error("dream file name and payload sequence differ");
+      const agent = await this.dreamAgent(session, request);
+      const spineId = spineIdOf(this.root, session, companionPresetId(request.companion));
+      const timeline = new SpineTimeline(this.spineStore, spineId, spineStateFileAt(spineStatePathOf(this.root, spineId)));
+      await timeline.hydrate();
+      const lane = new DreamFileLane(session, timeline);
+      const firstSeq = agent.agent.session.seq;
+      agent.agent.followup(createUserMessage({ content: [{ type: "text", text: [
+        "The player has explicitly ended this game day. Handle this PLAYER_DREAM_TURN as one private dream reflection; no tools exist.",
+        "Your relationship timeline (receipts are the fact source; a growth insight may cite only these receipt sequence numbers):",
+        relationshipDigest(timeline.snapshot(), request.gameDay),
+        'Return exactly one JSON object: {"kind":"no-change"} or {"kind":"growth","insights":[{"text":"...","basedOnReceiptSequences":[<n>...]}],"focus":null}.',
+      ].join("\n") }], source: { kind: "user" } }));
+      await agent.agent.whenIdle();
+      const turnError = endedTurnError(agent.agent.session.events, firstSeq);
+      if (turnError !== undefined) throw new Error(turnError);
+      const outcome = await lane.decide(sequence, dreamOutcomeOf(lastAssistantText(agent.agent.session.events, firstSeq)));
+      await this.trace("DSH_DREAM_TURN_COMPLETED", { traceId, sequence, session: sessionRootOf(this.root, session), sessionId: String(agent.agent.session.id), firstSeq, outcome, watermark: timeline.snapshot().watermark });
+    } catch (error) {
+      const message = messageOf(error);
+      await this.writeOnce(join(session, "outbox", `error-dream-${sequence}.json`), { version: decisionTurnVersion, sequence, traceId, code: "DSH_DREAM_TURN_FAILED", message });
+      await this.trace("DSH_DREAM_TURN_FAILED", { traceId, sequence, session: sessionRootOf(this.root, session), message });
+    }
+  }
+
   private async decisionAgent(session: string, turn: DecisionTurnEnvelope): Promise<AgentHandle> {
     return this.laneAgent(session, "decision", "decision", turn.companion ?? FALLBACK_IDENTITY);
   }
   private async socialAgent(session: string, turn: SocialBridgeTurn): Promise<AgentHandle> {
     return this.laneAgent(session, "social", "social", turn.companion);
+  }
+  private async dreamAgent(session: string, turn: DreamRequest): Promise<AgentHandle> {
+    return this.laneAgent(session, "dream", "dream", turn.companion);
   }
   /**
    * Composes or resumes the lane agent for one session directory and one
@@ -278,7 +352,7 @@ export class Player2DshHost {
    * stranger's memory. No default name is ever invented here; the envelope
    * identity is the only source of truth.
    */
-  private async laneAgent(session: string, lane: string, mode: "decision" | "social", identity: CompanionIdentity): Promise<AgentHandle> {
+  private async laneAgent(session: string, lane: LaneMode, mode: LaneMode, identity: CompanionIdentity): Promise<AgentHandle> {
     const person = companionPresetId(identity);
     let presetTask = this.presetTasks.get(person);
     if (presetTask === undefined) {
@@ -296,7 +370,7 @@ export class Player2DshHost {
     this.lanes.set(key, { key, handle });
     return handle;
   }
-  private async createAgent(session: string, lane: string, mode: "decision" | "social", identity: CompanionIdentity, presetId: string): Promise<AgentHandle> {
+  private async createAgent(session: string, lane: LaneMode, mode: LaneMode, identity: CompanionIdentity, presetId: string): Promise<AgentHandle> {
     const selection = this.ctx.agentDefaultModel.currentSelection();
     // A native preset starts a new durable lane. Older sessions have no
     // agentPreset header and cannot truthfully resume under a composition they
@@ -304,6 +378,10 @@ export class Player2DshHost {
     const identityHash = createHash("sha256").update(`${this.root}:${sessionRootOf(this.root, session)}:${lane}:native-preset-v1:${presetId}`).digest("hex").slice(0, 16);
     const sessionId = SessionId(`player2-${lane}-${identityHash}`);
     const agentOptions = { provider: selection.provider, model: selection.model, ...(mode === "social" ? { maxTokens: 1024 } : {}) };
+    // The event spine is per person and save, shared by the decision lane's
+    // bridge and the dream lane (P2-0014).
+    const spineId = mode === "decision" ? spineIdOf(this.root, session, presetId) : "";
+    if (spineId !== "") await this.ensureSpine(spineId);
     const setup = async (agentCtx: Parameters<NonNullable<Parameters<Context["agents"]["create"]>[0]["setup"]>>[0]) => {
         // DSH resolves agent -> preset -> global. Join the stable person first;
         // lane-local tools and policy then mount at the nearest agent scope.
@@ -325,6 +403,11 @@ export class Player2DshHost {
           // Autonomy is a host policy, separate from the identity preset; the
           // social lane ignores it because it can never execute actions.
           ...(mode === "decision" ? { autonomy: this.autonomy } : {}),
+          ...(spineId !== "" ? {
+            spineStore: this.spineStore,
+            spineSessionId: spineId,
+            spineStatePath: spineStatePathOf(this.root, spineId),
+          } : {}),
         });
       };
     // Fixed lane identities are durable memory. A DSH process restart must

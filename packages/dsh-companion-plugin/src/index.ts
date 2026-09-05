@@ -48,6 +48,7 @@ export {
   foldSpineEvent,
   spineStateFileAt,
   type RelationshipState,
+  type SpineEvent,
   type SpineStateFile,
   type SpineStore,
   type TimelineReceipt,
