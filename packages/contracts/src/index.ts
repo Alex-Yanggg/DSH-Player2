@@ -352,6 +352,35 @@ export const actionRequestSchema = z.object({
 });
 export type ActionRequest = z.infer<typeof actionRequestSchema>;
 
+/**
+ * Player-authored request that explicitly ends one game day (P2-0014). This is
+ * the only observable dream boundary: the DSH side may dream once per file,
+ * and the dream sequence draws from the same monotonic turn space as decision
+ * turns so the growth asset revision stays a single causal line.
+ */
+export const dreamRequestSchema = z.object({
+  version: z.literal(decisionTurnVersion),
+  sequence: z.number().int().positive(),
+  createdAt: z.string().datetime(),
+  gameDay: z.number().int().positive(),
+  companion: companionIdentitySchema,
+});
+export type DreamRequest = z.infer<typeof dreamRequestSchema>;
+
+/**
+ * The one file a no-change dream writes. A dream that grounds one insight in
+ * projected receipts writes `dream-growth-<sequence>.json` using the shared
+ * {@link growthProposalSchema} instead; both are Player-validated, and a dream
+ * can never carry soul, capability, or autonomy fields because the proposal
+ * type has none.
+ */
+export const dreamNoChangeSchema = z.object({
+  version: z.literal(decisionTurnVersion),
+  sequence: z.number().int().positive(),
+  outcome: z.literal("no-change"),
+});
+export type DreamNoChange = z.infer<typeof dreamNoChangeSchema>;
+
 /** A terminal DSH-host failure for a decision turn; never a local fallback. */
 export const decisionBridgeErrorSchema = z.object({
   version: z.literal(decisionTurnVersion),

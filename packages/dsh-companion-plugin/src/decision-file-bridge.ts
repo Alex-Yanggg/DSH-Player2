@@ -17,6 +17,7 @@ import {
   type Proposal,
 } from "@dsh-player2/contracts";
 import { collectReceiptDigest, type ReceiptDigest, type ReceiptDigestEntry } from "./memory/receipt-digest.js";
+import type { SpineTimeline } from "./spine.js";
 
 const MAX_CITED_OBSERVATIONS = 8;
 const MAX_TARGET_LENGTH = 256;
@@ -53,17 +54,21 @@ export interface ReflectDraftInput {
 export class DecisionFileBridge {
   private readonly root: string;
   private readonly autonomy: AutonomyMode;
+  private readonly spine?: SpineTimeline;
 
   /**
    * @param bridgeDirectory - trusted deployment directory; model arguments never contribute paths.
    * @param autonomy - the composition's resolved autonomy tier; consult keeps the consent flow.
+   * @param spine - optional P2-0014 watermark projection; when present, bridge
+   *   I/O also records reference events on the companion event spine.
    */
-  public constructor(bridgeDirectory: string, autonomy: AutonomyMode = "consult") {
+  public constructor(bridgeDirectory: string, autonomy: AutonomyMode = "consult", spine?: SpineTimeline) {
     if (bridgeDirectory.trim().length === 0) {
       throw new Error("Decision mode requires a non-empty bridgeDirectory.");
     }
     this.root = resolve(bridgeDirectory);
     this.autonomy = autonomy;
+    this.spine = spine;
   }
 
   /**
@@ -84,6 +89,12 @@ export class DecisionFileBridge {
     const envelope = parsed.data;
     if (envelope.sequence !== sequence) {
       throw new Error(`Decision turn sequence ${envelope.sequence} does not match requested sequence ${sequence}.`);
+    }
+    if (this.spine !== undefined) {
+      await this.spine.hydrate();
+      if (envelope.growth !== undefined && envelope.growth.revision > this.spine.snapshot().growthRevision) {
+        await this.spine.record("companion/growth-applied", { sequence: envelope.sequence, revision: envelope.growth.revision });
+      }
     }
     return envelope;
   }
@@ -189,7 +200,7 @@ export class DecisionFileBridge {
    * current observations and never grant authority.
    */
   public async recall(): Promise<ReceiptDigest> {
-    return collectReceiptDigest(
+    const digest = await collectReceiptDigest(
       () => readdir(join(this.root, "receipts")).catch((error: unknown) => {
         if (this.isNotFound(error)) {
           return [] as string[];
@@ -198,6 +209,25 @@ export class DecisionFileBridge {
       }),
       async (name) => this.readJson(join(this.root, "receipts", name), "receipt"),
     );
+    if (this.spine !== undefined) {
+      // Receipts stay the fact source; the spine only records that one entered
+      // the relationship timeline, so the dream lane never rescans this
+      // directory for attention.
+      await this.spine.hydrate();
+      const known = new Set(this.spine.snapshot().receipts.map((receipt) => receipt.sequence));
+      for (const entry of digest.entries) {
+        if (!known.has(entry.sequence)) {
+          await this.spine.record("companion/receipt-observed", {
+            sequence: entry.sequence,
+            proposalId: entry.proposalId,
+            capabilityId: entry.capabilityId,
+            status: entry.status,
+            occurredAt: entry.occurredAt,
+          });
+        }
+      }
+    }
+    return digest;
   }
 
   /**
@@ -232,7 +262,12 @@ export class DecisionFileBridge {
       insights,
       focus,
     });
-    return this.writeOnce(this.growthPath(sequence), proposal, growthProposalSchema, "growth proposal");
+    const written = await this.writeOnce(this.growthPath(sequence), proposal, growthProposalSchema, "growth proposal");
+    if (this.spine !== undefined) {
+      await this.spine.hydrate();
+      await this.spine.record("companion/reflection-proposed", { sequence, source: "reflect" });
+    }
+    return written;
   }
 
   /** Validates that cited receipt sequences are distinct and were actually recalled. */
