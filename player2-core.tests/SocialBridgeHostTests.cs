@@ -12,6 +12,31 @@ public sealed class SocialBridgeHostTests : IDisposable
     private readonly string root = Path.Combine(Path.GetTempPath(), $"player2-social-{Guid.NewGuid():N}");
 
     [Fact]
+    public void MovementEnvelopeCannotGrantACommandThePlayerDidNotGive()
+    {
+        using var host = this.CreateHost();
+        Assert.Throws<InvalidOperationException>(() => host.Start(this.CreateTurn("不要来我面前") with { MovementCommand = "come" }));
+        Assert.False(Directory.Exists(Path.Combine(this.root, "social-inbox")));
+    }
+
+    [Fact]
+    public async Task ExplicitMovementGrantSurvivesTheNativeDshRoundTrip()
+    {
+        using var host = this.CreateHost();
+        var turn = this.CreateTurn("立刻来我面前") with { MovementCommand = "come" };
+        host.Start(turn);
+        var path = Path.Combine(this.root, "social-inbox", $"turn-{turn.Id}.json");
+        await this.WaitForFileAsync(host, path);
+        using var doc = JsonDocument.Parse(await File.ReadAllTextAsync(path));
+        Assert.Equal("come", doc.RootElement.GetProperty("movementCommand").GetString());
+        await this.WriteResultAsync(turn.Id, "completed", this.ValidResponse());
+        var update = await this.WaitForAsync(host, value => value.Result is not null || value.Error is not null);
+        Assert.Null(update.Error);
+        Assert.Equal("come", host.Turn?.MovementCommand);
+        Assert.NotNull(update.Result);
+    }
+
+    [Fact]
     public async Task PublishesCamelCaseEnvelopeAndReadsCamelCaseDshResult()
     {
         using var host = this.CreateHost();

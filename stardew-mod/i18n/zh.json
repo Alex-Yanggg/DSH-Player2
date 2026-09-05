@@ -5,7 +5,7 @@
   "chat.starting": "Player2 正在等待 DSH 加载完成；这条消息会在就绪后自动发送。",
   "chat.waiting": "Player2 仍在回复上一条消息；当前输入已保留，请稍后再发送。",
   "chat.waiting-short": "回复中…",
-  "chat.input-placeholder": "输入消息，按 Enter 发送",
+  "chat.input-placeholder": "输入消息或：过来 / 跟着我 / 停下",
   "weather.rain": "雨天",
   "weather.snow": "雪天",
   "weather.clear": "晴天",
@@ -41,5 +41,8 @@
   "status.failed": "未完成",
   "status.declined": "已婉拒",
   "status.expired": "已过期",
-  "receipt.autonomous": "{{name}}自己行动了：{{status}}，位于{{target}}。回执已记录。"
+  "receipt.autonomous": "{{name}}自己行动了：{{status}}，位于{{target}}。回执已记录。",
+  "movement.arrived": "{{name}}已走到你身边。",
+  "movement.stopped": "{{name}}已停下。",
+  "movement.path-blocked": "同伴暂时无法到达；请移到有空地的位置后重试。"
 }

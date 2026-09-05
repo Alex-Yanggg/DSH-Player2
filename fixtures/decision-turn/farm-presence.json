@@ -21,12 +21,12 @@
         },
         {
           "id": "companion-presence",
-          "title": "Stand beside the agreed target as a temporary farmer-template presence",
+          "title": "Join the location as a persistent native companion; movement requires an explicit player chat command",
           "accessMode": "semantic",
           "requiresExplicitConsent": true,
           "isReversible": true,
-          "inputSchemaRef": "player2://presence-sprite/0.1",
-          "scope": "temporary presence sprite only"
+          "inputSchemaRef": "player2://native-companion/0.2",
+          "scope": "persistent native companion presence; movement only on explicit player command"
         }
       ]
     },
@@ -73,7 +73,7 @@
       "world-7"
     ],
     "target": "stardew-location:Farm:tile:12,8",
-    "scope": "temporary presence sprite only",
+    "scope": "persistent native companion presence; movement only on explicit player command",
     "reason": "Standing nearby makes planning the mine trip easier.",
     "utterance": "I'm Mira. Since we're both here on the Farm, may I stand beside you for a moment before we plan that mine trip?"
   },
@@ -91,7 +91,7 @@
       "intent": {
         "target": "stardew-location:Farm:tile:12,8"
       },
-      "scope": "temporary presence sprite only",
+      "scope": "persistent native companion presence; movement only on explicit player command",
       "reason": "Standing nearby makes planning the mine trip easier.",
       "utterance": "I'm Mira. Since we're both here on the Farm, may I stand beside you for a moment before we plan that mine trip?"
     }

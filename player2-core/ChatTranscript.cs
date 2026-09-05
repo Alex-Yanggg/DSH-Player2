@@ -19,6 +19,7 @@ public sealed class ChatTranscript
 
     /// <summary>The retained lines, oldest first.</summary>
     public IReadOnlyList<ChatLine> Lines => this.lines;
+    public int Revision { get; private set; }
 
     /// <summary>Appends one non-empty line, dropping the oldest beyond the cap.</summary>
     public void Append(string speaker, string text)
@@ -33,6 +34,7 @@ public sealed class ChatTranscript
         }
 
         this.lines.Add(new ChatLine(speaker, text));
+        this.Revision++;
         if (this.lines.Count > MaxLines)
         {
             this.lines.RemoveRange(0, this.lines.Count - MaxLines);

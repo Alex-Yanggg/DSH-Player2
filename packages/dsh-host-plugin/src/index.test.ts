@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promis
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { Context } from "@deepseek-ai/cordis";
 import type { CompanionIdentity } from "@dsh-player2/contracts";
 import {
@@ -29,6 +29,33 @@ const MIRA: CompanionIdentity = {
 };
 
 describe("Player2 DSH host bundle", () => {
+  it("services newly arrived social turns while a decision stays busy, without duplicate execution", async () => {
+    const root = await mkdtemp(join(tmpdir(), "player2-independent-lanes-"));
+    const session = join(root, "projects", "mira", "sessions", "1");
+    await mkdir(join(session, "inbox"), { recursive: true });
+    await writeFile(join(session, "inbox", "turn-1.json"), "{}");
+    let release!: () => void;
+    const busy = new Promise<void>((resolve) => { release = resolve; });
+    const host = new Player2DshHost({} as Context, { bridgeDirectory: root, pollIntervalMs: 50 });
+    const internals = host as unknown as { runDecision(session: string, id: number): Promise<void>; runSocial(session: string, id: string): Promise<void> };
+    const decisions = vi.spyOn(internals, "runDecision").mockImplementation(async () => busy);
+    const social = vi.spyOn(internals, "runSocial").mockImplementation(async (directory, id) => {
+      await mkdir(join(directory, "social-outbox"), { recursive: true });
+      await writeFile(join(directory, "social-outbox", `result-${id}.json`), "{}");
+    });
+    try {
+      await host.start();
+      await vi.waitFor(() => expect(decisions).toHaveBeenCalledTimes(1));
+      await mkdir(join(session, "social-inbox"), { recursive: true });
+      await writeFile(join(session, "social-inbox", "turn-12345678-abcd.json"), "{}");
+      await vi.waitFor(() => expect(social).toHaveBeenCalledTimes(1));
+      expect(decisions).toHaveBeenCalledTimes(1);
+    } finally {
+      release();
+      await host.stop();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
   it("declares the DSH services needed to create owned native agents", () => {
     expect(name).toBe("player2-dsh-host");
     expect(inject).toEqual(["agents", "agentDefaultModel", "agentPresets", "sessions", "sessionPersistence"]);

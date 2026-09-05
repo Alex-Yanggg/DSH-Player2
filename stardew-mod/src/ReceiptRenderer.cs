@@ -1,7 +1,6 @@
 using System;
 using DSHPlayer2.Core;
 using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
 using StardewModdingAPI;
 using StardewValley;
 using Player2Proposal = DSHPlayer2.Core.Proposal;
@@ -10,15 +9,35 @@ namespace DSHPlayer2.Stardew;
 
 /// <summary>
 /// The only place a validated companion action becomes visible in the world:
-/// temporary sprites plus a sound, never a gameplay mutation. A receipt the
-/// world cannot show still reports failed honestly.
+/// engine-owned companion actors or temporary world markers. A receipt the
+/// world cannot execute still reports failed honestly.
 /// </summary>
 internal static class ReceiptRenderer
 {
-    private static Farmer? activePresence;
-    private static string? activePresenceLocation;
-    private static Vector2 activePresenceWorldPosition;
-    private static DateTimeOffset activePresenceExpiresAt;
+    public static NativeCompanion? ActiveCompanion { get; private set; }
+    public static Func<string> ResolveName { get; set; } = () => "Player2";
+    public static Action<string, string> MovementReport { get; set; } = (_, _) => { };
+
+    public static bool Command(string command, CompanionAppearance? appearance, IMonitor monitor)
+    {
+        if (appearance is null) return false;
+        try
+        {
+            if (ActiveCompanion is null)
+            {
+                if (command == "stay") return true;
+                var actor = new NativeCompanion(ResolveName(), appearance, MovementReport);
+                if (!actor.PlaceNearPlayer()) return false;
+                ActiveCompanion = actor;
+            }
+            return ActiveCompanion.Command(command);
+        }
+        catch (Exception error)
+        {
+            monitor.Log($"Player2 native movement failed: {error}", LogLevel.Error);
+            return false;
+        }
+    }
 
     /// <summary>
     /// Shows the companion presence receipt using Stardew Valley's complete
@@ -43,17 +62,9 @@ internal static class ReceiptRenderer
                 monitor.Log("Player2 could not show companion presence because this save has no companion appearance.", LogLevel.Error);
                 return false;
             }
-            var targetPosition = new Vector2(
-                proposal.TargetTileX * Game1.tileSize,
-                (proposal.TargetTileY * Game1.tileSize) - Game1.tileSize);
-            var farmer = Game1.player.CreateFakeEventFarmer();
-            appearance.Apply(farmer);
-            farmer.faceDirection(2);
-            farmer.FarmerSprite.StopAnimation();
-            activePresence = farmer;
-            activePresenceLocation = proposal.Location;
-            activePresenceWorldPosition = targetPosition;
-            activePresenceExpiresAt = DateTimeOffset.UtcNow.AddSeconds(3);
+            var actor = ActiveCompanion ?? new NativeCompanion(ResolveName(), appearance, MovementReport);
+            if (!actor.PlaceAt(Game1.currentLocation, new Point(proposal.TargetTileX, proposal.TargetTileY))) return false;
+            ActiveCompanion = actor;
             Game1.currentLocation.playSound("dwoop");
             return true;
         }
@@ -64,31 +75,18 @@ internal static class ReceiptRenderer
         }
     }
 
-    /// <summary>Draws the active companion through Stardew's full farmer compositor.</summary>
-    public static void DrawActivePresence(SpriteBatch batch)
-    {
-        if (activePresence is null ||
-            DateTimeOffset.UtcNow >= activePresenceExpiresAt ||
-            Game1.currentLocation.NameOrUniqueName != activePresenceLocation)
-        {
-            ClearPresence();
-            return;
-        }
-        var screenPosition = Game1.GlobalToLocal(Game1.viewport, activePresenceWorldPosition);
-        var layerDepth = Math.Min(0.99f, (activePresenceWorldPosition.Y + (Game1.tileSize * 2)) / 10000f);
-        activePresence.FarmerRenderer.draw(
-            batch,
-            activePresence,
-            activePresence.FarmerSprite.CurrentFrame,
-            screenPosition,
-            layerDepth,
-            flip: false);
-    }
-
     public static void ClearPresence()
     {
-        activePresence = null;
-        activePresenceLocation = null;
+        ActiveCompanion?.currentLocation?.characters.Remove(ActiveCompanion);
+        ActiveCompanion = null;
+    }
+
+    // Runtime-only actors never enter vanilla save serialization.
+    public static void DetachForSave() => ActiveCompanion?.currentLocation?.characters.Remove(ActiveCompanion);
+    public static void RestoreAfterSave()
+    {
+        if (ActiveCompanion?.currentLocation is { } location && !location.characters.Contains(ActiveCompanion))
+            location.characters.Add(ActiveCompanion);
     }
 
     /// <summary>Shows the original temporary world marker receipt.</summary>

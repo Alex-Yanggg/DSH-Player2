@@ -258,6 +258,7 @@ export type GrowthProposal = z.infer<typeof growthProposalSchema>;
 export const socialBridgeVersion = "0.0.9" as const;
 
 export const socialBridgeTurnSchema = z.object({
+  movementCommand: z.enum(["come", "follow", "stay"]).nullable().optional(),
   version: z.literal(socialBridgeVersion),
   id: z.string().uuid(),
   createdAt: z.string().datetime(),

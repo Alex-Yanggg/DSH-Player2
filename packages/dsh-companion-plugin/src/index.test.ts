@@ -76,6 +76,20 @@ afterEach(async () => {
 });
 
 describe("Player DSH companion composition", () => {
+  it("puts the full reply contract directly in fast social policy and denies even the skill loader", async () => {
+    const ctx = await createComposition({ fastSocial: true });
+    const prompt = renderPrompt(await ctx.systemPrompt.assemble());
+    expect(prompt).toContain("one or two short, natural sentences");
+    expect(prompt).toContain("movementCommand");
+    expect(prompt).toContain("basedOnObservationIds");
+    expect(prompt).not.toContain(`load the ${companionPlugin.GROUNDED_DELIBERATION_SKILL} skill`);
+    const execute = vi.fn(async () => "loaded");
+    ctx.tools.register(defineTool({ name: "skill", description: "load", parameters: {},
+      output: { schema: { type: "string" }, render: (_args, value) => [{ type: "text", text: value }] }, execute }));
+    const result = await ctx.tools.execute({ callId: CallId("fast-skill"), name: "skill", arguments: {}, signal: new AbortController().signal });
+    expect(result.isError).toBe(true);
+    expect(execute).not.toHaveBeenCalled();
+  });
   it("assembles identity and a model-invocable grounded-deliberation skill", async () => {
     const ctx = await createComposition();
 

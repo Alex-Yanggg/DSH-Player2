@@ -12,7 +12,7 @@ namespace DSHPlayer2.Stardew;
 /// <summary>
 /// A bounded chat window in the multiplayer ChatBox tradition: the last lines
 /// stay visible above the input, the wheel and PageUp/PageDown scroll back,
-/// and submitting keeps the menu open. The window never causes game actions.
+/// and submitting keeps the menu open. Explicit bounded movement commands are validated by the host.
 /// </summary>
 internal sealed class CompanionChatMenu : IClickableMenu
 {
@@ -237,10 +237,10 @@ internal sealed class CompanionChatMenu : IClickableMenu
         this.scrollOffset = 0;
     }
 
-    /// <summary>Re-wraps the transcript for drawing only when its line count changed.</summary>
+    /// <summary>Re-wraps the transcript for drawing only when its revision changed.</summary>
     private void RefreshWrappedLines()
     {
-        if (this.wrappedForCount == this.transcript.Lines.Count)
+        if (this.wrappedForCount == this.transcript.Revision)
         {
             return;
         }
@@ -248,44 +248,15 @@ internal sealed class CompanionChatMenu : IClickableMenu
         var maxWidth = this.width - (InnerPadding * 2);
         foreach (var line in this.transcript.Lines)
         {
-            this.wrappedLines.AddRange(this.Wrap($"{line.Speaker}: {line.Text}", maxWidth));
+            this.wrappedLines.AddRange(ChatTextLayout.Wrap($"{line.Speaker}: {line.Text}", maxWidth, text => Game1.smallFont.MeasureString(text).X));
         }
-        this.wrappedForCount = this.transcript.Lines.Count;
+        this.wrappedForCount = this.transcript.Revision;
     }
 
     private void ClampScroll(int? visibleLines = null)
     {
         var lines = Math.Max(1, visibleLines ?? 10);
         this.scrollOffset = Math.Max(0, Math.Min(this.scrollOffset, Math.Max(0, this.wrappedLines.Count - lines)));
-    }
-
-    private IEnumerable<string> Wrap(string text, float maxWidth)
-    {
-        var remaining = text;
-        while (Game1.smallFont.MeasureString(remaining).X > maxWidth)
-        {
-            var take = remaining.Length;
-            while (take > 1 && Game1.smallFont.MeasureString(remaining[..take]).X > maxWidth)
-            {
-                take--;
-            }
-            var breakAt = remaining.LastIndexOf(' ', take - 1);
-            if (breakAt > 0)
-            {
-                yield return remaining[..breakAt];
-                remaining = remaining[(breakAt + 1)..];
-            }
-            else
-            {
-                yield return remaining[..take];
-                remaining = remaining[take..].TrimStart();
-            }
-            if (remaining.Length == 0)
-            {
-                yield break;
-            }
-        }
-        yield return remaining;
     }
 
     /// <summary>Anchors the compact chat to the lower-left play area at every UI scale.</summary>

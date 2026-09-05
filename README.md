@@ -1,5 +1,20 @@
 # DSH-Player2
 
+Development fix P2-0013B: the Stardew companion now lives in the location's actor
+collection and uses native pathfinding and farmer drawing. After a validated DSH
+reply, explicit F2 commands `过来` / `立刻来我面前` / `/come`, `跟着我` / `/follow`,
+and `停下` / `/stay` summon, approach, follow, or stop the companion. Close F2 to
+resume the single-player game's movement. Cross-location come/follow reattaches
+the actor near the player; walking between nearby tiles uses game collision and
+pathfinding. Complex work is still separate from these bounded movement commands.
+
+Social and decision workers now run independently. The native social agent uses
+the selected provider/model with `socialReasoningEffort: off`, a 1024-token cap,
+and direct social policy without skill-loading or reflection turns. This default
+matches the installed DeepSeek adapter's `off` effort; another adapter must supply
+its own supported effort through the host bundle setting. No new provider is used.
+Old logs remain available. See the [repair and manual checks](docs/p2-0013b-native-companion-fast-chat.md).
+
 DSH-Player2 is a public reference application for exploring a trustworthy AI companion inside a real game. Its job is to prove a small, player-controlled experience—not to build an unattended automation tool or a new agent framework.
 
 ## Relationship to DeepSeek Harness

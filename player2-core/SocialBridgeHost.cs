@@ -176,6 +176,8 @@ public sealed class SocialBridgeHost : IDisposable
 
     private static void ValidateTurn(NativeSocialBridgeTurn turn)
     {
+        if (turn.MovementCommand is not null && turn.MovementCommand != CompanionMovement.ParseCommand(turn.Message.Content))
+            throw new InvalidOperationException("Movement requires an explicit matching player command.");
         if (turn.Version != Version)
         {
             throw new InvalidOperationException($"A native DSH social turn must use wire version {Version}.");
@@ -323,7 +325,7 @@ public sealed class SocialBridgeHost : IDisposable
 public sealed record NativeSocialBridgeTurn(
     string Version, string Id, string CreatedAt, int GameDay, NativeCompanionIdentity Companion,
     NativeAdapterDescriptor Adapter, NativeObservation[] Observations, object? PriorMemory, object? LatestReceipt,
-    NativePlayerMessage Message);
+    NativePlayerMessage Message, string? MovementCommand = null);
 public sealed record NativeCompanionIdentity(
     string Name,
     string Role,
@@ -332,7 +334,8 @@ public sealed record NativeAdapterDescriptor(string Id, string GameId, string Ac
 public sealed record NativeObservation(string Id, string Kind, string ObservedAt, object? ExpiresAt, string Source, string AccessMode, double Confidence, object Facts);
 
 /// <summary>Typed world facts for the social turn's world observation.</summary>
-public sealed record NativeWorldFacts(string Weather, string Location);
+public sealed record NativeWorldFacts(string Weather, string Location, NativeCompanionFacts? Companion = null);
+public sealed record NativeCompanionFacts(bool PresentHere, string? Location, string MovementState, double? DistanceInTiles);
 
 /// <summary>One bounded inventory line inside the social turn's self observation.</summary>
 public sealed record NativeInventoryItemFact(string Name, int Count);

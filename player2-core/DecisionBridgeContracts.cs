@@ -45,16 +45,15 @@ public static class DecisionBridgeRules
         "The temporary world marker could not be shown.");
 
     /// <summary>
-    /// Companion presence: a temporary sprite built from Stardew Valley's own
-    /// player character template. It adds no gameplay effect and no custom art;
-    /// it is the smallest observable step toward a companion with a body.
+    /// Persistent native body with farmer appearance. Movement is a separate,
+    /// explicitly player-commanded grant; no work/inventory authority is added.
     /// </summary>
     public static readonly CapabilityDefinition CompanionPresence = new(
         "companion-presence",
-        "Stand beside the agreed target as a temporary farmer-template presence",
-        "temporary presence sprite only",
-        "player2://presence-sprite/0.1",
-        "The companion stood beside the target using the player template.",
+        "Join the location as a persistent native companion; movement requires an explicit player chat command",
+        "persistent native companion presence; movement only on explicit player command",
+        "player2://native-companion/0.2",
+        "The native companion entered the agreed location and remains present.",
         "The companion presence could not be shown.");
 
     /// <summary>The complete Player-owned capability catalog advertised on every turn.</summary>

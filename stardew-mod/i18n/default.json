@@ -5,7 +5,7 @@
   "chat.starting": "Player2 is waiting for DSH to finish loading; this message will send when it is ready.",
   "chat.waiting": "Player2 is still replying to the previous message. Your current input was kept; send it later.",
   "chat.waiting-short": "Replying…",
-  "chat.input-placeholder": "Type a message and press Enter",
+  "chat.input-placeholder": "Message, or: /come /follow /stay",
   "weather.rain": "rain",
   "weather.snow": "snow",
   "weather.clear": "clear",
@@ -41,5 +41,8 @@
   "status.failed": "failed",
   "status.declined": "declined",
   "status.expired": "expired",
-  "receipt.autonomous": "{{name}} acted on its own: {{status}} at {{target}}. The receipt records it."
+  "receipt.autonomous": "{{name}} acted on its own: {{status}} at {{target}}. The receipt records it.",
+  "movement.arrived": "{{name}} reached you.",
+  "movement.stopped": "{{name}} stopped.",
+  "movement.path-blocked": "The companion cannot reach you. Move to an open area and try again."
 }

@@ -54,12 +54,14 @@ internal sealed class ModEntry : Mod
     private DateTimeOffset? pendingDayDeadline;
     private DateTimeOffset? pendingSocialDeadline;
     private bool chatHintPending;
+    private string? movementTraceId;
 
     /// <summary>Registers the first semantic game event used by Player2.</summary>
     /// <param name="helper">The SMAPI helper for the loaded mod.</param>
     public override void Entry(IModHelper helper)
     {
         this.config = helper.ReadConfig<ModConfig>();
+        this.Monitor.Log("Player2 native companion movement + fast social bridge (P2-0013B).", LogLevel.Info);
         this.config.ValidateRequiredCompanionSouls();
         var configChanged = false;
         // Old config files predate the DSH-owned default.  Migrate them once
@@ -81,7 +83,17 @@ internal sealed class ModEntry : Mod
         helper.Events.GameLoop.UpdateTicked += this.OnUpdateTicked;
         helper.Events.GameLoop.ReturnedToTitle += this.OnReturnedToTitle;
         helper.Events.Input.ButtonPressed += this.OnButtonPressed;
-        helper.Events.Display.RenderedWorld += this.OnRenderedWorld;
+        ReceiptRenderer.ResolveName = this.ResolveCompanionName;
+        ReceiptRenderer.MovementReport = this.OnMovementReported;
+        helper.Events.GameLoop.Saving += (_, _) => ReceiptRenderer.DetachForSave();
+        helper.Events.GameLoop.Saved += (_, _) => ReceiptRenderer.RestoreAfterSave();
+        helper.Events.Player.Warped += (_, e) =>
+        {
+            if (e.IsLocalPlayer && ReceiptRenderer.ActiveCompanion?.Following == true)
+            {
+                if (!ReceiptRenderer.ActiveCompanion.Command("follow")) this.OnMovementReported("failed", "path-blocked");
+            }
+        };
         AppDomain.CurrentDomain.ProcessExit += this.OnProcessExit;
     }
 
@@ -268,6 +280,7 @@ internal sealed class ModEntry : Mod
         if (customized is not null)
         {
             CompanionAppearanceStore.Save(Game1.player, customized);
+            ReceiptRenderer.ActiveCompanion?.ApplyAppearance(customized);
             Game1.addHUDMessage(new HUDMessage(this.T("appearance.saved", new { name = this.ResolveCompanionName() })));
             this.Monitor.Log($"Player2 saved the vanilla farmer appearance for companion {this.ResolveCompanionName()}.", LogLevel.Info);
         }
@@ -314,9 +327,13 @@ internal sealed class ModEntry : Mod
         this.playerFavoriteThingBeforeCustomization = null;
     }
 
-    private void OnRenderedWorld(object? sender, RenderedWorldEventArgs e)
+    private void OnMovementReported(string status, string detail)
     {
-        ReceiptRenderer.DrawActivePresence(e.SpriteBatch);
+        var trace = this.movementTraceId ?? "presence";
+        this.AppendDevelopmentLog("COMPANION_MOVEMENT_" + status.ToUpperInvariant(), detail, trace);
+        this.Monitor.Log($"Player2 native companion movement {status}: {detail}; trace={trace}.", status == "failed" ? LogLevel.Warn : LogLevel.Info);
+        if (status != "started")
+            Game1.addHUDMessage(new HUDMessage(this.T("movement." + detail, new { name = this.ResolveCompanionName() })));
     }
 
     /// <summary>
@@ -411,12 +428,16 @@ internal sealed class ModEntry : Mod
         var id = Guid.NewGuid().ToString();
         var now = DecisionBridgeRules.TimestampNow();
         var self = snapshot.Self ?? throw new InvalidOperationException("World snapshot was missing the farmer facts required for a social turn.");
+        var actor = ReceiptRenderer.ActiveCompanion;
+        var presentHere = actor?.currentLocation == Game1.currentLocation;
+        var companionFacts = new NativeCompanionFacts(presentHere, actor?.currentLocation?.NameOrUniqueName,
+            actor?.MovementState ?? "absent", presentHere ? Microsoft.Xna.Framework.Vector2.Distance(actor!.Tile, Game1.player.Tile) : null);
         var turn = new NativeSocialBridgeTurn(
             "0.0.9", id, now, checked(snapshot.Day + 1), new NativeCompanionIdentity(companion.Name, companion.Role, ToBridgeSoul(companion)),
             new NativeAdapterDescriptor("stardew-smapi", "stardew-valley", "semantic", Array.Empty<object>()),
             new[]
             {
-                new NativeObservation($"world-{snapshot.Day}-{id}", "world", now, null, "stardew-smapi", "semantic", 1d, new NativeWorldFacts(snapshot.Weather, snapshot.Location)),
+                new NativeObservation($"world-{snapshot.Day}-{id}", "world", now, null, "stardew-smapi", "semantic", 1d, new NativeWorldFacts(snapshot.Weather, snapshot.Location, companionFacts)),
                 new NativeObservation($"self-{snapshot.Day}-{id}", "self", now, null, "stardew-smapi", "semantic", 1d, new NativeSelfFacts(
                     self.Name,
                     self.Money,
@@ -425,10 +446,10 @@ internal sealed class ModEntry : Mod
                     self.Items.Select(item => new NativeInventoryItemFact(item.Name, item.Count)).ToArray(),
                     self.InventoryTruncated)),
             },
-            null, null, new NativePlayerMessage($"message-{++this.socialTurnCounter}-{id}", message, now));
+            null, null, new NativePlayerMessage($"message-{++this.socialTurnCounter}-{id}", message, now), CompanionMovement.ParseCommand(message));
         try
         {
-            this.socialBridgeHost = new SocialBridgeHost(this.SessionBridgeRoot(companion), this.config.PollIntervalTicks, this.config.EffectiveRequestTimeout());
+            this.socialBridgeHost = new SocialBridgeHost(this.SessionBridgeRoot(companion), Math.Min(6, this.config.PollIntervalTicks), this.config.EffectiveRequestTimeout());
             this.socialBridgeHost.Start(turn);
             this.Monitor.Log($"Player2 published native DSH social turn social:{id}.", LogLevel.Info);
         }
@@ -572,6 +593,15 @@ internal sealed class ModEntry : Mod
         var playerPosition = Game1.player.Position;
         var targetTileX = (int)(playerPosition.X / Game1.tileSize);
         var targetTileY = (int)(playerPosition.Y / Game1.tileSize);
+        // Advertise an unoccupied engine-validated tile, not the player's feet.
+        var neighbor = NativeCompanion.FindOpenTileNearPlayer();
+        if (neighbor is null)
+        {
+            this.ReportNativeDshFailure("NO_COMPANION_SPACE", "No walkable companion tile near the player.", null);
+            return;
+        }
+        targetTileX = neighbor.Value.X;
+        targetTileY = neighbor.Value.Y;
 
         var gameDay = checked(snapshot.Day + 1);
         if (CompanionSettlementStore.IsGameDaySettled(new ModDataState(Game1.player.modData), gameDay))
@@ -858,6 +888,13 @@ internal sealed class ModEntry : Mod
         }
         var transcript = this.transcript ??= new ChatTranscript();
         transcript.Append(this.ResolveCompanionName(), update.Result.Text ?? throw new InvalidOperationException("Native DSH social result was missing text."));
+        var completedTurn = this.socialBridgeHost.Turn;
+        if (completedTurn?.MovementCommand is { } command && command == CompanionMovement.ParseCommand(completedTurn.Message.Content))
+        {
+            this.movementTraceId = update.TraceId;
+            if (!ReceiptRenderer.Command(command, CompanionAppearanceStore.Load(Game1.player, this.Monitor), this.Monitor))
+                this.OnMovementReported("failed", "path-blocked");
+        }
         CompanionTranscriptStore.Save(this.Helper, transcript, this.Monitor);
         this.Monitor.Log($"Player2 presented native DSH social result {update.TraceId}; session {update.Result.SessionId}.", LogLevel.Info);
         this.AppendDevelopmentLog("DSH_SOCIAL_TURN_COMPLETED", "Native DSH social response presented.", update.TraceId ?? throw new InvalidOperationException("Native DSH social result was missing trace id."));
@@ -914,6 +951,7 @@ internal sealed class ModEntry : Mod
         this.socialBridgeHost?.Dispose();
         this.socialBridgeHost = null;
         ReceiptRenderer.ClearPresence();
+        this.movementTraceId = null;
     }
 
     private void OnProcessExit(object? sender, EventArgs e)
