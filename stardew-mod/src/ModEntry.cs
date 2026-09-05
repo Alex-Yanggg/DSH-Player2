@@ -79,6 +79,7 @@ internal sealed class ModEntry : Mod
         this.supervisor = new DshProcessSupervisor(this.config, this.Monitor);
         this.supervisor.EnsureStarted();
         helper.Events.GameLoop.DayStarted += this.OnDayStarted;
+        helper.Events.GameLoop.DayEnding += this.OnDayEnding;
         helper.Events.GameLoop.GameLaunched += this.OnGameLaunched;
         helper.Events.GameLoop.UpdateTicked += this.OnUpdateTicked;
         helper.Events.GameLoop.ReturnedToTitle += this.OnReturnedToTitle;
@@ -461,9 +462,37 @@ internal sealed class ModEntry : Mod
         }
     }
 
-    private void OnDayStarted(object? sender, DayStartedEventArgs e)
+    /// <summary>
+    /// P2-0014: explicitly ending the game day is the only dream boundary.
+    /// The mod publishes one write-once day-end request for the companion's
+    /// dream lane; the Player growth store path consumes whatever the dream
+    /// closed with, exactly like any other DSH-authored proposal.
+    /// </summary>
+    private void OnDayEnding(object? sender, DayEndingEventArgs e)
     {
-        if (!Context.IsMainPlayer)
+        if (!Context.IsMainPlayer || this.ResolveCompanionChoice() is not { } companion)
+        {
+            return;
+        }
+        try
+        {
+            var sessionRoot = this.SessionBridgeRoot(companion);
+            var sequence = new DecisionBridgeFiles(sessionRoot).NextAvailableSequence(DateTimeOffset.UtcNow);
+            var request = DecisionBridgeRules.CreateDreamRequest(
+                new BridgeCompanionIdentity(companion.Name, companion.Role, ToBridgeSoul(companion)),
+                sequence,
+                DecisionBridgeRules.TimestampNow(),
+                checked(Game1.dayOfMonth + 1));
+            new CompanionDreamBridge(sessionRoot).WriteRequestAsync(request).GetAwaiter().GetResult();
+            this.Monitor.Log($"Player2 published dream request {sequence} for the ended game day.", LogLevel.Info);        }
+        catch (Exception ex)
+        {
+            this.ReportNativeDshFailure("DSH_DREAM_REQUEST_FAILED", ex.Message, null);
+        }
+    }
+
+    private void OnDayStarted(object? sender, DayStartedEventArgs e)
+    {        if (!Context.IsMainPlayer)
         {
             this.Monitor.Log("Player2 is inactive because this player is not the main player.", LogLevel.Info);
             return;

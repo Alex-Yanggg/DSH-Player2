@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Context } from "@deepseek-ai/cordis";
@@ -8,6 +8,7 @@ import SkillRegistry from "@deepseek-ai/dsh-skill";
 import SystemPrompt from "@deepseek-ai/dsh-system-prompt";
 import ToolRuntime from "@deepseek-ai/dsh-tools";
 import * as companionPlugin from "../packages/dsh-companion-plugin/dist/index.js";
+import { DreamFileLane, SpineFileStore, SpineTimeline, spineStateFileAt } from "../packages/dsh-companion-plugin/dist/index.js";
 import { BridgeDispatcher } from "../packages/dsh-dispatcher/dist/index.js";
 
 // The TS end of the unattended dual-end harness: one process that plays the
@@ -31,6 +32,40 @@ if (!bridgeDirectory) {
 }
 
 const requestPath = join(bridgeDirectory, "outbox", `request-${sequence}.json`);
+
+if (process.argv.includes("--dream")) {
+  // The dream stand-in (P2-0014): one closed reflection over the projected
+  // timeline — never a receipt directory scan — and one write-once outcome.
+  const dreamRequests = await readdir(join(bridgeDirectory, "dream-inbox")).catch(() => []);
+  const dreamName = dreamRequests.map((name) => /^dream-(\d+)\.json$/.exec(name)).find(Boolean);
+  if (dreamName === undefined) {
+    throw new Error("The dream mode requires a published dream-inbox request.");
+  }
+  const dreamSequence = Number.parseInt(dreamName[1], 10);
+  const spineDirectory = join(bridgeDirectory, "spine");
+  const timeline = new SpineTimeline(
+    new SpineFileStore(spineDirectory),
+    "player2-spine-file",
+    spineStateFileAt(join(spineDirectory, "state.json")),
+  );
+  await timeline.hydrate();
+  const receipts = timeline.snapshot().receipts;
+  const outcome = receipts.length > 0
+    ? {
+        kind: "growth",
+        insights: [{
+          text: "The shared marker plan held; the player follows through on grounded plans.",
+          basedOnReceiptSequences: receipts.map((receipt) => receipt.sequence).slice(0, 8),
+        }],
+        focus: "Plan one grounded marker the player will grant without hesitation.",
+      }
+    : { kind: "no-change" };
+  const lane = new DreamFileLane(bridgeDirectory, timeline);
+  const closed = await lane.decide(dreamSequence, outcome);
+  process.stdout.write(`dual-end-model: dream ${dreamSequence} closed with ${closed} (watermark ${timeline.snapshot().watermark})\n`);
+  process.exit(0);
+}
+
 const ctx = new Context();
 await ctx.plugin(SystemPrompt);
 await ctx.plugin(SkillRegistry);
@@ -41,6 +76,10 @@ await ctx.plugin(companionPlugin, {
   mode: "decision",
   autonomy,
   bridgeDirectory,
+  // The P2-0014 file spine: decision-lane bridge I/O records reference events
+  // so the dream lane can project the relationship timeline without
+  // rescanning the receipts directory.
+  spine: "file",
 });
 
 const signal = new AbortController().signal;

@@ -141,8 +141,7 @@ public sealed class CompanionGrowthStore
     /// both bridge sides reject the same malformed assets before DSH sees one.
     /// There is no soul row to validate: the type has none.
     /// </summary>
-    public static void ValidateAsset(BridgeGrowthAsset asset)
-    {
+    public static void ValidateAsset(BridgeGrowthAsset asset)    {
         ArgumentNullException.ThrowIfNull(asset);
         if (asset.Version != DecisionBridgeRules.WireVersion)
         {
@@ -154,6 +153,12 @@ public sealed class CompanionGrowthStore
         }
         ValidateInsights(asset.Insights, MaxInsights);
         ValidateFocus(asset.Focus);
+    }
+
+    /// <summary>Player-boundary validation for one DSH-authored proposal, shared by the decision and dream lanes.</summary>
+    public static void ValidateProposalContract(BridgeGrowthProposal proposal)
+    {
+        ValidateProposal(proposal);
     }
 
     private static void ValidateProposal(BridgeGrowthProposal proposal)

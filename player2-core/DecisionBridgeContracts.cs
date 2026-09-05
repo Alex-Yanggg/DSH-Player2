@@ -330,6 +330,27 @@ public static class DecisionBridgeRules
     }
 
     /// <summary>
+    /// Creates the P2-0014 day-end dream request. Explicitly ending one game
+    /// day is the only observable dream boundary, and the dream sequence
+    /// draws from the same monotonic turn space so the growth asset revision
+    /// stays one causal line.
+    /// </summary>
+    public static BridgeDreamRequest CreateDreamRequest(
+        BridgeCompanionIdentity companion,
+        int sequence,
+        string createdAt,
+        int gameDay)
+    {
+        AssertSequence(sequence);
+        AssertTimestamp(createdAt, nameof(createdAt));
+        if (companion.Soul is not null)
+        {
+            ValidateCompanionSoul(companion.Soul);
+        }
+        return new BridgeDreamRequest(WireVersion, sequence, createdAt, gameDay, companion);
+    }
+
+    /// <summary>
     /// Authorizes one already-validated autonomous request without a player
     /// answer. Only a request that arrived with the autonomous status may take
     /// this lane, and the returned authorization carries the full-autonomy
@@ -652,7 +673,6 @@ public sealed record BridgeGrowthProposal(
     [property: JsonPropertyName("focus")] string? Focus);
 
 public sealed record BridgeProposalIntent([property: JsonPropertyName("target")] string Target);
-
 public sealed record BridgeProposal(
     [property: JsonPropertyName("id")] string Id,
     [property: JsonPropertyName("createdAt")] string CreatedAt,
@@ -668,6 +688,29 @@ public sealed record BridgeActionRequest(
     [property: JsonPropertyName("sequence")] int Sequence,
     [property: JsonPropertyName("status")] string Status,
     [property: JsonPropertyName("proposal")] BridgeProposal Proposal);
+
+/// <summary>
+/// The Player-authored P2-0014 dream request: explicitly ending one game day.
+/// The companion may close the day with no change or one grounded growth
+/// proposal; the request itself grants no game authority.
+/// </summary>
+public sealed record BridgeDreamRequest(
+    [property: JsonPropertyName("version")] string Version,
+    [property: JsonPropertyName("sequence")] int Sequence,
+    [property: JsonPropertyName("createdAt")] string CreatedAt,
+    [property: JsonPropertyName("gameDay")] int GameDay,
+    [property: JsonPropertyName("companion")] BridgeCompanionIdentity Companion);
+
+/// <summary>The one outcome a dream turn may write, read back by the Player.</summary>
+public sealed record BridgeDreamOutcome(
+    [property: JsonPropertyName("outcome")] string Outcome,
+    [property: JsonPropertyName("proposal")] BridgeGrowthProposal? Proposal);
+
+/// <summary>The no-change marker a dream writes when the day gave it nothing to keep.</summary>
+public sealed record BridgeDreamNoChange(
+    [property: JsonPropertyName("version")] string Version,
+    [property: JsonPropertyName("sequence")] int Sequence,
+    [property: JsonPropertyName("outcome")] string Outcome);
 
 /// <summary>Terminal DSH-host failure for a decision sequence, surfaced directly to the developer.</summary>
 public sealed record BridgeRuntimeError(
