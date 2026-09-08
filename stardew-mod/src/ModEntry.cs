@@ -90,9 +90,17 @@ internal sealed class ModEntry : Mod
         helper.Events.GameLoop.Saved += (_, _) => ReceiptRenderer.RestoreAfterSave();
         helper.Events.Player.Warped += (_, e) =>
         {
-            if (e.IsLocalPlayer && ReceiptRenderer.ActiveCompanion?.Following == true)
+            if (!e.IsLocalPlayer)
+            {
+                return;
+            }
+            if (ReceiptRenderer.ActiveCompanion?.Following == true)
             {
                 if (!ReceiptRenderer.ActiveCompanion.Command("follow")) this.OnMovementReported("failed", "path-blocked");
+            }
+            else if (ReceiptRenderer.ActiveCompanion is null && CompanionAppearanceStore.Load(Game1.player, this.Monitor) is { } appearance)
+            {
+                this.EnsureCompanionPresent(appearance, "player warp retry");
             }
         };
         AppDomain.CurrentDomain.ProcessExit += this.OnProcessExit;
@@ -281,7 +289,7 @@ internal sealed class ModEntry : Mod
         if (customized is not null)
         {
             CompanionAppearanceStore.Save(Game1.player, customized);
-            ReceiptRenderer.ActiveCompanion?.ApplyAppearance(customized);
+            this.EnsureCompanionPresent(customized, "appearance customization");
             Game1.addHUDMessage(new HUDMessage(this.T("appearance.saved", new { name = this.ResolveCompanionName() })));
             this.Monitor.Log($"Player2 saved the vanilla farmer appearance for companion {this.ResolveCompanionName()}.", LogLevel.Info);
         }
@@ -518,17 +526,36 @@ internal sealed class ModEntry : Mod
             this.ShowCompanionChoice(snapshot);
             return;
         }
-        if (CompanionAppearanceStore.Load(Game1.player, this.Monitor) is null)
+        var appearance = CompanionAppearanceStore.Load(Game1.player, this.Monitor);
+        if (appearance is null)
         {
             this.RequestCompanionCustomization(snapshot);
             return;
         }
+        this.EnsureCompanionPresent(appearance, "day start");
         if (string.IsNullOrWhiteSpace(this.config.DecisionBridgeDirectory))
         {
             this.ReportNativeDshFailure("DSH_NOT_CONFIGURED", "DecisionBridgeDirectory is empty; the day turn was not sent to native DSH.", null);
             return;
         }
         this.QueueCompanionDay(snapshot, companion);
+    }
+
+    private bool EnsureCompanionPresent(CompanionAppearance appearance, string context)
+    {
+        if (ReceiptRenderer.EnsurePresent(appearance, this.Monitor, out var created))
+        {
+            if (created)
+            {
+                this.Monitor.Log($"Player2 loaded companion {this.ResolveCompanionName()} into the current location during {context}.", LogLevel.Info);
+            }
+            return true;
+        }
+        this.ReportNativeDshFailure(
+            "COMPANION_SPAWN_FAILED",
+            $"Player2 could not place the companion on a walkable tile during {context}; it will retry after a player warp or explicit movement command.",
+            null);
+        return false;
     }
 
     /// <summary>Defers the day turn until the mounted Player2 DSH bundle proves it is alive.</summary>

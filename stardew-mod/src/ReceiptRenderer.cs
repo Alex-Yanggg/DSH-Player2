@@ -18,6 +18,34 @@ internal static class ReceiptRenderer
     public static Func<string> ResolveName { get; set; } = () => "Player2";
     public static Action<string, string> MovementReport { get; set; } = (_, _) => { };
 
+    /// <summary>
+    /// Ensures the save-owned companion has one runtime actor. This is a
+    /// presence-only operation: it never starts movement or changes follow
+    /// authority.
+    /// </summary>
+    public static bool EnsurePresent(CompanionAppearance appearance, IMonitor monitor, out bool created)
+    {
+        created = false;
+        try
+        {
+            if (ActiveCompanion is not null)
+            {
+                ActiveCompanion.ApplyAppearance(appearance);
+                return true;
+            }
+            var actor = new NativeCompanion(ResolveName(), appearance, MovementReport);
+            if (!actor.PlaceNearPlayer()) return false;
+            ActiveCompanion = actor;
+            created = true;
+            return true;
+        }
+        catch (Exception error)
+        {
+            monitor.Log($"Player2 native companion creation failed: {error}", LogLevel.Error);
+            return false;
+        }
+    }
+
     public static bool Command(string command, CompanionAppearance? appearance, IMonitor monitor)
     {
         if (appearance is null) return false;
@@ -26,11 +54,9 @@ internal static class ReceiptRenderer
             if (ActiveCompanion is null)
             {
                 if (command == "stay") return true;
-                var actor = new NativeCompanion(ResolveName(), appearance, MovementReport);
-                if (!actor.PlaceNearPlayer()) return false;
-                ActiveCompanion = actor;
+                if (!EnsurePresent(appearance, monitor, out _)) return false;
             }
-            return ActiveCompanion.Command(command);
+            return ActiveCompanion!.Command(command);
         }
         catch (Exception error)
         {

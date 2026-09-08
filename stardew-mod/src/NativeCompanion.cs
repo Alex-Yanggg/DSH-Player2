@@ -16,6 +16,7 @@ internal sealed class NativeCompanion : NPC
     private Point destination;
     private double repathMs;
     private double travelMs;
+    private int? avatarMovementDirection;
 
     public NativeCompanion(string displayName, CompanionAppearance appearance, Action<string, string> report)
         : base(new AnimatedSprite("Characters/Farmer/farmer_base", 0, 16, 32), Vector2.Zero, 2, "DSHPlayer2_Companion")
@@ -30,6 +31,7 @@ internal sealed class NativeCompanion : NPC
         this.willDestroyObjectsUnderfoot = false;
         this.Speed = 3;
         this.AllowDynamicAppearance = false;
+        this.avatar.faceDirection(this.FacingDirection);
     }
 
     public bool Following => this.following;
@@ -55,6 +57,9 @@ internal sealed class NativeCompanion : NPC
         this.currentLocation?.characters.Remove(this);
         this.currentLocation = location;
         this.Position = new Vector2(tile.X * 64, tile.Y * 64);
+        this.StopAvatarMovement();
+        this.avatar.Position = this.Position;
+        this.avatar.currentLocation = location;
         location.characters.Add(this);
         return true;
     }
@@ -68,6 +73,7 @@ internal sealed class NativeCompanion : NPC
         this.following = false;
         this.approaching = false;
         this.Halt();
+        this.StopAvatarMovement();
     }
 
     // The location invokes this, including correct pause/menu behavior. No second mod tick moves the actor.
@@ -111,13 +117,22 @@ internal sealed class NativeCompanion : NPC
         }
         this.avatar.Position = this.Position;
         this.avatar.currentLocation = location;
-        this.avatar.faceDirection(this.FacingDirection);
         if (before != this.Position)
         {
-            var animation = this.FacingDirection switch { 0 => FarmerSprite.walkUp, 1 => FarmerSprite.walkRight, 3 => FarmerSprite.walkLeft, _ => FarmerSprite.walkDown };
-            this.avatar.FarmerSprite.animate(animation, time);
+            var direction = MovementDirection(before, this.Position, this.FacingDirection);
+            this.FacingDirection = direction;
+            if (this.avatarMovementDirection != direction)
+            {
+                this.avatar.Halt();
+                SetFarmerMoving(this.avatar, direction);
+                this.avatarMovementDirection = direction;
+            }
+            this.avatar.updateMovementAnimation(time);
         }
-        else this.avatar.FarmerSprite.StopAnimation();
+        else
+        {
+            this.StopAvatarMovement();
+        }
     }
 
     public override void draw(SpriteBatch batch, float alpha = 1f)
@@ -181,6 +196,38 @@ internal sealed class NativeCompanion : NPC
         if (tile.X < 0 || tile.Y < 0 || tile.X >= location.Map.Layers[0].LayerWidth || tile.Y >= location.Map.Layers[0].LayerHeight) return false;
         if (tile == Game1.player.TilePoint && location == Game1.currentLocation) return false;
         return !location.isCollidingPosition(new Rectangle(tile.X * 64 + 8, tile.Y * 64 + 16, 48, 32), Game1.viewport, false, 0, false, this, pathfinding: true);
+    }
+
+    private void StopAvatarMovement()
+    {
+        if (this.avatarMovementDirection is not null)
+        {
+            this.avatar.Halt();
+            this.avatarMovementDirection = null;
+        }
+        if (this.avatar.FacingDirection != this.FacingDirection)
+        {
+            this.avatar.faceDirection(this.FacingDirection);
+        }
+    }
+
+    private static int MovementDirection(Vector2 before, Vector2 after, int fallback)
+    {
+        var delta = after - before;
+        if (Math.Abs(delta.X) > Math.Abs(delta.Y)) return delta.X > 0 ? 1 : 3;
+        if (Math.Abs(delta.Y) > 0) return delta.Y > 0 ? 2 : 0;
+        return fallback;
+    }
+
+    private static void SetFarmerMoving(Farmer farmer, int direction)
+    {
+        switch (direction)
+        {
+            case 0: farmer.SetMovingUp(true); break;
+            case 1: farmer.SetMovingRight(true); break;
+            case 2: farmer.SetMovingDown(true); break;
+            case 3: farmer.SetMovingLeft(true); break;
+        }
     }
 
     private static System.Collections.Generic.IEnumerable<Point> NearbyTiles(Point center, int min, int max)
