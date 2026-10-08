@@ -19,6 +19,7 @@ const proposalArguments = fixture.proposal ?? {
   target: expectedProposal.intent.target,
   scope: expectedProposal.scope,
   reason: expectedProposal.reason,
+  utterance: expectedProposal.utterance,
 };
 const bridgeDirectory = await mkdtemp(join(tmpdir(), "player2-dispatch-replay-"));
 

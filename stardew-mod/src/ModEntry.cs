@@ -8,6 +8,7 @@ using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
 using StardewValley.Menus;
+using StardewValley.Objects;
 using Player2Proposal = DSHPlayer2.Core.Proposal;
 
 namespace DSHPlayer2.Stardew;
@@ -34,6 +35,17 @@ internal sealed class ModEntry : Mod
     private Player2Proposal? pendingBridgeProposal;
     private Player2Proposal? activeProposal;
     private WorldSnapshot? pendingChoiceSnapshot;
+    private WorldSnapshot? pendingAppearanceSnapshot;
+    private bool appearanceCustomizationRequested;
+    private CharacterCustomization? activeAppearanceMenu;
+    private CompanionAppearance? playerAppearanceBeforeCustomization;
+    private CompanionAppearance? previousCompanionAppearance;
+    private Clothing? playerShirtBeforeCustomization;
+    private Clothing? playerPantsBeforeCustomization;
+    private string? playerNameBeforeCustomization;
+    private string? playerDisplayNameBeforeCustomization;
+    private string? playerFavoriteThingBeforeCustomization;
+    private bool playerCustomizedBeforeCustomization;
     private SocialBridgeHost? socialBridgeHost;
     private int socialTurnCounter;
     private WorldSnapshot? pendingDaySnapshot;
@@ -42,18 +54,14 @@ internal sealed class ModEntry : Mod
     private DateTimeOffset? pendingDayDeadline;
     private DateTimeOffset? pendingSocialDeadline;
     private bool chatHintPending;
-
-    /// <summary>Deterministic fallback templates for the game's current language.</summary>
-    private Player2TextSet Text =>
-        LocalizedContentManager.CurrentLanguageCode == LocalizedContentManager.LanguageCode.zh
-            ? Player2TextSet.SimplifiedChinese
-            : Player2TextSet.English;
+    private string? movementTraceId;
 
     /// <summary>Registers the first semantic game event used by Player2.</summary>
     /// <param name="helper">The SMAPI helper for the loaded mod.</param>
     public override void Entry(IModHelper helper)
     {
         this.config = helper.ReadConfig<ModConfig>();
+        this.Monitor.Log("Player2 native companion movement + fast social bridge (P2-0013B).", LogLevel.Info);
         this.config.ValidateRequiredCompanionSouls();
         var configChanged = false;
         // Old config files predate the DSH-owned default.  Migrate them once
@@ -71,15 +79,47 @@ internal sealed class ModEntry : Mod
         this.supervisor = new DshProcessSupervisor(this.config, this.Monitor);
         this.supervisor.EnsureStarted();
         helper.Events.GameLoop.DayStarted += this.OnDayStarted;
+        helper.Events.GameLoop.DayEnding += this.OnDayEnding;
+        helper.Events.GameLoop.GameLaunched += this.OnGameLaunched;
         helper.Events.GameLoop.UpdateTicked += this.OnUpdateTicked;
         helper.Events.GameLoop.ReturnedToTitle += this.OnReturnedToTitle;
         helper.Events.Input.ButtonPressed += this.OnButtonPressed;
+        ReceiptRenderer.ResolveName = this.ResolveCompanionName;
+        ReceiptRenderer.MovementReport = this.OnMovementReported;
+        helper.Events.GameLoop.Saving += (_, _) => ReceiptRenderer.DetachForSave();
+        helper.Events.GameLoop.Saved += (_, _) => ReceiptRenderer.RestoreAfterSave();
+        helper.Events.Player.Warped += (_, e) =>
+        {
+            if (!e.IsLocalPlayer)
+            {
+                return;
+            }
+            if (ReceiptRenderer.ActiveCompanion?.Following == true)
+            {
+                if (!ReceiptRenderer.ActiveCompanion.Command("follow")) this.OnMovementReported("failed", "path-blocked");
+            }
+            else if (ReceiptRenderer.ActiveCompanion is null && CompanionAppearanceStore.Load(Game1.player, this.Monitor) is { } appearance)
+            {
+                this.EnsureCompanionPresent(appearance, "player warp retry");
+            }
+        };
         AppDomain.CurrentDomain.ProcessExit += this.OnProcessExit;
     }
 
     /// <summary>Opens the text-only companion input without blocking the game loop on a model response.</summary>
     private void OnButtonPressed(object? sender, ButtonPressedEventArgs e)
     {
+        if (Context.IsWorldReady && e.Button == this.config.CustomizeCompanionKey)
+        {
+            this.Helper.Input.Suppress(e.Button);
+            if (this.ResolveCompanionChoice() is null)
+            {
+                Game1.addHUDMessage(new HUDMessage(this.T("appearance.choose-first")));
+                return;
+            }
+            this.RequestCompanionCustomization(null);
+            return;
+        }
         if (Context.IsWorldReady && e.Button == this.config.RetryDayKey)
         {
             this.TryRetryCompanionDay();
@@ -125,6 +165,186 @@ internal sealed class ModEntry : Mod
         return this.Helper.Translation.Get(key, tokens).ToString();
     }
 
+    private void OnGameLaunched(object? sender, GameLaunchedEventArgs e)
+    {
+        var menu = this.Helper.ModRegistry.GetApi<IGenericModConfigMenuApi>("spacechase0.GenericModConfigMenu");
+        if (menu is null)
+        {
+            this.Monitor.Log("Generic Mod Config Menu is not installed; Player2 settings remain available through config.json and hotkeys.", LogLevel.Info);
+            return;
+        }
+        menu.Register(
+            this.ModManifest,
+            reset: () =>
+            {
+                var defaults = new ModConfig();
+                this.config.AllowCheatCapabilities = defaults.AllowCheatCapabilities;
+                this.config.ChatKey = defaults.ChatKey;
+                this.config.RetryDayKey = defaults.RetryDayKey;
+                this.config.CustomizeCompanionKey = defaults.CustomizeCompanionKey;
+            },
+            save: () => this.Helper.WriteConfig(this.config));
+        menu.AddSectionTitle(this.ModManifest, () => this.T("config.permissions.title"));
+        menu.AddBoolOption(
+            this.ModManifest,
+            () => this.config.AllowCheatCapabilities,
+            value => this.config.AllowCheatCapabilities = value,
+            () => this.T("config.allow-cheats.name"),
+            () => this.T("config.allow-cheats.tooltip"),
+            "allow-cheat-capabilities");
+        menu.AddParagraph(this.ModManifest, () => this.T("config.allow-cheats.note"));
+        menu.AddSectionTitle(this.ModManifest, () => this.T("config.controls.title"));
+        menu.AddKeybind(
+            this.ModManifest,
+            () => this.config.ChatKey,
+            value => this.config.ChatKey = value,
+            () => this.T("config.chat-key.name"),
+            () => this.T("config.chat-key.tooltip"),
+            "chat-key");
+        menu.AddKeybind(
+            this.ModManifest,
+            () => this.config.RetryDayKey,
+            value => this.config.RetryDayKey = value,
+            () => this.T("config.retry-key.name"),
+            () => this.T("config.retry-key.tooltip"),
+            "retry-day-key");
+        menu.AddKeybind(
+            this.ModManifest,
+            () => this.config.CustomizeCompanionKey,
+            value => this.config.CustomizeCompanionKey = value,
+            () => this.T("config.customize-key.name"),
+            () => this.T("config.customize-key.tooltip"),
+            "customize-companion-key");
+    }
+
+    private void RequestCompanionCustomization(WorldSnapshot? resumeDay)
+    {
+        if (this.activeAppearanceMenu is not null || this.appearanceCustomizationRequested)
+        {
+            return;
+        }
+        this.pendingAppearanceSnapshot = resumeDay;
+        this.appearanceCustomizationRequested = true;
+        this.Monitor.Log("Player2 queued Stardew Valley's native character customization for the companion.", LogLevel.Info);
+    }
+
+    private void TryOpenCompanionCustomization()
+    {
+        if (!this.appearanceCustomizationRequested ||
+            this.activeAppearanceMenu is not null ||
+            !Context.IsPlayerFree ||
+            Game1.activeClickableMenu is not null)
+        {
+            return;
+        }
+
+        var player = Game1.player;
+        this.playerAppearanceBeforeCustomization = CompanionAppearance.Capture(player);
+        this.previousCompanionAppearance = CompanionAppearanceStore.Load(player, this.Monitor);
+        this.playerShirtBeforeCustomization = player.shirtItem.Value;
+        this.playerPantsBeforeCustomization = player.pantsItem.Value;
+        this.playerNameBeforeCustomization = player.Name;
+        this.playerDisplayNameBeforeCustomization = player.displayName;
+        this.playerFavoriteThingBeforeCustomization = player.favoriteThing.Value;
+        this.playerCustomizedBeforeCustomization = player.isCustomized.Value;
+        try
+        {
+            // The vanilla menu edits Game1.player. Temporarily present the
+            // companion body, then restore every player-owned field on exit.
+            player.shirtItem.Value = null;
+            player.pantsItem.Value = null;
+            (this.previousCompanionAppearance ?? this.playerAppearanceBeforeCustomization).Apply(player);
+            var menu = new CharacterCustomization(CharacterCustomization.Source.Wizard);
+            menu.exitFunction = () => this.CompleteCompanionCustomization(save: true);
+            this.activeAppearanceMenu = menu;
+            this.appearanceCustomizationRequested = false;
+            Game1.activeClickableMenu = menu;
+        }
+        catch (Exception ex)
+        {
+            this.RestorePlayerAfterCustomization();
+            this.appearanceCustomizationRequested = false;
+            this.Monitor.Log($"Player2 could not open native companion customization: {ex.Message}", LogLevel.Error);
+            Game1.addHUDMessage(new HUDMessage(this.T("appearance.failed")));
+        }
+    }
+
+    private void CompleteAppearanceIfMenuWasClosed()
+    {
+        if (this.activeAppearanceMenu is not null && !ReferenceEquals(Game1.activeClickableMenu, this.activeAppearanceMenu))
+        {
+            this.CompleteCompanionCustomization(save: true);
+        }
+    }
+
+    private void CompleteCompanionCustomization(bool save)
+    {
+        if (this.activeAppearanceMenu is null)
+        {
+            return;
+        }
+        var customized = save ? CompanionAppearance.Capture(Game1.player) : null;
+        this.RestorePlayerAfterCustomization();
+        this.activeAppearanceMenu = null;
+        if (customized is not null)
+        {
+            CompanionAppearanceStore.Save(Game1.player, customized);
+            this.EnsureCompanionPresent(customized, "appearance customization");
+            Game1.addHUDMessage(new HUDMessage(this.T("appearance.saved", new { name = this.ResolveCompanionName() })));
+            this.Monitor.Log($"Player2 saved the vanilla farmer appearance for companion {this.ResolveCompanionName()}.", LogLevel.Info);
+        }
+        var snapshot = this.pendingAppearanceSnapshot;
+        this.pendingAppearanceSnapshot = null;
+        if (customized is not null && snapshot is not null && this.ResolveCompanionChoice() is { } companion)
+        {
+            this.QueueCompanionDay(snapshot, companion);
+        }
+    }
+
+    private void CancelAppearanceCustomization()
+    {
+        if (this.activeAppearanceMenu is not null)
+        {
+            this.RestorePlayerAfterCustomization();
+            this.activeAppearanceMenu = null;
+        }
+    }
+
+    private void RestorePlayerAfterCustomization()
+    {
+        var player = Game1.player;
+        this.playerAppearanceBeforeCustomization?.Apply(player);
+        player.shirtItem.Value = this.playerShirtBeforeCustomization;
+        player.pantsItem.Value = this.playerPantsBeforeCustomization;
+        if (this.playerNameBeforeCustomization is not null)
+        {
+            player.Name = this.playerNameBeforeCustomization;
+            player.displayName = this.playerDisplayNameBeforeCustomization ?? this.playerNameBeforeCustomization;
+        }
+        if (this.playerFavoriteThingBeforeCustomization is not null)
+        {
+            player.favoriteThing.Value = this.playerFavoriteThingBeforeCustomization;
+        }
+        player.isCustomized.Value = this.playerCustomizedBeforeCustomization;
+        player.FarmerRenderer.MarkSpriteDirty();
+        this.playerAppearanceBeforeCustomization = null;
+        this.previousCompanionAppearance = null;
+        this.playerShirtBeforeCustomization = null;
+        this.playerPantsBeforeCustomization = null;
+        this.playerNameBeforeCustomization = null;
+        this.playerDisplayNameBeforeCustomization = null;
+        this.playerFavoriteThingBeforeCustomization = null;
+    }
+
+    private void OnMovementReported(string status, string detail)
+    {
+        var trace = this.movementTraceId ?? "presence";
+        this.AppendDevelopmentLog("COMPANION_MOVEMENT_" + status.ToUpperInvariant(), detail, trace);
+        this.Monitor.Log($"Player2 native companion movement {status}: {detail}; trace={trace}.", status == "failed" ? LogLevel.Warn : LogLevel.Info);
+        if (status != "started")
+            Game1.addHUDMessage(new HUDMessage(this.T("movement." + detail, new { name = this.ResolveCompanionName() })));
+    }
+
     /// <summary>
     /// Grants a same-day retry entry after a failed day turn. A day whose
     /// receipt recorded a completed shared outcome never retries; the
@@ -159,6 +379,11 @@ internal sealed class ModEntry : Mod
         if (companion is null)
         {
             this.ShowCompanionChoice(snapshot);
+            return;
+        }
+        if (CompanionAppearanceStore.Load(Game1.player, this.Monitor) is null)
+        {
+            this.RequestCompanionCustomization(snapshot);
             return;
         }
         this.Monitor.Log($"Player2 retry entry re-opens the settled game day {gameDay} after a non-completed outcome.", LogLevel.Info);
@@ -212,12 +437,16 @@ internal sealed class ModEntry : Mod
         var id = Guid.NewGuid().ToString();
         var now = DecisionBridgeRules.TimestampNow();
         var self = snapshot.Self ?? throw new InvalidOperationException("World snapshot was missing the farmer facts required for a social turn.");
+        var actor = ReceiptRenderer.ActiveCompanion;
+        var presentHere = actor?.currentLocation == Game1.currentLocation;
+        var companionFacts = new NativeCompanionFacts(presentHere, actor?.currentLocation?.NameOrUniqueName,
+            actor?.MovementState ?? "absent", presentHere ? Microsoft.Xna.Framework.Vector2.Distance(actor!.Tile, Game1.player.Tile) : null);
         var turn = new NativeSocialBridgeTurn(
             "0.0.9", id, now, checked(snapshot.Day + 1), new NativeCompanionIdentity(companion.Name, companion.Role, ToBridgeSoul(companion)),
             new NativeAdapterDescriptor("stardew-smapi", "stardew-valley", "semantic", Array.Empty<object>()),
             new[]
             {
-                new NativeObservation($"world-{snapshot.Day}-{id}", "world", now, null, "stardew-smapi", "semantic", 1d, new NativeWorldFacts(snapshot.Weather, snapshot.Location)),
+                new NativeObservation($"world-{snapshot.Day}-{id}", "world", now, null, "stardew-smapi", "semantic", 1d, new NativeWorldFacts(snapshot.Weather, snapshot.Location, companionFacts)),
                 new NativeObservation($"self-{snapshot.Day}-{id}", "self", now, null, "stardew-smapi", "semantic", 1d, new NativeSelfFacts(
                     self.Name,
                     self.Money,
@@ -226,10 +455,10 @@ internal sealed class ModEntry : Mod
                     self.Items.Select(item => new NativeInventoryItemFact(item.Name, item.Count)).ToArray(),
                     self.InventoryTruncated)),
             },
-            null, null, new NativePlayerMessage($"message-{++this.socialTurnCounter}-{id}", message, now));
+            null, null, new NativePlayerMessage($"message-{++this.socialTurnCounter}-{id}", message, now), CompanionMovement.ParseCommand(message));
         try
         {
-            this.socialBridgeHost = new SocialBridgeHost(this.SessionBridgeRoot(companion), this.config.PollIntervalTicks, this.config.EffectiveRequestTimeout());
+            this.socialBridgeHost = new SocialBridgeHost(this.SessionBridgeRoot(companion), Math.Min(6, this.config.PollIntervalTicks), this.config.EffectiveRequestTimeout());
             this.socialBridgeHost.Start(turn);
             this.Monitor.Log($"Player2 published native DSH social turn social:{id}.", LogLevel.Info);
         }
@@ -241,9 +470,37 @@ internal sealed class ModEntry : Mod
         }
     }
 
-    private void OnDayStarted(object? sender, DayStartedEventArgs e)
+    /// <summary>
+    /// P2-0014: explicitly ending the game day is the only dream boundary.
+    /// The mod publishes one write-once day-end request for the companion's
+    /// dream lane; the Player growth store path consumes whatever the dream
+    /// closed with, exactly like any other DSH-authored proposal.
+    /// </summary>
+    private void OnDayEnding(object? sender, DayEndingEventArgs e)
     {
-        if (!Context.IsMainPlayer)
+        if (!Context.IsMainPlayer || this.ResolveCompanionChoice() is not { } companion)
+        {
+            return;
+        }
+        try
+        {
+            var sessionRoot = this.SessionBridgeRoot(companion);
+            var sequence = new DecisionBridgeFiles(sessionRoot).NextAvailableSequence(DateTimeOffset.UtcNow);
+            var request = DecisionBridgeRules.CreateDreamRequest(
+                new BridgeCompanionIdentity(companion.Name, companion.Role, ToBridgeSoul(companion)),
+                sequence,
+                DecisionBridgeRules.TimestampNow(),
+                checked(Game1.dayOfMonth + 1));
+            new CompanionDreamBridge(sessionRoot).WriteRequestAsync(request).GetAwaiter().GetResult();
+            this.Monitor.Log($"Player2 published dream request {sequence} for the ended game day.", LogLevel.Info);        }
+        catch (Exception ex)
+        {
+            this.ReportNativeDshFailure("DSH_DREAM_REQUEST_FAILED", ex.Message, null);
+        }
+    }
+
+    private void OnDayStarted(object? sender, DayStartedEventArgs e)
+    {        if (!Context.IsMainPlayer)
         {
             this.Monitor.Log("Player2 is inactive because this player is not the main player.", LogLevel.Info);
             return;
@@ -269,12 +526,36 @@ internal sealed class ModEntry : Mod
             this.ShowCompanionChoice(snapshot);
             return;
         }
+        var appearance = CompanionAppearanceStore.Load(Game1.player, this.Monitor);
+        if (appearance is null)
+        {
+            this.RequestCompanionCustomization(snapshot);
+            return;
+        }
+        this.EnsureCompanionPresent(appearance, "day start");
         if (string.IsNullOrWhiteSpace(this.config.DecisionBridgeDirectory))
         {
             this.ReportNativeDshFailure("DSH_NOT_CONFIGURED", "DecisionBridgeDirectory is empty; the day turn was not sent to native DSH.", null);
             return;
         }
         this.QueueCompanionDay(snapshot, companion);
+    }
+
+    private bool EnsureCompanionPresent(CompanionAppearance appearance, string context)
+    {
+        if (ReceiptRenderer.EnsurePresent(appearance, this.Monitor, out var created))
+        {
+            if (created)
+            {
+                this.Monitor.Log($"Player2 loaded companion {this.ResolveCompanionName()} into the current location during {context}.", LogLevel.Info);
+            }
+            return true;
+        }
+        this.ReportNativeDshFailure(
+            "COMPANION_SPAWN_FAILED",
+            $"Player2 could not place the companion on a walkable tile during {context}; it will retry after a player warp or explicit movement command.",
+            null);
+        return false;
     }
 
     /// <summary>Defers the day turn until the mounted Player2 DSH bundle proves it is alive.</summary>
@@ -368,6 +649,15 @@ internal sealed class ModEntry : Mod
         var playerPosition = Game1.player.Position;
         var targetTileX = (int)(playerPosition.X / Game1.tileSize);
         var targetTileY = (int)(playerPosition.Y / Game1.tileSize);
+        // Advertise an unoccupied engine-validated tile, not the player's feet.
+        var neighbor = NativeCompanion.FindOpenTileNearPlayer();
+        if (neighbor is null)
+        {
+            this.ReportNativeDshFailure("NO_COMPANION_SPACE", "No walkable companion tile near the player.", null);
+            return;
+        }
+        targetTileX = neighbor.Value.X;
+        targetTileY = neighbor.Value.Y;
 
         var gameDay = checked(snapshot.Day + 1);
         if (CompanionSettlementStore.IsGameDaySettled(new ModDataState(Game1.player.modData), gameDay))
@@ -481,6 +771,14 @@ internal sealed class ModEntry : Mod
             this.config.CompanionChoices.Add(CompanionChoice.CreateWithDefaultSoul("Mira", "the player's candid farm partner"));
         }
         this.pendingChoiceSnapshot = snapshot;
+    }
+
+    private void TryShowPendingCompanionChoice()
+    {
+        if (this.pendingChoiceSnapshot is null || !Context.IsPlayerFree || Game1.activeClickableMenu is not null)
+        {
+            return;
+        }
         var choices = this.config.CompanionChoices
             .OrderByDescending(choice => string.Equals(choice.Name, this.config.CompanionName, StringComparison.OrdinalIgnoreCase))
             .ToArray();
@@ -505,10 +803,7 @@ internal sealed class ModEntry : Mod
         Game1.player.modData[CompanionSettlementStore.CompanionChoiceKey] = choice.Name;
         this.Monitor.Log($"Player2 companion {choice.Name} was chosen and persists on this farmer.", LogLevel.Info);
         Game1.addHUDMessage(new HUDMessage(this.T("companion.chosen", new { name = choice.Name })));
-        if (snapshot is not null)
-        {
-            this.QueueCompanionDay(snapshot, choice);
-        }
+        this.RequestCompanionCustomization(snapshot);
     }
 
     private void OnUpdateTicked(object? sender, UpdateTickedEventArgs e)
@@ -518,10 +813,18 @@ internal sealed class ModEntry : Mod
             return;
         }
         this.supervisor.PollReadiness();
+        this.CompleteAppearanceIfMenuWasClosed();
+        this.TryShowPendingCompanionChoice();
+        this.TryOpenCompanionCustomization();
         this.TryShowChatHint();
         this.TryBeginPendingCompanionDay();
         this.TryPublishPendingSocialMessage();
         this.UpdateSocialBridge();
+        this.TryPresentPendingBridgeChoice();
+        if (this.pendingBridgeRequest is not null || this.activeBridgeRequest is not null)
+        {
+            return;
+        }
         if (this.bridgeHost is null)
         {
             return;
@@ -572,7 +875,11 @@ internal sealed class ModEntry : Mod
             activeTurn,
             request,
             DecisionBridgeRules.UtcTimestamp(now));
-        var receiptShown = ReceiptRenderer.Show(request, proposal, this.Monitor);
+        var receiptShown = ReceiptRenderer.Show(
+            request,
+            proposal,
+            CompanionAppearanceStore.Load(Game1.player, this.Monitor),
+            this.Monitor);
         var completion = DecisionBridgeRules.CompleteGranted(
             authorization,
             receiptShown,
@@ -591,7 +898,7 @@ internal sealed class ModEntry : Mod
         {
             name = this.ResolveCompanionName(),
             status = this.T("status." + receipt.Status),
-            target = receipt.Target ?? this.T("receipt.target.fallback"),
+            target = proposal.LocationDisplayName,
         })));
         this.Monitor.Log(
             $"Player2 settled autonomous order {receipt.ProposalId} as {receipt.Status} (autonomy: full).",
@@ -637,6 +944,13 @@ internal sealed class ModEntry : Mod
         }
         var transcript = this.transcript ??= new ChatTranscript();
         transcript.Append(this.ResolveCompanionName(), update.Result.Text ?? throw new InvalidOperationException("Native DSH social result was missing text."));
+        var completedTurn = this.socialBridgeHost.Turn;
+        if (completedTurn?.MovementCommand is { } command && command == CompanionMovement.ParseCommand(completedTurn.Message.Content))
+        {
+            this.movementTraceId = update.TraceId;
+            if (!ReceiptRenderer.Command(command, CompanionAppearanceStore.Load(Game1.player, this.Monitor), this.Monitor))
+                this.OnMovementReported("failed", "path-blocked");
+        }
         CompanionTranscriptStore.Save(this.Helper, transcript, this.Monitor);
         this.Monitor.Log($"Player2 presented native DSH social result {update.TraceId}; session {update.Result.SessionId}.", LogLevel.Info);
         this.AppendDevelopmentLog("DSH_SOCIAL_TURN_COMPLETED", "Native DSH social response presented.", update.TraceId ?? throw new InvalidOperationException("Native DSH social result was missing trace id."));
@@ -679,6 +993,9 @@ internal sealed class ModEntry : Mod
         this.ClearBridgeDay();
         this.activeProposal = null;
         this.pendingChoiceSnapshot = null;
+        this.CancelAppearanceCustomization();
+        this.pendingAppearanceSnapshot = null;
+        this.appearanceCustomizationRequested = false;
         this.pendingDaySnapshot = null;
         this.pendingDayCompanion = null;
         this.pendingSocialMessage = null;
@@ -689,6 +1006,8 @@ internal sealed class ModEntry : Mod
         this.transcript = null;
         this.socialBridgeHost?.Dispose();
         this.socialBridgeHost = null;
+        ReceiptRenderer.ClearPresence();
+        this.movementTraceId = null;
     }
 
     private void OnProcessExit(object? sender, EventArgs e)
@@ -734,21 +1053,7 @@ internal sealed class ModEntry : Mod
 
     private string FormatProposal(Player2Proposal proposal)
     {
-        return Player2Rules.FormatProposal(proposal, this.ResolveCompanionName(), this.WeatherDisplay(proposal.Weather), this.Text);
-    }
-
-    /// <summary>
-    /// The adapter owns its weather vocabulary: the core only renders the
-    /// display word this adapter resolves for its own weather code.
-    /// </summary>
-    private string WeatherDisplay(string weather)
-    {
-        return weather switch
-        {
-            "rain" => this.T("weather.rain"),
-            "snow" => this.T("weather.snow"),
-            _ => this.T("weather.clear"),
-        };
+        return Player2Rules.FormatProposal(proposal);
     }
 
     private void OnBridgeProposalAnswered(
@@ -777,7 +1082,11 @@ internal sealed class ModEntry : Mod
         }
         else
         {
-            var receiptShown = ReceiptRenderer.Show(request, proposal, this.Monitor);
+            var receiptShown = ReceiptRenderer.Show(
+                request,
+                proposal,
+                CompanionAppearanceStore.Load(Game1.player, this.Monitor),
+                this.Monitor);
             var completion = DecisionBridgeRules.CompleteGranted(
                 authorization,
                 receiptShown,
@@ -788,7 +1097,7 @@ internal sealed class ModEntry : Mod
             {
                 name = this.ResolveCompanionName(),
                 status = this.T("status." + receipt.Status),
-                target = receipt.Target ?? this.T("receipt.target.fallback"),
+                target = proposal.LocationDisplayName,
                 scope = receipt.Scope,
             })));
         }
@@ -846,8 +1155,6 @@ internal sealed class ModEntry : Mod
         {
             name = this.ResolveCompanionName(),
             status = this.T("status." + outcome.Status),
-            x = outcome.TargetTileX,
-            y = outcome.TargetTileY,
         })));
         this.Monitor.Log(
             $"Player2 recalled one prior outcome: day {outcome.Day}; target tile {outcome.TargetTileX}, {outcome.TargetTileY}; status {outcome.Status}.",

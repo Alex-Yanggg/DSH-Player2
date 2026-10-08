@@ -1,60 +1,136 @@
 # DSH-Player2
 
-DSH-Player2 is a public reference application for exploring a trustworthy AI companion inside a real game. Its job is to prove a small, player-controlled experience—not to build an unattended automation tool or a new agent framework.
+<p align="center">
+  <img src="assets/player2-readme-hero.svg" alt="Player2 product flow: game facts, consent, receipt memory, and native companion presence" width="900">
+</p>
 
-## Relationship to DeepSeek Harness
+<p align="center">
+  <strong>An AI second player for games, starting with Stardew Valley.</strong><br>
+  Player2 explores a companion who can see bounded game facts, talk in the native game UI,
+  ask before acting, remember receipt-backed outcomes, and appear as a native in-world body.
+</p>
 
-This project consumes [DeepSeek Harness](https://github.com/dsh2026/test-Alex-Yanggg) as a plugin platform. All agent capabilities are implemented as plugins or through documented public contracts. DSH-Player2 does not modify, vendor, or import Harness internals.
+<p align="center">
+  <a href="https://github.com/Alex-Yanggg/DSH-Player2/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/Alex-Yanggg/DSH-Player2/ci.yml?branch=main&label=CI"></a>
+  <img alt="Stardew Valley" src="https://img.shields.io/badge/Stardew%20Valley-SMAPI%204.5%2B-brown">
+  <img alt=".NET" src="https://img.shields.io/badge/.NET-6.0-512BD4">
+  <img alt="Node" src="https://img.shields.io/badge/Node-24.x-339933">
+  <img alt="License" src="https://img.shields.io/badge/license-pending-lightgrey">
+</p>
 
-## Getting started
+## What It Is
 
-Prerequisites: Stardew Valley with SMAPI 4.5+, the .NET 6 SDK, Node.js, and an **existing** DeepSeek Harness checkout with this repository's companion plugin available to it. Nothing in this repository clones, downloads, or installs Harness for you.
+DSH-Player2 is a public reference application for building a trustworthy, game-native AI companion on top of [DeepSeek Harness](https://github.com/dsh2026/test-Alex-Yanggg). It does not fork, vendor, or patch Harness internals; Player2 owns game semantics, grounding, consent, receipts, and presentation.
 
-1. Install the mod: run `dotnet build -p:OS=Windows_NT` in `stardew-mod/`; the SMAPI build package deploys it to the game's `Mods/DSHPlayer2` folder.
-2. Attach the Player2 bundle to the DSH profile you actually run: `dsh plugin --profile web add ./packages/dsh-host-plugin`. This is a one-time profile install, not a game-side launcher or a second DSH runtime.
-3. Start the game through `StardewModdingAPI.exe`. Player2 automatically wakes the normal DSH `web` profile (once, only if port 3080 is not already occupied); it uses DSH's existing persistent credential/configuration and owns its normal session logs.
-4. Load a save, create your companion, and play. The game joins `%USERPROFILE%/.dsh/player2/bridge`; if the mounted DSH plugin does not answer, it displays a traceable error and never invents a local response.
+The current vertical slice runs in Stardew Valley through SMAPI. It is deliberately narrow: prove the companion can participate honestly in a small player-controlled loop before expanding into broader game work.
+
+## Current Slice
+
+| Capability | Current behavior |
+| --- | --- |
+| Native game UI | F2 opens a compact companion chat overlay with scrollback, input recall, waiting states, and per-save history. |
+| Grounded dialogue | Social replies come from the mounted DSH companion plugin and must validate against current game facts. |
+| Consent-first decisions | Day turns publish bounded observations, receive a proposal, ask the player, and record a terminal receipt. |
+| Receipt memory | Later turns may recall newest receipt-backed outcomes; memories cannot grant authority or fabricate observations. |
+| Companion presence | The player chooses a companion identity and native Stardew appearance; Player2 renders through game-native farmer drawing. |
+| Movement commands | Explicit chat commands such as `/come`, `/follow`, and `/stay` drive bounded native pathfinding after validated replies. |
+| Autonomy tiers | `consult` keeps proposal -> consent -> receipt; `full` allows grounded companion-owned orders through the same receipt path. |
+| Self-growth lane | Receipt-grounded reflections can update a Player-owned growth asset without touching soul, capabilities, or authority. |
+
+## What It Is Not
+
+- Not an unattended farming bot.
+- Not a cheat layer or save editor.
+- Not a second DeepSeek Harness runtime.
+- Not a place to patch Harness as a side effect of game work.
+- Not a claim that every Stardew mechanic is already supported.
+
+## Quick Start
+
+Prerequisites:
+
+- Stardew Valley with SMAPI 4.5+
+- .NET 6 SDK
+- Node.js 24.x
+- An existing DeepSeek Harness checkout/profile with the Player2 host bundle installed
+
+Install dependencies and verify the keyless core:
+
+```powershell
+npm ci
+npm run accept:0.1.4
+```
+
+Install the Player2 DSH bundle into the Harness profile you run:
+
+```powershell
+dsh plugin --profile web add ./packages/dsh-host-plugin
+```
+
+Build and deploy the Stardew mod from a Windows checkout with Stardew installed:
+
+```powershell
+dotnet build .\stardew-mod\DSHPlayer2.Stardew.csproj --configuration Release -p:OS=Windows_NT
+```
+
+Start the game through `StardewModdingAPI.exe`, load a save, choose or customize a companion, and press **F2** in game to talk.
+
+## Verification
+
+The reproducible keyless regression is:
+
+```powershell
+npm run accept:0.1.4
+```
+
+That chain type-checks and tests the TypeScript packages, runs social/decision/dispatch/dual-end replays, exercises receipt recall, autonomous execution, reflection, and the dream-event spine. Public CI also runs the documentation verifier and pure C# core tests.
+
+The SMAPI adapter still needs local game assemblies, so GitHub-hosted CI cannot honestly build it. Use the manual path in [stardew-mod/README.md](stardew-mod/README.md) for game-side validation.
+
+## Architecture
+
+```text
+Stardew / SMAPI host
+  observes bounded facts, presents chat/consent, validates receipts
+          |
+          v
+Player2 bridge
+  immutable turn files, grants, receipts, session layout, development logs
+          |
+          v
+DeepSeek Harness companion plugin
+  persona, grounded social replies, proposal tools, recall, reflection
+          |
+          v
+Player-owned authority
+  only validated grants or configured autonomy can reach game mechanics
+```
+
+Read [docs/architecture.md](docs/architecture.md) for the full split between Harness composition, Player authority, adapter modes, receipt memory, persona mounting, and the self-growth spine.
+
+## Repository Map
+
+| Path | Purpose |
+| --- | --- |
+| [packages/contracts](packages/contracts/src/index.ts) | Versioned observations, capabilities, proposals, grants, receipts, and adapter contracts. |
+| [packages/runtime](packages/runtime/src/index.ts) | Cross-game proposal, permission, social-turn, and validation runtime. |
+| [packages/dsh-companion-plugin](packages/dsh-companion-plugin/src/index.ts) | Harness-mounted companion composition, tools, policy, recall, reflection, and invariants. |
+| [packages/dsh-host-plugin](packages/dsh-host-plugin/src/index.ts) | Live DSH bundle that watches the Player2 bridge inside the active Harness profile. |
+| [player2-core](player2-core/DSHPlayer2.Core.csproj) | Pure C# bridge contracts, layout, rules, growth store, movement, and host logic. |
+| [stardew-mod](stardew-mod/README.md) | SMAPI adapter, native UI, companion rendering, chat, and local game verification. |
+| [fixtures](fixtures) | Keyless social, decision, replay, autonomy, reflect, and dream-cycle evidence. |
+| [docs](docs/architecture.md) | Architecture, CI, development mode, operating model, and task-specific notes. |
+
+## Development Rules
+
+Read [AGENTS.md](AGENTS.md) and [docs/operating-model.md](docs/operating-model.md) before non-trivial changes. The short version:
+
+- keep every capability bounded by explicit game facts, advertised capabilities, consent, receipts, or a configured autonomy tier;
+- preserve the DSH boundary and use public Harness contracts only;
+- add focused tests or replay fixtures for behavior changes;
+- document every user-visible game behavior with a reproducible manual check;
+- never store credentials, game assets, private saves, or machine-specific paths in the repo.
 
 ## Status
 
-The first runnable vertical slice is implemented for Stardew Valley through a small SMAPI adapter. It observes a bounded world snapshot, asks for permission using native game UI, leaves only a temporary visual receipt on agreement, and retains two player-owned state values for one next-day recall.
-
-The cross-game product core is TypeScript. [`@dsh-player2/contracts`](packages/contracts/src/index.ts) defines the adapter contract and [`@dsh-player2/runtime`](packages/runtime/src/index.ts) enforces proposal and permission flow. The [architecture guide](docs/architecture.md) explains why Mod, real multiplayer, and visual control are separate adapter modes, not competing product cores.
-
-The [SMAPI adapter](stardew-mod/README.md) remains deliberately narrow: it contains no LLM, DSH plugin, companion NPC, game automation, inventory mutation, or multiplayer feature. Its C# rules are a temporary P0 implementation required by the SMAPI host; the future bridge to the TypeScript runtime stays asynchronous and is not enabled until the P0 desktop validation passes.
-
-The 0.0.2 runtime adds a text-only social turn that is unable to execute game actions: it receives a player message and current semantic observations, produces a grounded reply/question/disagreement/suggestion or explicit uncertainty, and may retain exactly one completed or failed receipt for the next game day. `@dsh-player2/dsh-companion-plugin` makes this a real Harness composition by contributing the NPC's procedural skill, stable social policy, and a monotonic tool guard to DSH. World grounding remains enforced by Player after the model returns.
-
-Run `npm run accept:0.0.2` to type-check every package, run the DSH plugin composition tests and runtime tests, then replay the committed social fixture without an API key, game installation, or manual UI steps. The fixture is the acceptance baseline; a live DSH provider must be compared against it rather than replacing it.
-
-The Stardew adapter exposes that text turn with **F2** through the native DSH social file bridge. Its response is displayed only after a live DSH session returns valid grounded JSON; an unavailable dispatcher, timeout, malformed response, or bridge failure is an explicit in-game development error with a trace id, never a local question or template.
-
-`@dsh-player2/dsh-host-plugin` is the live transport: an installable DSH bundle mounted in the already-running profile. It creates Player-scoped agents through DSH's public agent registry, reuses DSH's selected model/credential route, and mounts the companion skill/tool policy only inside those agents. The game never starts a JSON-RPC sidecar or supplies an API key. Every DSH result carries the durable DSH session id and trace id; malformed output is written as an error, never replaced.
-
-The 0.0.3 decision lane makes DSH useful without giving it game authority. A Player-authored, immutable file envelope carries one monotonic sequence, semantic observations, and advertised capabilities. In `decision` mode the Companion plugin adds `game_observe`, `companion_propose`, and `game_request_action`; the last tool can only write an immutable `awaiting-player` request. It cannot grant consent or reach `GameAdapter.execute`. Run `npm run accept:0.0.3` for the full keyless social and decision regression, including an actual DSH tool-pipeline replay.
-
-The Stardew host publishes one immutable day turn in the background, polls without blocking the game, shows only a validated DSH proposal through native dialogue, and writes the player's grant plus terminal receipt. It captures direct game facts only — it never turns weather into a fictional task. A timeout, invalid request, unavailable DSH process, or invalid local path is a traceable error; no deterministic local proposal is shown.
-
-The historical dispatcher remains only as a keyless replay fixture. Production Player2 uses the mounted `@dsh-player2/dsh-host-plugin`: it watches the DSH-owned bridge inside the active Harness process and drives dedicated DSH sessions directly. Completion is the persisted request file validated against the schema, never the model's final message; a failed turn writes an immediate `outbox/error-N.json` with the DSH trace id, and it has no write path to grant, receipt, or consent files.
-
-The 0.0.6 recall lane gives that relationship a searchable past. In `decision` mode the Companion plugin adds `companion_recall`: a read-only projection of the newest Player-persisted receipts into a bounded, newest-first digest the model may consult before proposing. Recalled outcomes are history — they cannot be cited as observations, they expose no write path, and they never grant authority — while damaged receipt files inside the scanned window are skipped and counted rather than rewritten. This is receipt-backed memory inside DSH: the receipt stays the fact source, the digest is a replaceable index, and the Player-owned settled state remains authoritative.
-
-The 0.0.7 presence capability gives the companion a body without giving it power. The Player capability surface became a small catalog: every turn advertises `visual-receipt` and `companion-presence`, each with its own validated scope. Granting a presence proposal draws Stardew Valley's own player character template — the vanilla farmer base spritesheet, no custom art — beside the agreed tile for the same bounded, temporary lifetime as the marker. Nothing is added to the world's state; the receipt records only that the presence was shown. `npm run accept:0.0.7` adds the presence golden replay and the unattended dual-end harness (`npm run replay:dual`): a headless C# host and a Node model process drive one real bridge directory through publish → request → scripted consent → receipt → recall with no game, no API key, and no human steps.
-
-The 0.0.8 companion experience makes the slice playable. Every decision turn now carries a player-authored companion identity: on a save's first day the mod asks who the companion is through native question dialogue, remembers the choice on the farmer, and the DSH side uses that name and role over its configured ones — the chosen name appears in the chat, receipt, and recall HUD lines. The chat window became a bounded, multiplayer-ChatBox-style transcript with scrollback, input recall, and per-save persistence. All fixed UI strings moved into SMAPI's standard i18n folder with Simplified Chinese templates. Startup no longer requires a terminal or any key/config duplication: the mounted DSH bundle owns the bridge and exposes missing/broken native feedback as an actionable traceable error.
-
-The 0.1.0 autonomy switch and farmer-teammate perception land together. Every decision turn now also carries a bounded `self` observation — the farmer's name, money, and inventory projection — so the companion plans as a teammate that can actually see the backpack it plans with, in both the decision lane and the chat. The `companion.autonomy` switch (P2-0011) has two tiers resolved where the plugin mounts, with nearest-scope shadowing (`agent` → `preset` recommendation → `consult` default); an invalid tier fails the mount loudly instead of degrading. `consult` keeps the proposal → native consent → receipt chain unchanged. `full` lets the character order grounded executions without per-action consent: the Player host executes each validated order through the same game-mechanics receipts, writes every receipt with an explicit autonomous marker (no grant file, because no player answer exists), reports the outcome in the HUD afterwards, and the DSH side still never reaches `GameAdapter.execute`. Receipts remain the experience-layer fact source in both tiers, and actions still only run through game mechanics — the ruling in `person-deposit-model-v2 §6.6`. `npm run accept:0.1.0` adds the autonomous golden replay and an unattended dual-end autonomous cycle to the 0.0.8 gate chain.
-
-### Verification baseline
-
-The reproducible keyless acceptance command for this version is `npm run accept:0.1.0`. It runs workspace type checks and tests, social and decision fixture replays, dispatcher and dual-end bridge cycles (including full autonomy), and the pure C# rule tests. The first dual-end run on a clean machine may restore and compile the .NET headless host before publishing its bridge file; the replay waits for that cold start and does not require a game installation or API key. `node scripts/verify-docs.mjs` is the standalone documentation and local-link check used by CI.
-
-## Contributing
-
-Read [AGENTS.md](AGENTS.md) for the project boundaries and [CONTRIBUTING.md](CONTRIBUTING.md) before proposing a change. Please do not open a pull request that changes DeepSeek Harness as a side effect of Player2 work.
-
-The current [continuous-integration policy](docs/ci.md) separates TypeScript and pure C# checks from the local SMAPI build that requires a legally installed copy of Stardew Valley.
-
-## License
-
-A license has not yet been selected. Do not assume permission to reuse the repository contents until one is published.
+This repository is still a development build. The 0.1.x line has a playable Stardew vertical slice and a strong keyless regression chain, but no public release package and no selected license yet. Detailed change history lives in [CHANGELOG.md](CHANGELOG.md).

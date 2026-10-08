@@ -10,7 +10,7 @@ namespace DSHPlayer2.Core;
 /// <summary>Wire constants and host-side validation for one DSH decision turn.</summary>
 public static class DecisionBridgeRules
 {
-    public const string WireVersion = "0.1.0";
+    public const string WireVersion = "0.1.1";
     public const string AwaitingPlayerStatus = "awaiting-player";
     public const string AutonomousStatus = "autonomous";
     public const string ConsultAutonomy = "consult";
@@ -19,6 +19,7 @@ public static class DecisionBridgeRules
     public const string AllowedScope = "visual marker + sound only";
     public const int MaxCitedObservations = 8;
     public const int MaxReasonLength = 800;
+    public const int MaxUtteranceLength = 800;
     public const int MaxInventoryItems = 12;
     public const int MaxItemNameLength = 50;
     public const int MaxSoulItems = 8;
@@ -44,16 +45,15 @@ public static class DecisionBridgeRules
         "The temporary world marker could not be shown.");
 
     /// <summary>
-    /// Companion presence: a temporary sprite built from Stardew Valley's own
-    /// player character template. It adds no gameplay effect and no custom art;
-    /// it is the smallest observable step toward a companion with a body.
+    /// Persistent native body with farmer appearance. Movement is a separate,
+    /// explicitly player-commanded grant; no work/inventory authority is added.
     /// </summary>
     public static readonly CapabilityDefinition CompanionPresence = new(
         "companion-presence",
-        "Stand beside the agreed target as a temporary farmer-template presence",
-        "temporary presence sprite only",
-        "player2://presence-sprite/0.1",
-        "The companion stood beside the target using the player template.",
+        "Join the location as a persistent native companion; movement requires an explicit player chat command",
+        "persistent native companion presence; movement only on explicit player command",
+        "player2://native-companion/0.2",
+        "The native companion entered the agreed location and remains present.",
         "The companion presence could not be shown.");
 
     /// <summary>The complete Player-owned capability catalog advertised on every turn.</summary>
@@ -101,13 +101,18 @@ public static class DecisionBridgeRules
         int targetTileX,
         int targetTileY,
         SharedOutcome? yesterdayOutcome,
-        BridgeCompanionIdentity? companion = null)
+        BridgeCompanionIdentity? companion = null,
+        BridgeGrowthAsset? growth = null)
     {
         AssertSequence(sequence);
         AssertTimestamp(createdAt, nameof(createdAt));
         if (companion?.Soul is not null)
         {
             ValidateCompanionSoul(companion.Soul);
+        }
+        if (growth is not null)
+        {
+            CompanionGrowthStore.ValidateAsset(growth);
         }
         var target = adapter.FormatLocationTarget(snapshot.Location, targetTileX, targetTileY);
         var observations = new List<BridgeObservation>
@@ -124,6 +129,10 @@ public static class DecisionBridgeRules
                 {
                     ["weather"] = JsonSerializer.SerializeToElement(snapshot.Weather),
                     ["location"] = JsonSerializer.SerializeToElement(snapshot.Location),
+                    ["locationDisplayName"] = JsonSerializer.SerializeToElement(
+                        string.IsNullOrWhiteSpace(snapshot.LocationDisplayName)
+                            ? snapshot.Location
+                            : snapshot.LocationDisplayName),
                     ["target"] = JsonSerializer.SerializeToElement(target),
                 }),
         };
@@ -195,7 +204,8 @@ public static class DecisionBridgeRules
                         capability.InputSchemaRef))
                     .ToArray()),
             observations.ToArray(),
-            companion);
+            companion,
+            growth);
     }
 
     /// <summary>
@@ -283,6 +293,15 @@ public static class DecisionBridgeRules
 
         var expectedTarget = GetStringFact(world, "target");
         var location = GetStringFact(world, "location");
+        var locationDisplayName = GetStringFact(world, "locationDisplayName");
+        if (string.IsNullOrWhiteSpace(proposal.Utterance) ||
+            proposal.Utterance.Length > MaxUtteranceLength ||
+            !proposal.Utterance.Contains(locationDisplayName, StringComparison.Ordinal) ||
+            proposal.Utterance.Contains(expectedTarget, StringComparison.Ordinal) ||
+            ContainsTargetCoordinates(proposal.Utterance, expectedTarget))
+        {
+            throw new InvalidOperationException("Action request has invalid player-facing companion speech.");
+        }
         if (proposal.Intent.Target != expectedTarget ||
             !TryParseTarget(expectedTarget, out var targetLocation, out var targetTileX, out var targetTileY) ||
             targetLocation != location)
@@ -296,7 +315,9 @@ public static class DecisionBridgeRules
             proposal.Reason,
             targetTileX,
             targetTileY,
-            proposal.Scope);
+            proposal.Scope,
+            proposal.Utterance.Trim(),
+            locationDisplayName);
         return new ValidatedDecision(request, gameProposal);
     }
 
@@ -306,6 +327,27 @@ public static class DecisionBridgeRules
         AssertTimestamp(grantedAt, nameof(grantedAt));
         AssertTimestamp(expiresAt, nameof(expiresAt));
         return new BridgePermissionGrant(request.Proposal.Id, granted, grantedAt, expiresAt);
+    }
+
+    /// <summary>
+    /// Creates the P2-0014 day-end dream request. Explicitly ending one game
+    /// day is the only observable dream boundary, and the dream sequence
+    /// draws from the same monotonic turn space so the growth asset revision
+    /// stays one causal line.
+    /// </summary>
+    public static BridgeDreamRequest CreateDreamRequest(
+        BridgeCompanionIdentity companion,
+        int sequence,
+        string createdAt,
+        int gameDay)
+    {
+        AssertSequence(sequence);
+        AssertTimestamp(createdAt, nameof(createdAt));
+        if (companion.Soul is not null)
+        {
+            ValidateCompanionSoul(companion.Soul);
+        }
+        return new BridgeDreamRequest(WireVersion, sequence, createdAt, gameDay, companion);
     }
 
     /// <summary>
@@ -504,6 +546,20 @@ public static class DecisionBridgeRules
             x >= 0 && y >= 0;
     }
 
+    private static bool ContainsTargetCoordinates(string utterance, string target)
+    {
+        if (!TryParseTarget(target, out _, out var x, out var y))
+        {
+            return false;
+        }
+        var coordinate = $"{x},{y}";
+        var spacedCoordinate = $"{x}, {y}";
+        var chineseCoordinate = $"{x}，{y}";
+        return utterance.Contains(coordinate, StringComparison.Ordinal) ||
+            utterance.Contains(spacedCoordinate, StringComparison.Ordinal) ||
+            utterance.Contains(chineseCoordinate, StringComparison.Ordinal);
+    }
+
     private static void AssertSequence(int sequence)
     {
         if (sequence < 1)
@@ -576,10 +632,47 @@ public sealed record DecisionTurnEnvelope(
     [property: JsonPropertyName("observations")] BridgeObservation[] Observations,
     [property: JsonPropertyName("companion")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    BridgeCompanionIdentity? Companion = null);
+    BridgeCompanionIdentity? Companion = null,
+    [property: JsonPropertyName("growth")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    BridgeGrowthAsset? Growth = null);
+
+/// <summary>One receipt-grounded insight the companion drew about itself.</summary>
+public sealed record BridgeGrowthInsight(
+    [property: JsonPropertyName("id")] string Id,
+    [property: JsonPropertyName("text")] string Text,
+    [property: JsonPropertyName("basedOnReceiptSequences")] int[] BasedOnReceiptSequences,
+    [property: JsonPropertyName("createdAt")] string CreatedAt);
+
+/// <summary>
+/// The Player-owned growth asset: the companion's self-authored interpretation
+/// of its receipt-backed shared history, applied only from validated reflect
+/// proposals. There is deliberately no soul field — the deposit-model ruling
+/// keeps the soul read-only, and this type makes that structurally true.
+/// </summary>
+public sealed record BridgeGrowthAsset(
+    [property: JsonPropertyName("version")] string Version,
+    [property: JsonPropertyName("revision")] int Revision,
+    [property: JsonPropertyName("insights")] BridgeGrowthInsight[] Insights,
+    [property: JsonPropertyName("focus")] string? Focus);
+
+/// <summary>One bounded model-authored insight awaiting Player validation.</summary>
+public sealed record BridgeGrowthProposalInsight(
+    [property: JsonPropertyName("text")] string Text,
+    [property: JsonPropertyName("basedOnReceiptSequences")] int[] BasedOnReceiptSequences);
+
+/// <summary>
+/// A DSH-authored, write-once growth proposal for one decision turn. Like an
+/// action request it is data for Player validation — it never changes the
+/// companion's soul, tools, or authority from the DSH side.
+/// </summary>
+public sealed record BridgeGrowthProposal(
+    [property: JsonPropertyName("version")] string Version,
+    [property: JsonPropertyName("sequence")] int Sequence,
+    [property: JsonPropertyName("insights")] BridgeGrowthProposalInsight[] Insights,
+    [property: JsonPropertyName("focus")] string? Focus);
 
 public sealed record BridgeProposalIntent([property: JsonPropertyName("target")] string Target);
-
 public sealed record BridgeProposal(
     [property: JsonPropertyName("id")] string Id,
     [property: JsonPropertyName("createdAt")] string CreatedAt,
@@ -587,13 +680,37 @@ public sealed record BridgeProposal(
     [property: JsonPropertyName("capabilityId")] string CapabilityId,
     [property: JsonPropertyName("intent")] BridgeProposalIntent Intent,
     [property: JsonPropertyName("scope")] string Scope,
-    [property: JsonPropertyName("reason")] string Reason);
+    [property: JsonPropertyName("reason")] string Reason,
+    [property: JsonPropertyName("utterance")] string Utterance = "");
 
 public sealed record BridgeActionRequest(
     [property: JsonPropertyName("version")] string Version,
     [property: JsonPropertyName("sequence")] int Sequence,
     [property: JsonPropertyName("status")] string Status,
     [property: JsonPropertyName("proposal")] BridgeProposal Proposal);
+
+/// <summary>
+/// The Player-authored P2-0014 dream request: explicitly ending one game day.
+/// The companion may close the day with no change or one grounded growth
+/// proposal; the request itself grants no game authority.
+/// </summary>
+public sealed record BridgeDreamRequest(
+    [property: JsonPropertyName("version")] string Version,
+    [property: JsonPropertyName("sequence")] int Sequence,
+    [property: JsonPropertyName("createdAt")] string CreatedAt,
+    [property: JsonPropertyName("gameDay")] int GameDay,
+    [property: JsonPropertyName("companion")] BridgeCompanionIdentity Companion);
+
+/// <summary>The one outcome a dream turn may write, read back by the Player.</summary>
+public sealed record BridgeDreamOutcome(
+    [property: JsonPropertyName("outcome")] string Outcome,
+    [property: JsonPropertyName("proposal")] BridgeGrowthProposal? Proposal);
+
+/// <summary>The no-change marker a dream writes when the day gave it nothing to keep.</summary>
+public sealed record BridgeDreamNoChange(
+    [property: JsonPropertyName("version")] string Version,
+    [property: JsonPropertyName("sequence")] int Sequence,
+    [property: JsonPropertyName("outcome")] string Outcome);
 
 /// <summary>Terminal DSH-host failure for a decision sequence, surfaced directly to the developer.</summary>
 public sealed record BridgeRuntimeError(

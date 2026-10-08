@@ -32,13 +32,16 @@ public static class Program
                 new InventoryItemSnapshot("Watering Can", 1),
                 new InventoryItemSnapshot("Parsnip Seeds", 15),
             });
+        var growthStore = new CompanionGrowthStore(options.Bridge);
+        var growth = growthStore.TryLoadAsync().GetAwaiter().GetResult();
         var turn = DecisionBridgeRules.CreateTurn(AdapterProfile.StardewValley,
             new WorldSnapshot(options.Sequence, "rain", "Farm", self),
             options.Sequence,
             DecisionBridgeRules.TimestampNow(),
             targetTileX: 12,
             targetTileY: 8,
-            yesterdayOutcome: null);
+            yesterdayOutcome: null,
+            growth: growth);
         host.Start(turn);
 
         var deadline = DateTime.UtcNow.AddSeconds(options.TimeoutSeconds);
@@ -72,18 +75,81 @@ public static class Program
         }
 
         WaitPersisted(options, deadline);
+        // Player-side growth consumption: validate and apply the turn's reflect
+        // proposal when the DSH side wrote one, then clear the consumed file.
+        int? appliedGrowthRevision = null;
+        var growthProposal = growthStore.TryReadProposalAsync(options.Sequence).GetAwaiter().GetResult();
+        if (growthProposal is not null)
+        {
+            var applied = growthStore.ApplyProposalAsync(growthProposal).GetAwaiter().GetResult();
+            growthStore.ClearProposalAsync(options.Sequence).GetAwaiter().GetResult();
+            appliedGrowthRevision = applied.Revision;
+        }
         var receipt = new DecisionBridgeFiles(options.Bridge).TryReadReceiptAsync(options.Sequence).GetAwaiter().GetResult()
             ?? throw new InvalidOperationException("Settlement reported done but the receipt file is missing.");
         if (options.Autonomy == AutonomyTier.Full && receipt.Autonomy != DecisionBridgeRules.FullAutonomy)
         {
             throw new InvalidOperationException("An autonomous dual-end run must produce a receipt with the full-autonomy marker.");
         }
+
+        // P2-0014 dream phase: explicitly ending the day publishes one dream
+        // request; the DSH-side dream lane closes it with no-change or one
+        // grounded growth proposal, which the Player applies like any other.
+        string? dreamOutcome = null;
+        int? appliedDreamRevision = null;
+        if (options.Dream)
+        {
+            var dreamBridge = new CompanionDreamBridge(options.Bridge);
+            var dreamSequence = new DecisionBridgeFiles(options.Bridge).NextAvailableSequence(DateTimeOffset.UtcNow);
+            var dreamRequest = DecisionBridgeRules.CreateDreamRequest(
+                DreamCompanion,
+                dreamSequence,
+                DecisionBridgeRules.TimestampNow(),
+                checked(options.Sequence + 1));
+            dreamBridge.WriteRequestAsync(dreamRequest).GetAwaiter().GetResult();
+            var outcome = WaitDreamOutcome(dreamBridge, dreamSequence, deadline);
+            dreamOutcome = outcome.Outcome;
+            var appliedDream = dreamBridge.ConsumeAsync(outcome, growthStore).GetAwaiter().GetResult();
+            appliedDreamRevision = appliedDream?.Revision;
+        }
+
         Console.Out.WriteLine(JsonSerializer.Serialize(new Outcome(
             options.Sequence,
             receipt.Status,
             receipt,
+            growth?.Revision,
+            appliedGrowthRevision,
+            dreamOutcome,
+            appliedDreamRevision,
             "dualhost-ok")));
         return 0;
+    }
+
+    private static readonly BridgeCompanionIdentity DreamCompanion = new(
+        "Mira",
+        "the player's candid farm partner",
+        new BridgeCompanionSoul(
+            new[] { "curiosity and kindness" },
+            new[] { "the player as an equal" },
+            "Bright, candid, and concise.",
+            new[] { "never invent a shared memory" }));
+
+    /// <summary>Polls for the dream outcome until the run deadline; a DSH error file throws.</summary>
+    private static BridgeDreamOutcome WaitDreamOutcome(CompanionDreamBridge dreamBridge, int sequence, DateTime deadline)
+    {
+        while (true)
+        {
+            var outcome = dreamBridge.TryReadOutcomeAsync(sequence).GetAwaiter().GetResult();
+            if (outcome is not null)
+            {
+                return outcome;
+            }
+            if (DateTime.UtcNow > deadline)
+            {
+                throw new TimeoutException($"The dream lane did not close sequence {sequence} before the deadline.");
+            }
+            Thread.Sleep(10);
+        }
     }
 
     private static bool SettleWithConsent(DecisionBridgeHost host, DecisionTurnEnvelope turn, BridgeActionRequest request, Options options)
@@ -133,6 +199,10 @@ public static class Program
         [property: JsonPropertyName("sequence")] int Sequence,
         [property: JsonPropertyName("status")] string Status,
         [property: JsonPropertyName("receipt")] BridgeActionReceipt Receipt,
+        [property: JsonPropertyName("envelopeGrowthRevision")] int? EnvelopeGrowthRevision,
+        [property: JsonPropertyName("appliedGrowthRevision")] int? AppliedGrowthRevision,
+        [property: JsonPropertyName("dreamOutcome")] string? DreamOutcome,
+        [property: JsonPropertyName("appliedDreamRevision")] int? AppliedDreamRevision,
         [property: JsonPropertyName("marker")] string Marker);
 
     private enum ConsentChoice
@@ -152,6 +222,7 @@ public static class Program
         int Sequence,
         ConsentChoice Consent,
         AutonomyTier Autonomy,
+        bool Dream,
         int TimeoutSeconds,
         int PollMilliseconds)
     {
@@ -161,10 +232,17 @@ public static class Program
             var sequence = 12;
             var consent = ConsentChoice.Grant;
             var autonomy = AutonomyTier.Consult;
+            var dream = false;
             var timeoutSeconds = 40;
             var pollMilliseconds = 10;
-            for (var index = 0; index < args.Length; index += 2)
+            for (var index = 0; index < args.Length; index++)
             {
+                switch (args[index])
+                {
+                    case "--dream":
+                        dream = true;
+                        continue;
+                }
                 var value = args[index + 1];
                 switch (args[index])
                 {
@@ -189,12 +267,13 @@ public static class Program
                     default:
                         throw new ArgumentException($"Unknown or malformed argument pair at '{args[index]} {value}'.");
                 }
+                index++;
             }
             if (string.IsNullOrWhiteSpace(bridge))
             {
                 throw new ArgumentException("The dual host requires --bridge <directory>.");
             }
-            return new Options(bridge, sequence, consent, autonomy, timeoutSeconds, pollMilliseconds);
+            return new Options(bridge, sequence, consent, autonomy, dream, timeoutSeconds, pollMilliseconds);
         }
     }
 }

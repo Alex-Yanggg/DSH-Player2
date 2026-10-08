@@ -1,7 +1,7 @@
 {
   "id": "decision-stardew-visual-receipt-v1",
   "turn": {
-    "version": "0.1.0",
+    "version": "0.1.1",
     "sequence": 12,
     "createdAt": "2026-08-29T00:00:00.000Z",
     "gameDay": 12,
@@ -33,6 +33,7 @@
         "facts": {
           "weather": "rain",
           "location": "Farm",
+          "locationDisplayName": "Farm",
           "pendingTask": "prepare tomorrow's mine supplies",
           "target": "stardew-location:Farm:tile:12,8"
         }
@@ -40,7 +41,7 @@
     ]
   },
   "expectedRequest": {
-    "version": "0.1.0",
+    "version": "0.1.1",
     "sequence": 12,
     "status": "awaiting-player",
     "proposal": {
@@ -54,7 +55,8 @@
         "target": "stardew-location:Farm:tile:12,8"
       },
       "scope": "visual marker + sound only",
-      "reason": "The observed rain makes a shared planning marker useful."
+      "reason": "The observed rain makes a shared planning marker useful.",
+      "utterance": "Rain is handling the watering, so I'd like to leave us one small planning marker here on the Farm—shall I?"
     }
   }
 }

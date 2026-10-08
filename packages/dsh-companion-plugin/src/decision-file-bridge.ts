@@ -8,18 +8,26 @@ import {
   bridgeFileLimit,
   decisionTurnEnvelopeSchema,
   decisionTurnVersion,
+  growthProposalSchema,
   proposalSchema,
   type ActionRequest,
   type AutonomyMode,
   type DecisionTurnEnvelope,
+  type GrowthProposal,
   type Proposal,
 } from "@dsh-player2/contracts";
 import { collectReceiptDigest, type ReceiptDigest, type ReceiptDigestEntry } from "./memory/receipt-digest.js";
+import type { SpineTimeline } from "./spine.js";
 
 const MAX_CITED_OBSERVATIONS = 8;
 const MAX_TARGET_LENGTH = 256;
 const MAX_SCOPE_LENGTH = 400;
 const MAX_REASON_LENGTH = 800;
+const MAX_UTTERANCE_LENGTH = 800;
+const MAX_REFLECTION_INSIGHTS = 3;
+const MAX_INSIGHT_LENGTH = 240;
+const MAX_CITED_RECEIPTS = 8;
+const MAX_FOCUS_LENGTH = 160;
 
 export type { ReceiptDigest, ReceiptDigestEntry } from "./memory/receipt-digest.js";
 
@@ -30,23 +38,37 @@ export interface ProposalDraftInput {
   readonly target: string;
   readonly scope: string;
   readonly reason: string;
+  readonly utterance: string;
+}
+
+/** Model-supplied fields of one bounded self-reflection about shared history. */
+export interface ReflectDraftInput {
+  readonly insights: ReadonlyArray<{
+    readonly text: string;
+    readonly basedOnReceiptSequences: readonly number[];
+  }>;
+  readonly focus: string | null;
 }
 
 /** A fixed-path, write-once bridge between Player and one DSH decision composition. */
 export class DecisionFileBridge {
   private readonly root: string;
   private readonly autonomy: AutonomyMode;
+  private readonly spine?: SpineTimeline;
 
   /**
    * @param bridgeDirectory - trusted deployment directory; model arguments never contribute paths.
    * @param autonomy - the composition's resolved autonomy tier; consult keeps the consent flow.
+   * @param spine - optional P2-0014 watermark projection; when present, bridge
+   *   I/O also records reference events on the companion event spine.
    */
-  public constructor(bridgeDirectory: string, autonomy: AutonomyMode = "consult") {
+  public constructor(bridgeDirectory: string, autonomy: AutonomyMode = "consult", spine?: SpineTimeline) {
     if (bridgeDirectory.trim().length === 0) {
       throw new Error("Decision mode requires a non-empty bridgeDirectory.");
     }
     this.root = resolve(bridgeDirectory);
     this.autonomy = autonomy;
+    this.spine = spine;
   }
 
   /**
@@ -68,6 +90,12 @@ export class DecisionFileBridge {
     if (envelope.sequence !== sequence) {
       throw new Error(`Decision turn sequence ${envelope.sequence} does not match requested sequence ${sequence}.`);
     }
+    if (this.spine !== undefined) {
+      await this.spine.hydrate();
+      if (envelope.growth !== undefined && envelope.growth.revision > this.spine.snapshot().growthRevision) {
+        await this.spine.record("companion/growth-applied", { sequence: envelope.sequence, revision: envelope.growth.revision });
+      }
+    }
     return envelope;
   }
 
@@ -82,6 +110,7 @@ export class DecisionFileBridge {
     const target = this.boundedText(input.target, "target", MAX_TARGET_LENGTH);
     const scope = this.boundedText(input.scope, "scope", MAX_SCOPE_LENGTH);
     const reason = this.boundedText(input.reason, "reason", MAX_REASON_LENGTH);
+    const utterance = this.boundedText(input.utterance, "utterance", MAX_UTTERANCE_LENGTH);
     const observationIds = new Set(turn.observations.map((observation) => observation.id));
     const citedIds = [...input.basedOnObservationIds];
     if (citedIds.length > MAX_CITED_OBSERVATIONS) {
@@ -102,6 +131,17 @@ export class DecisionFileBridge {
       throw new Error(
         `Proposal scope must copy the advertised capability scope verbatim: ${JSON.stringify(capability.scope)}.`);
     }
+    const world = turn.observations.find((observation) => observation.kind === "world");
+    const locationDisplayName = world?.facts.locationDisplayName;
+    if (typeof locationDisplayName !== "string" || locationDisplayName.trim().length === 0) {
+      throw new Error("The world observation is missing its player-facing locationDisplayName.");
+    }
+    if (!utterance.includes(locationDisplayName)) {
+      throw new Error(`Companion speech must naturally name the observed game location ${JSON.stringify(locationDisplayName)}.`);
+    }
+    if (utterance.includes(target) || this.containsTargetCoordinates(utterance, target)) {
+      throw new Error("Companion speech must not expose the machine target or tile coordinates to the player.");
+    }
 
     const proposal = proposalSchema.parse({
       id: this.proposalId(sequence),
@@ -111,8 +151,18 @@ export class DecisionFileBridge {
       intent: { target },
       scope,
       reason,
+      utterance,
     });
     return this.writeOnce(this.proposalPath(sequence), proposal, proposalSchema, "proposal");
+  }
+
+  private containsTargetCoordinates(utterance: string, target: string): boolean {
+    const match = /:tile:(\d+),(\d+)$/.exec(target);
+    if (match === null) return false;
+    const [, x, y] = match;
+    return utterance.includes(`${x},${y}`) ||
+      utterance.includes(`${x}, ${y}`) ||
+      utterance.includes(`${x}，${y}`);
   }
 
   /**
@@ -150,7 +200,7 @@ export class DecisionFileBridge {
    * current observations and never grant authority.
    */
   public async recall(): Promise<ReceiptDigest> {
-    return collectReceiptDigest(
+    const digest = await collectReceiptDigest(
       () => readdir(join(this.root, "receipts")).catch((error: unknown) => {
         if (this.isNotFound(error)) {
           return [] as string[];
@@ -159,6 +209,80 @@ export class DecisionFileBridge {
       }),
       async (name) => this.readJson(join(this.root, "receipts", name), "receipt"),
     );
+    if (this.spine !== undefined) {
+      // Receipts stay the fact source; the spine only records that one entered
+      // the relationship timeline, so the dream lane never rescans this
+      // directory for attention.
+      await this.spine.hydrate();
+      const known = new Set(this.spine.snapshot().receipts.map((receipt) => receipt.sequence));
+      for (const entry of digest.entries) {
+        if (!known.has(entry.sequence)) {
+          await this.spine.record("companion/receipt-observed", {
+            sequence: entry.sequence,
+            proposalId: entry.proposalId,
+            capabilityId: entry.capabilityId,
+            status: entry.status,
+            occurredAt: entry.occurredAt,
+          });
+        }
+      }
+    }
+    return digest;
+  }
+
+  /**
+   * Persist one write-once self-reflection for this turn: bounded insights
+   * that must cite receipt sequences the recall digest actually returned, plus
+   * an optional self-chosen focus. The proposal is data for Player validation
+   * and application to the Player-owned growth asset — it never changes this
+   * companion's soul, tools, or authority, and it never executes anything.
+   *
+   * @param sequence - decision turn owning this reflection.
+   * @param input - bounded model-authored reflection fields.
+   * @returns the newly written or byte-equivalent existing growth proposal.
+   */
+  public async reflect(sequence: number, input: ReflectDraftInput): Promise<GrowthProposal> {
+    this.assertSequence(sequence);
+    if (input.insights.length === 0 || input.insights.length > MAX_REFLECTION_INSIGHTS) {
+      throw new Error(
+        `A growth proposal requires between 1 and ${MAX_REFLECTION_INSIGHTS} insights.`);
+    }
+    const digest = await this.recall();
+    const recalledSequences = new Set(digest.entries.map((entry) => entry.sequence));
+    const insights = input.insights.map((insight) => ({
+      text: this.boundedText(insight.text, "insight text", MAX_INSIGHT_LENGTH),
+      basedOnReceiptSequences: this.citedReceiptSequences(insight.basedOnReceiptSequences, recalledSequences),
+    }));
+    const focus = input.focus === null || input.focus === undefined
+      ? null
+      : this.boundedText(input.focus, "focus", MAX_FOCUS_LENGTH);
+    const proposal = growthProposalSchema.parse({
+      version: decisionTurnVersion,
+      sequence,
+      insights,
+      focus,
+    });
+    const written = await this.writeOnce(this.growthPath(sequence), proposal, growthProposalSchema, "growth proposal");
+    if (this.spine !== undefined) {
+      await this.spine.hydrate();
+      await this.spine.record("companion/reflection-proposed", { sequence, source: "reflect" });
+    }
+    return written;
+  }
+
+  /** Validates that cited receipt sequences are distinct and were actually recalled. */
+  private citedReceiptSequences(cited: readonly number[], recalled: ReadonlySet<number>): number[] {
+    if (cited.length === 0 || cited.length > MAX_CITED_RECEIPTS || new Set(cited).size !== cited.length) {
+      throw new Error(
+        `Each insight requires distinct cited receipt sequences, at most ${MAX_CITED_RECEIPTS}.`);
+    }
+    const unknown = cited.find((sequence) => !recalled.has(sequence));
+    if (unknown !== undefined) {
+      throw new Error(
+        `Growth insight cited receipt sequence ${unknown}, which companion_recall did not return this turn. ` +
+        "Growth must stay grounded in recalled shared outcomes.");
+    }
+    return [...cited];
   }
 
   private async writeOnce<T>(
@@ -260,6 +384,10 @@ export class DecisionFileBridge {
 
   private requestPath(sequence: number): string {
     return resolve(this.root, "outbox", `request-${sequence}.json`);
+  }
+
+  private growthPath(sequence: number): string {
+    return resolve(this.root, "outbox", `growth-${sequence}.json`);
   }
 
   private proposalId(sequence: number): string {

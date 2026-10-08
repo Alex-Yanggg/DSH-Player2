@@ -26,6 +26,11 @@ internal static class WorldSnapshotBuilder
             Game1.player.Items.Count(item => item is not null),
             Game1.player.Items.Count,
             items);
-        return Player2Rules.CreateSnapshot(Game1.Date.TotalDays, weather, Game1.currentLocation.NameOrUniqueName, self);
+        return Player2Rules.CreateSnapshot(
+            Game1.Date.TotalDays,
+            weather,
+            Game1.currentLocation.NameOrUniqueName,
+            self,
+            Game1.currentLocation.DisplayName);
     }
 }

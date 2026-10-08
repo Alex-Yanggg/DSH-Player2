@@ -233,7 +233,8 @@ public sealed class DecisionBridgeRulesTests
                 DecisionBridgeRules.CompanionPresence.Id,
                 new BridgeProposalIntent("stardew-location:Farm:tile:12,8"),
                 DecisionBridgeRules.CompanionPresence.Scope,
-                "Standing nearby makes planning easier."));
+                "Standing nearby makes planning easier.",
+                "We're together on the Farm; may I stand beside you while we plan?"));
         var grant = DecisionBridgeRules.CreateGrant(
             presenceRequest,
             true,
@@ -247,6 +248,24 @@ public sealed class DecisionBridgeRulesTests
         Assert.Throws<InvalidOperationException>(() => DecisionBridgeRules.ValidateRequest(
             turn,
             presenceRequest with { Proposal = presenceRequest.Proposal with { Scope = DecisionBridgeRules.AllowedScope } }));
+        Assert.Throws<InvalidOperationException>(() => DecisionBridgeRules.ValidateRequest(
+            turn,
+            presenceRequest with
+            {
+                Proposal = presenceRequest.Proposal with
+                {
+                    Utterance = "The rain is gentle today; may I stand beside you while we plan?",
+                },
+            }));
+        Assert.Throws<InvalidOperationException>(() => DecisionBridgeRules.ValidateRequest(
+            turn,
+            presenceRequest with
+            {
+                Proposal = presenceRequest.Proposal with
+                {
+                    Utterance = "Meet me on the Farm at 12,8.",
+                },
+            }));
     }
 
     [Fact]

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Context } from "@deepseek-ai/cordis";
@@ -8,6 +8,7 @@ import SkillRegistry from "@deepseek-ai/dsh-skill";
 import SystemPrompt from "@deepseek-ai/dsh-system-prompt";
 import ToolRuntime from "@deepseek-ai/dsh-tools";
 import * as companionPlugin from "../packages/dsh-companion-plugin/dist/index.js";
+import { DreamFileLane, SpineFileStore, SpineTimeline, spineStateFileAt } from "../packages/dsh-companion-plugin/dist/index.js";
 import { BridgeDispatcher } from "../packages/dsh-dispatcher/dist/index.js";
 
 // The TS end of the unattended dual-end harness: one process that plays the
@@ -24,12 +25,47 @@ const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const bridgeDirectory = resolve(readFlag("bridge") ?? "");
 const sequence = Number.parseInt(readFlag("sequence") ?? "12", 10);
 const autonomy = readFlag("autonomy") === "full" ? "full" : "consult";
+const reflect = process.argv.includes("--reflect");
 const timeoutMs = Number.parseInt(readFlag("timeout-ms") ?? "60000", 10);
 if (!bridgeDirectory) {
   throw new Error("The dual-end model process requires --bridge <directory>.");
 }
 
 const requestPath = join(bridgeDirectory, "outbox", `request-${sequence}.json`);
+
+if (process.argv.includes("--dream")) {
+  // The dream stand-in (P2-0014): one closed reflection over the projected
+  // timeline — never a receipt directory scan — and one write-once outcome.
+  const dreamRequests = await readdir(join(bridgeDirectory, "dream-inbox")).catch(() => []);
+  const dreamName = dreamRequests.map((name) => /^dream-(\d+)\.json$/.exec(name)).find(Boolean);
+  if (dreamName === undefined) {
+    throw new Error("The dream mode requires a published dream-inbox request.");
+  }
+  const dreamSequence = Number.parseInt(dreamName[1], 10);
+  const spineDirectory = join(bridgeDirectory, "spine");
+  const timeline = new SpineTimeline(
+    new SpineFileStore(spineDirectory),
+    "player2-spine-file",
+    spineStateFileAt(join(spineDirectory, "state.json")),
+  );
+  await timeline.hydrate();
+  const receipts = timeline.snapshot().receipts;
+  const outcome = receipts.length > 0
+    ? {
+        kind: "growth",
+        insights: [{
+          text: "The shared marker plan held; the player follows through on grounded plans.",
+          basedOnReceiptSequences: receipts.map((receipt) => receipt.sequence).slice(0, 8),
+        }],
+        focus: "Plan one grounded marker the player will grant without hesitation.",
+      }
+    : { kind: "no-change" };
+  const lane = new DreamFileLane(bridgeDirectory, timeline);
+  const closed = await lane.decide(dreamSequence, outcome);
+  process.stdout.write(`dual-end-model: dream ${dreamSequence} closed with ${closed} (watermark ${timeline.snapshot().watermark})\n`);
+  process.exit(0);
+}
+
 const ctx = new Context();
 await ctx.plugin(SystemPrompt);
 await ctx.plugin(SkillRegistry);
@@ -40,6 +76,10 @@ await ctx.plugin(companionPlugin, {
   mode: "decision",
   autonomy,
   bridgeDirectory,
+  // The P2-0014 file spine: decision-lane bridge I/O records reference events
+  // so the dream lane can project the relationship timeline without
+  // rescanning the receipts directory.
+  spine: "file",
 });
 
 const signal = new AbortController().signal;
@@ -62,6 +102,28 @@ const dispatcher = new BridgeDispatcher({
           arguments: {},
           signal,
         },
+      ];
+      if (reflect) {
+        // Grounded self-reflection: cite only receipt sequences this bridge
+        // actually holds, mirroring what companion_recall returned.
+        const cited = (await receiptSequences(bridgeDirectory)).slice(0, 8);
+        if (cited.length > 0) {
+          calls.push({
+            callId: CallId(`dual-reflect-${turnSequence}`),
+            name: companionPlugin.DECISION_TOOL_NAMES.reflect,
+            arguments: {
+              sequence: turnSequence,
+              insights: [{
+                text: "The shared marker plan completed; the player follows through on grounded plans.",
+                basedOnReceiptSequences: cited,
+              }],
+              focus: "Plan one grounded marker the player will grant without hesitation.",
+            },
+            signal,
+          });
+        }
+      }
+      calls.push(
         {
           callId: CallId(`dual-propose-${turnSequence}`),
           name: companionPlugin.DECISION_TOOL_NAMES.propose,
@@ -74,6 +136,7 @@ const dispatcher = new BridgeDispatcher({
             target: "stardew-location:Farm:tile:12,8",
             scope: "visual marker + sound only",
             reason: "The observed rain makes a shared planning marker useful.",
+            utterance: "The rain has given us room to think, so I'd like to mark our planning spot here on the Farm.",
           },
           signal,
         },
@@ -83,7 +146,7 @@ const dispatcher = new BridgeDispatcher({
           arguments: { sequence: turnSequence, proposalId: `turn-${turnSequence}:proposal` },
           signal,
         },
-      ];
+      );
       for (const call of calls) {
         const result = await ctx.tools.execute(call);
         if (result.isError) {
@@ -116,4 +179,19 @@ async function exists(path) {
   } catch {
     return false;
   }
+}
+
+/** Lists the persisted receipt sequences for this bridge, newest first. */
+async function receiptSequences(directory) {
+  const { readdir } = await import("node:fs/promises");
+  const names = await readdir(join(directory, "receipts")).catch((error) => {
+    if (error.code === "ENOENT") return [];
+    throw error;
+  });
+  const sequences = [];
+  for (const name of names) {
+    const match = /^receipt-(\d+)\.json$/.exec(name);
+    if (match !== null) sequences.push(Number.parseInt(match[1], 10));
+  }
+  return sequences.sort((left, right) => right - left);
 }

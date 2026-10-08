@@ -8,10 +8,12 @@ workaround can be retired cleanly if the requirement lands upstream.
 
 ## UR-1 Agent preset composition (`agentPresets.mount()`)
 
-**Status:** not present in `@deepseek-ai/*` 0.1.1-rc.2. Grep across every
-shipped `.d.ts` finds no `agentPresets` service and no `mount()` for presets;
-`agentPreset` exists only as passive metadata (`CreateAgentOptions.meta.agentPreset`,
-`SessionHeader.agentPreset`), and no shipped service consumes it.
+**Status: resolved by P2-0013 (2026-09-05).** Player2 now depends on the
+published `@deepseek-ai/dsh-agent-presets@0.1.1-rc.2` and
+`@deepseek-ai/dsh-persona@0.1.1-rc.2`, mounts both decision and social agents
+through `ctx.agentPresets`, and records the content-addressed preset id in
+`CreateAgentOptions.meta.agentPreset` / `SessionHeader.agentPreset`. No Harness
+source was changed.
 
 **What Player2 needs:** the ability to compose an agent from a named preset
 directory that durably carries the companion's identity — persona rows, voice,
@@ -30,19 +32,18 @@ consequences a preset service would remove:
 3. `SessionHeader.agentPreset` is never populated, so DSH-side tooling cannot
    see which persona a session was composed from.
 
-**In-boundary workaround shipped today:** soul rows travel on every bridge turn
-beside `companion.name`/`companion.role` (`companionIdentitySchema`), the
-companion plugin binds them as a `player2:companion-soul` system-prompt section
-at mount, and lane session ids hash the identity so a persona change starts a
-fresh durable session.
+**Resolved implementation:** Soul rows still travel on every bridge turn beside
+`companion.name`/`companion.role` as the Player-owned bootstrap and compatibility
+contract. The DSH host content-addresses that identity, materializes a
+persona-only user preset through the official roster authoring seam, mounts it
+before lane-local policy, and starts a fresh durable session when the identity
+changes.
 
-**Migration when delivered:** bind the persona constitution from the preset at
-composition; resolve autonomy through the real agent → preset → global chain
-and delete the `presetAutonomy` shadow slot; set `meta.agentPreset` when
-creating lane sessions.
+The Player2-only `presetAutonomy` shadow slot was removed. Autonomy remains a
+separate host policy because identity answers who the companion is while
+autonomy answers whose consent is required; it defaults to `consult`.
 
-**Acceptance shape:** a DSH-side test that an agent composed via
-`agentPresets.mount("<preset>")` (a) exposes the preset's persona rows to its
-system-prompt assembly, (b) records the preset id on its session header, and
-(c) fails the mount loudly when the preset does not exist — the same
-fail-loud contract Player2's autonomy resolution already follows.
+**Evidence:** focused host tests cover content addressing, persona-only
+composition, idempotent reuse, and conflicting-content refusal. The host setup
+calls `agentPresets.mount()` before lane plugins and writes `meta.agentPreset`;
+the dual-end reflect replay remains green across receipt → reflection → growth.

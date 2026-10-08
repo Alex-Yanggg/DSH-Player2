@@ -29,7 +29,7 @@ async function createDecisionBridgeRoot(): Promise<string> {
   roots.push(root);
   await mkdir(join(root, "inbox"), { recursive: true });
   await writeFile(join(root, "inbox", "turn-1.json"), JSON.stringify({
-    version: "0.1.0",
+    version: "0.1.1",
     sequence: 1,
     createdAt: "2026-08-29T00:00:00.000Z",
     gameDay: 12,
@@ -55,7 +55,7 @@ async function createDecisionBridgeRoot(): Promise<string> {
       source: "stardew-mod",
       accessMode: "semantic",
       confidence: 1,
-      facts: { weather: "rain" },
+      facts: { weather: "rain", locationDisplayName: "Farm" },
     }],
     companion: {
       name: "Mira",
@@ -76,6 +76,20 @@ afterEach(async () => {
 });
 
 describe("Player DSH companion composition", () => {
+  it("puts the full reply contract directly in fast social policy and denies even the skill loader", async () => {
+    const ctx = await createComposition({ fastSocial: true });
+    const prompt = renderPrompt(await ctx.systemPrompt.assemble());
+    expect(prompt).toContain("one or two short, natural sentences");
+    expect(prompt).toContain("movementCommand");
+    expect(prompt).toContain("basedOnObservationIds");
+    expect(prompt).not.toContain(`load the ${companionPlugin.GROUNDED_DELIBERATION_SKILL} skill`);
+    const execute = vi.fn(async () => "loaded");
+    ctx.tools.register(defineTool({ name: "skill", description: "load", parameters: {},
+      output: { schema: { type: "string" }, render: (_args, value) => [{ type: "text", text: value }] }, execute }));
+    const result = await ctx.tools.execute({ callId: CallId("fast-skill"), name: "skill", arguments: {}, signal: new AbortController().signal });
+    expect(result.isError).toBe(true);
+    expect(execute).not.toHaveBeenCalled();
+  });
   it("assembles identity and a model-invocable grounded-deliberation skill", async () => {
     const ctx = await createComposition();
 
@@ -174,7 +188,7 @@ describe("Player DSH companion composition", () => {
     }));
 
     expect(skills).toEqual([expect.objectContaining({ name: companionPlugin.GROUNDED_DECISION_SKILL })]);
-    expect(prompt).toContain("game_observe → companion_recall → companion_propose → game_request_action");
+    expect(prompt).toContain("game_observe → companion_recall → optional companion_reflect → companion_propose → game_request_action");
     expect(prompt).toContain("Recalled outcomes are history");
     expect(prompt).toContain("supersede your configured identity");
 
@@ -197,6 +211,7 @@ describe("Player DSH companion composition", () => {
         target: "farm:tile:12,8",
         scope: "one temporary marker",
         reason: "The observed rain makes a shared planning marker useful.",
+        utterance: "The rain has bought us a quiet minute on the Farm; want me to mark our planning spot?",
       },
       signal,
     });
@@ -247,6 +262,7 @@ describe("Player DSH companion composition", () => {
         target: "farm:tile:12,8",
         scope: "one temporary marker",
         reason: "The observed rain makes a shared planning marker useful.",
+        utterance: "The rain has bought us a quiet minute on the Farm; I'm marking our planning spot.",
       },
       signal,
     });

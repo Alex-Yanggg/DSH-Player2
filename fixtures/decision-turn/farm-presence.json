@@ -1,7 +1,7 @@
 {
   "id": "decision-farm-presence-v1",
   "turn": {
-    "version": "0.1.0",
+    "version": "0.1.1",
     "sequence": 7,
     "createdAt": "2026-08-29T00:00:00.000Z",
     "gameDay": 7,
@@ -21,12 +21,12 @@
         },
         {
           "id": "companion-presence",
-          "title": "Stand beside the agreed target as a temporary farmer-template presence",
+          "title": "Join the location as a persistent native companion; movement requires an explicit player chat command",
           "accessMode": "semantic",
           "requiresExplicitConsent": true,
           "isReversible": true,
-          "inputSchemaRef": "player2://presence-sprite/0.1",
-          "scope": "temporary presence sprite only"
+          "inputSchemaRef": "player2://native-companion/0.2",
+          "scope": "persistent native companion presence; movement only on explicit player command"
         }
       ]
     },
@@ -42,6 +42,7 @@
         "facts": {
           "weather": "clear",
           "location": "Farm",
+          "locationDisplayName": "Farm",
           "pendingTask": "none",
           "target": "stardew-location:Farm:tile:12,8"
         }
@@ -72,11 +73,12 @@
       "world-7"
     ],
     "target": "stardew-location:Farm:tile:12,8",
-    "scope": "temporary presence sprite only",
-    "reason": "Standing nearby makes planning the mine trip easier."
+    "scope": "persistent native companion presence; movement only on explicit player command",
+    "reason": "Standing nearby makes planning the mine trip easier.",
+    "utterance": "I'm Mira. Since we're both here on the Farm, may I stand beside you for a moment before we plan that mine trip?"
   },
   "expectedRequest": {
-    "version": "0.1.0",
+    "version": "0.1.1",
     "sequence": 7,
     "status": "awaiting-player",
     "proposal": {
@@ -89,8 +91,9 @@
       "intent": {
         "target": "stardew-location:Farm:tile:12,8"
       },
-      "scope": "temporary presence sprite only",
-      "reason": "Standing nearby makes planning the mine trip easier."
+      "scope": "persistent native companion presence; movement only on explicit player command",
+      "reason": "Standing nearby makes planning the mine trip easier.",
+      "utterance": "I'm Mira. Since we're both here on the Farm, may I stand beside you for a moment before we plan that mine trip?"
     }
   }
 }

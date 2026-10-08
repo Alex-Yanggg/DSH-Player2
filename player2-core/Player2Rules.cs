@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 
 namespace DSHPlayer2.Core;
 
@@ -12,41 +11,30 @@ public static class Player2Rules
     public const string LastSharedOutcomeStateKey = "AlexYanggg.DSHPlayer2/lastSharedOutcome";
 
     /// <summary>Captures only direct game facts. It intentionally contains no inferred task or plan.</summary>
-    public static WorldSnapshot CreateSnapshot(int day, string weather, string location, FarmerSnapshot? self = null)
+    public static WorldSnapshot CreateSnapshot(
+        int day,
+        string weather,
+        string location,
+        FarmerSnapshot? self = null,
+        string? locationDisplayName = null)
     {
         if (day < 0) throw new ArgumentOutOfRangeException(nameof(day));
         if (string.IsNullOrWhiteSpace(weather)) throw new ArgumentException("Weather must not be empty.", nameof(weather));
         if (string.IsNullOrWhiteSpace(location)) throw new ArgumentException("Location must not be empty.", nameof(location));
-        return new WorldSnapshot(day, weather, location, self);
+        return new WorldSnapshot(day, weather, location, self, locationDisplayName ?? location);
     }
 
     /// <summary>
-    /// Formats one validated native DSH request without inventing a local goal
-    /// or task. The companion name always comes from the player-chosen
-    /// identity, and the weather word is the adapter's localized display for
-    /// its own weather code — the core never interprets game weather.
+    /// Returns the validated persona-authored speech verbatim. Presentation
+    /// adds no local sentence shell, coordinates, scope labels, or synthetic
+    /// personality around the native DSH result.
     /// </summary>
     public static string FormatProposal(
         Proposal proposal,
-        string companionName,
-        string weatherDisplay,
-        Player2TextSet? text = null)
+        string companionName = "",
+        string weatherDisplay = "")
     {
-        text ??= Player2TextSet.English;
-        var name = string.IsNullOrWhiteSpace(companionName) ? "Player2" : companionName.Trim();
-        var weather = string.IsNullOrWhiteSpace(weatherDisplay) ? proposal.Weather : weatherDisplay.Trim();
-        return string.Join(
-            Environment.NewLine,
-            Fill(text.ProposalDayLine,
-                ("day", proposal.Day.ToString(CultureInfo.InvariantCulture)),
-                ("weather", weather),
-                ("location", proposal.Location)),
-            Fill(text.ProposalReasonLine, ("name", name), ("reason", proposal.Reason)),
-            Fill(text.ProposalScopeLine,
-                ("tileX", proposal.TargetTileX.ToString(CultureInfo.InvariantCulture)),
-                ("tileY", proposal.TargetTileY.ToString(CultureInfo.InvariantCulture))),
-            text.ProposalBoundaryLine,
-            text.ProposalAskLine);
+        return proposal.Utterance;
     }
 
     public static Commitment CreateCommitment(Proposal proposal) => new(
@@ -105,15 +93,15 @@ public static class Player2Rules
         return new FarmerSnapshot(name.Trim(), money, inventorySlotsUsed, inventorySlotCapacity, listed, truncated);
     }
 
-    private static string Fill(string template, params (string Key, string Value)[] tokens)
-    {
-        foreach (var (key, value) in tokens) template = template.Replace("{" + key + "}", value, StringComparison.Ordinal);
-        return template;
-    }
 }
 
 /// <summary>Direct game facts only; inferences belong to DSH and must be traceable there.</summary>
-public sealed record WorldSnapshot(int Day, string Weather, string Location, FarmerSnapshot? Self = null);
+public sealed record WorldSnapshot(
+    int Day,
+    string Weather,
+    string Location,
+    FarmerSnapshot? Self = null,
+    string? LocationDisplayName = null);
 
 /// <summary>
 /// The bounded, direct facts about the farmer the companion plays beside:
@@ -132,7 +120,16 @@ public sealed record FarmerSnapshot(
 public sealed record InventoryItemSnapshot(string Name, int Count);
 
 /// <summary>A Player-validated native DSH proposal waiting for explicit consent.</summary>
-public sealed record Proposal(int Day, string Weather, string Location, string Reason, int TargetTileX, int TargetTileY, string Scope);
+public sealed record Proposal(
+    int Day,
+    string Weather,
+    string Location,
+    string Reason,
+    int TargetTileX,
+    int TargetTileY,
+    string Scope,
+    string Utterance = "",
+    string LocationDisplayName = "");
 
 public sealed record Commitment(int Version, int Day, int TargetTileX, int TargetTileY, string Goal, string Scope);
 

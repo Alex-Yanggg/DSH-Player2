@@ -21,27 +21,46 @@ public sealed class Player2RulesTests
     }
 
     [Fact]
-    public void NativeProposalDisplaysItsOwnGroundedReasonWithoutALocalGoal()
+    public void NativeProposalDisplaysPersonaUtteranceVerbatimWithoutCoordinatesOrTemplate()
     {
-        var proposal = new Proposal(1, "clear", "FarmHouse", "I only know the current weather and location, so I suggest meeting here first.", 12, 8, "temporary visual receipt only");
+        const string utterance = "雨停之前，我想在农舍陪你把今天的小计划想清楚，可以吗？";
+        var proposal = new Proposal(
+            1,
+            "clear",
+            "FarmHouse",
+            "I only know the current weather and location.",
+            12,
+            8,
+            "temporary visual receipt only",
+            utterance,
+            "农舍");
 
-        var rendered = Player2Rules.FormatProposal(proposal, "Kai", "雨天", Player2TextSet.SimplifiedChinese);
+        var rendered = Player2Rules.FormatProposal(proposal);
 
-        Assert.Contains(proposal.Reason, rendered);
-        Assert.Contains("Kai基于当前信息的理由", rendered);
-        Assert.Contains("地块（12，8）", rendered);
+        Assert.Equal(utterance, rendered);
+        Assert.DoesNotContain("12", rendered);
+        Assert.DoesNotContain("范围", rendered);
     }
 
     [Fact]
-    public void ProposalRendersTheCompanionIdentityInsteadOfATemplateDefault()
+    public void ProposalPresentationNeverWrapsTheNativeUtterance()
     {
-        var proposal = new Proposal(1, "clear", "FarmHouse", "A grounded DSH reason.", 12, 8, "temporary visual receipt only");
+        var proposal = new Proposal(
+            1,
+            "clear",
+            "FarmHouse",
+            "A grounded DSH reason.",
+            12,
+            8,
+            "temporary visual receipt only",
+            "The Farm is quiet this morning; may I stand with you for a moment?",
+            "Farm");
 
         var english = Player2Rules.FormatProposal(proposal, "Rowan", "clear");
         var fallback = Player2Rules.FormatProposal(proposal, "  ", "clear");
 
-        Assert.Contains("Rowan's grounded reason: A grounded DSH reason.", english);
-        Assert.Contains("Player2's grounded reason: A grounded DSH reason.", fallback);
+        Assert.Equal(proposal.Utterance, english);
+        Assert.Equal(proposal.Utterance, fallback);
     }
 
     [Fact]

@@ -1,15 +1,64 @@
-import { mkdtemp, mkdir, readFile, readdir, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { Context } from "@deepseek-ai/cordis";
-import { Config, inject, listSessionDirectories, name, Player2DshHost, resumeOrCreate } from "./index.js";
+import type { CompanionIdentity } from "@dsh-player2/contracts";
+import {
+  companionPresetComposition,
+  companionPresetId,
+  Config,
+  ensureCompanionPreset,
+  inject,
+  listSessionDirectories,
+  name,
+  Player2DshHost,
+  resumeOrCreate,
+} from "./index.js";
+
+const MIRA: CompanionIdentity = {
+  name: "Mira",
+  role: "the player's candid farm partner",
+  soul: {
+    values: ["curiosity and kindness"],
+    bonds: ["the player as an equal"],
+    voice: "Bright, candid, and concise.",
+    boundaries: ["never invent a shared memory"],
+  },
+};
 
 describe("Player2 DSH host bundle", () => {
+  it("services newly arrived social turns while a decision stays busy, without duplicate execution", async () => {
+    const root = await mkdtemp(join(tmpdir(), "player2-independent-lanes-"));
+    const session = join(root, "projects", "mira", "sessions", "1");
+    await mkdir(join(session, "inbox"), { recursive: true });
+    await writeFile(join(session, "inbox", "turn-1.json"), "{}");
+    let release!: () => void;
+    const busy = new Promise<void>((resolve) => { release = resolve; });
+    const host = new Player2DshHost({} as Context, { bridgeDirectory: root, pollIntervalMs: 50 });
+    const internals = host as unknown as { runDecision(session: string, id: number): Promise<void>; runSocial(session: string, id: string): Promise<void> };
+    const decisions = vi.spyOn(internals, "runDecision").mockImplementation(async () => busy);
+    const social = vi.spyOn(internals, "runSocial").mockImplementation(async (directory, id) => {
+      await mkdir(join(directory, "social-outbox"), { recursive: true });
+      await writeFile(join(directory, "social-outbox", `result-${id}.json`), "{}");
+    });
+    try {
+      await host.start();
+      await vi.waitFor(() => expect(decisions).toHaveBeenCalledTimes(1));
+      await mkdir(join(session, "social-inbox"), { recursive: true });
+      await writeFile(join(session, "social-inbox", "turn-12345678-abcd.json"), "{}");
+      await vi.waitFor(() => expect(social).toHaveBeenCalledTimes(1));
+      expect(decisions).toHaveBeenCalledTimes(1);
+    } finally {
+      release();
+      await host.stop();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
   it("declares the DSH services needed to create owned native agents", () => {
     expect(name).toBe("player2-dsh-host");
-    expect(inject).toEqual(["agents", "agentDefaultModel", "sessions", "sessionPersistence"]);
+    expect(inject).toEqual(["agents", "agentDefaultModel", "agentPresets", "sessions", "sessionPersistence"]);
     expect(Config).toBeDefined();
   });
 
@@ -31,7 +80,7 @@ describe("Player2 DSH host bundle", () => {
       expect(files).toHaveLength(1);
       expect(files[0]).toMatch(/^ready-\d+-[0-9a-f-]+\.json$/);
       const marker = JSON.parse(await readFile(join(runtime, files[0]!), "utf8")) as Record<string, unknown>;
-      expect(marker).toMatchObject({ version: "0.1.0", status: "ready", source: "dsh", pid: process.pid });
+      expect(marker).toMatchObject({ version: "0.1.1", status: "ready", source: "dsh", pid: process.pid });
 
       await host.stop();
       expect(await readdir(runtime)).toEqual([]);
@@ -91,6 +140,53 @@ describe("Player2 DSH host bundle", () => {
       expect(entries).toEqual(["development-logs", "runtime"]);
     } finally {
       await host.stop();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("content-addresses the exact Player-authored identity as a persona-only preset", () => {
+    expect(companionPresetId(MIRA)).toMatch(/^player2-mira-[0-9a-f]{12}$/);
+    expect(companionPresetId({ ...MIRA, role: "a changed role" })).not.toBe(companionPresetId(MIRA));
+
+    const composition = companionPresetComposition(MIRA);
+    expect(composition).toContain("name: '@deepseek-ai/dsh-persona'");
+    expect(composition).toContain("You are Mira, the player's candid farm partner.");
+    expect(composition).toContain("Hard boundaries: never invent a shared memory");
+    expect(composition).not.toContain("dsh-tool-");
+  });
+
+  it("materializes once through the DSH roster and rejects a conflicting preset", async () => {
+    const root = await mkdtemp(join(tmpdir(), "player2-persona-preset-"));
+    const presets = new Map<string, { id: string; path: string }>();
+    let copies = 0;
+    const agentPresets = {
+      list: async () => [...presets.values()],
+      read: async (id: string) => readFile(presets.get(id)!.path, "utf8"),
+      copy: async (_from: string, id: string) => {
+        copies++;
+        const directory = join(root, id);
+        await mkdir(directory, { recursive: true });
+        const path = join(directory, "agent.cordis.yml");
+        await writeFile(path, "copied\n");
+        presets.set(id, { id, path });
+      },
+      resolve: async (id: string) => presets.get(id)!,
+    };
+    const ctx = { agentPresets } as unknown as Context;
+    try {
+      const id = await ensureCompanionPreset(ctx, MIRA);
+      expect(copies).toBe(1);
+      expect(await readFile(join(root, id, "agent.cordis.yml"), "utf8"))
+        .toBe(companionPresetComposition(MIRA));
+      expect(await readFile(join(root, id, "preset.yml"), "utf8"))
+        .toContain('name: "Mira"');
+
+      await expect(ensureCompanionPreset(ctx, MIRA)).resolves.toBe(id);
+      expect(copies).toBe(1);
+
+      await writeFile(join(root, id, "agent.cordis.yml"), "conflict\n");
+      await expect(ensureCompanionPreset(ctx, MIRA)).rejects.toThrow("conflicts");
+    } finally {
       await rm(root, { recursive: true, force: true });
     }
   });
