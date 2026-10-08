@@ -1,0 +1,52 @@
+<svg width="1280" height="520" viewBox="0 0 1280 520" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">DSH-Player2 product flow</title>
+  <desc id="desc">A stylized diagram showing game facts, consent, receipt memory, and native companion presence.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1280" y2="520" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#101820"/>
+      <stop offset="0.55" stop-color="#17231f"/>
+      <stop offset="1" stop-color="#241a12"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="162" y1="90" x2="1117" y2="420" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f2c46d"/>
+      <stop offset="1" stop-color="#f47f45"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="20" flood-color="#000000" flood-opacity="0.32"/>
+    </filter>
+  </defs>
+  <rect width="1280" height="520" rx="30" fill="url(#bg)"/>
+  <rect x="36" y="36" width="1208" height="448" rx="26" fill="#0b0f12" fill-opacity="0.42" stroke="#f2c46d" stroke-opacity="0.22"/>
+  <g filter="url(#shadow)">
+    <rect x="90" y="82" width="1100" height="356" rx="24" fill="#12191d" stroke="#f2c46d" stroke-opacity="0.18"/>
+  </g>
+  <text x="130" y="154" fill="#fff7df" font-family="Segoe UI, Arial, sans-serif" font-size="56" font-weight="700">DSH-Player2</text>
+  <text x="132" y="198" fill="#d9c7a5" font-family="Segoe UI, Arial, sans-serif" font-size="24">A trustworthy AI second player for real games</text>
+  <g transform="translate(130 252)">
+    <rect x="0" y="0" width="202" height="92" rx="18" fill="#1d2a2e" stroke="#5fb3a2" stroke-opacity="0.75"/>
+    <text x="24" y="38" fill="#e9fff9" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="700">Game facts</text>
+    <text x="24" y="66" fill="#a9c9c1" font-family="Segoe UI, Arial, sans-serif" font-size="16">bounded observations</text>
+  </g>
+  <g transform="translate(390 252)">
+    <rect x="0" y="0" width="202" height="92" rx="18" fill="#2c2420" stroke="#f2c46d" stroke-opacity="0.8"/>
+    <text x="24" y="38" fill="#fff6dd" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="700">Consent</text>
+    <text x="24" y="66" fill="#ddc599" font-family="Segoe UI, Arial, sans-serif" font-size="16">player-owned authority</text>
+  </g>
+  <g transform="translate(650 252)">
+    <rect x="0" y="0" width="202" height="92" rx="18" fill="#212437" stroke="#9aa7ff" stroke-opacity="0.75"/>
+    <text x="24" y="38" fill="#eef0ff" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="700">Receipts</text>
+    <text x="24" y="66" fill="#bbc2ec" font-family="Segoe UI, Arial, sans-serif" font-size="16">auditable memory</text>
+  </g>
+  <g transform="translate(910 252)">
+    <rect x="0" y="0" width="202" height="92" rx="18" fill="#2f1f25" stroke="#ff8b9b" stroke-opacity="0.78"/>
+    <text x="24" y="38" fill="#fff0f2" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="700">Presence</text>
+    <text x="24" y="66" fill="#e6b7bf" font-family="Segoe UI, Arial, sans-serif" font-size="16">native companion body</text>
+  </g>
+  <path d="M344 298H376" stroke="url(#gold)" stroke-width="5" stroke-linecap="round"/>
+  <path d="M604 298H636" stroke="url(#gold)" stroke-width="5" stroke-linecap="round"/>
+  <path d="M864 298H896" stroke="url(#gold)" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="640" cy="120" r="34" fill="#f2c46d" fill-opacity="0.12" stroke="#f2c46d" stroke-opacity="0.56"/>
+  <circle cx="640" cy="120" r="14" fill="#f2c46d"/>
+  <path d="M640 72V50M640 190V168M688 120H710M570 120H592" stroke="#f2c46d" stroke-width="5" stroke-linecap="round" stroke-opacity="0.8"/>
+  <text x="132" y="390" fill="#c5b99f" font-family="Segoe UI, Arial, sans-serif" font-size="18">DeepSeek Harness composition + Stardew SMAPI adapter + receipt-backed game semantics</text>
+</svg>
