@@ -101,3 +101,62 @@ public sealed record DshBridgeReadyMarker(
 {
     public DateTimeOffset HeartbeatAt { get; init; }
 }
+
+/// <summary>
+/// Graded readiness below the bundle heartbeat (P2-0015 T0.4). The Mod asks DSH
+/// to pre-compose one session's social ("mouth") lane with a warm-up request
+/// when a save loads; the host answers with a mouth-ready marker once the
+/// persona preset and lane agent exist. Warming composes and resumes only — it
+/// never runs a model turn or pre-generates a line.
+/// </summary>
+public static class MouthReadiness
+{
+    public const string WarmupDirectoryName = "warmup";
+    public const string ReadinessDirectoryName = "readiness";
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true,
+    };
+
+    public static string WarmupPath(string sessionDirectory) => Path.Combine(sessionDirectory, WarmupDirectoryName, "mouth.json");
+    public static string ReadyPath(string sessionDirectory) => Path.Combine(sessionDirectory, ReadinessDirectoryName, "mouth.json");
+
+    /// <summary>Publishes (or replaces) the warm-up request for one session.</summary>
+    public static MouthWarmupRequest WriteWarmupRequest(string sessionDirectory, BridgeCompanionIdentity companion, string requestedAt)
+    {
+        if (string.IsNullOrWhiteSpace(sessionDirectory)) throw new ArgumentException("A warm-up request requires a session directory.", nameof(sessionDirectory));
+        ArgumentNullException.ThrowIfNull(companion);
+        var request = new MouthWarmupRequest(DecisionBridgeRules.WireVersion, requestedAt, companion);
+        var path = WarmupPath(sessionDirectory);
+        var directory = Path.GetDirectoryName(path)!;
+        Directory.CreateDirectory(directory);
+        var temporary = Path.Combine(directory, $".mouth.json.{Guid.NewGuid():N}.tmp");
+        File.WriteAllText(temporary, JsonSerializer.Serialize(request, JsonOptions));
+        File.Move(temporary, path, overwrite: true);
+        return request;
+    }
+
+    /// <summary>Returns the host's mouth-ready marker when it answers this exact warm-up request.</summary>
+    public static MouthReadyMarker? TryReadReady(string sessionDirectory, string requestedAt)
+    {
+        try
+        {
+            var path = ReadyPath(sessionDirectory);
+            var info = new FileInfo(path);
+            if (!info.Exists || info.Length is <= 0 or > DecisionBridgeFiles.MaxFileBytes) return null;
+            var marker = JsonSerializer.Deserialize<MouthReadyMarker>(File.ReadAllText(path), JsonOptions);
+            return marker is not null && marker.Status == "ready" && marker.Source == "dsh" && marker.RequestedAt == requestedAt ? marker : null;
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException)
+        {
+            return null;
+        }
+    }
+}
+
+public sealed record MouthWarmupRequest(string Version, string RequestedAt, BridgeCompanionIdentity Companion);
+
+/// <summary>Host evidence that one session's social lane is composed and resumable.</summary>
+public sealed record MouthReadyMarker(string Version, string Status, string Source, string RequestedAt, string ReadyAt, string SessionId, string Mode, double ComposeMs);

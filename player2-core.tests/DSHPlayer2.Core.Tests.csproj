@@ -20,5 +20,6 @@
 
   <ItemGroup>
     <None Include="..\fixtures\decision-turn\stardew-visual-receipt.json" Link="fixtures\stardew-visual-receipt.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\fixtures\social-turn\stardew-social-memory.json" Link="fixtures\stardew-social-memory.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

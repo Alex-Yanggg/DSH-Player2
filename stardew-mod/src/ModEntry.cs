@@ -51,17 +51,29 @@ internal sealed class ModEntry : Mod
     private WorldSnapshot? pendingDaySnapshot;
     private CompanionChoice? pendingDayCompanion;
     private string? pendingSocialMessage;
+    private string? pendingSocialId;
     private DateTimeOffset? pendingDayDeadline;
     private DateTimeOffset? pendingSocialDeadline;
     private bool chatHintPending;
     private string? movementTraceId;
+    private string? movementLatencyKey;
+    private BridgeGrowthAsset? growthAsset;
+    private string? pendingGreetingId;
+    private CompanionChoice? pendingGreetingCompanion;
+    private string? socialLatencyLane;
+    private string? socialLatencyKey;
+    private bool socialPublishedTraced;
+    private string? mouthWarmupSession;
+    private string? mouthWarmupRequestedAt;
+    private int mouthReadinessCountdown;
+    private bool bundleReadyTraced;
 
     /// <summary>Registers the first semantic game event used by Player2.</summary>
     /// <param name="helper">The SMAPI helper for the loaded mod.</param>
     public override void Entry(IModHelper helper)
     {
         this.config = helper.ReadConfig<ModConfig>();
-        this.Monitor.Log("Player2 native companion movement + fast social bridge (P2-0013B).", LogLevel.Info);
+        this.Monitor.Log("Player2 native companion movement + fast social bridge with W0 memory, immediate commands, and latency trace (P2-0015).", LogLevel.Info);
         this.config.ValidateRequiredCompanionSouls();
         var configChanged = false;
         // Old config files predate the DSH-owned default.  Migrate them once
@@ -76,6 +88,7 @@ internal sealed class ModEntry : Mod
             helper.WriteConfig(this.config);
         }
         this.TryMigrateLegacyBridgeLayout();
+        this.TraceLatency("readiness", "bundle", "mod-entry");
         this.supervisor = new DshProcessSupervisor(this.config, this.Monitor);
         this.supervisor.EnsureStarted();
         helper.Events.GameLoop.DayStarted += this.OnDayStarted;
@@ -338,6 +351,18 @@ internal sealed class ModEntry : Mod
 
     private void OnMovementReported(string status, string detail)
     {
+        if (this.movementLatencyKey is { } latencyKey)
+        {
+            var stage = status switch
+            {
+                "started" => "motion-started",
+                "completed" when detail == "stopped" => "motion-started",
+                "completed" => "arrived",
+                _ => "motion-failed",
+            };
+            this.TraceLatency("command", latencyKey, stage, null, detail);
+            if (stage != "motion-started") this.movementLatencyKey = null;
+        }
         var trace = this.movementTraceId ?? "presence";
         this.AppendDevelopmentLog("COMPANION_MOVEMENT_" + status.ToUpperInvariant(), detail, trace);
         this.Monitor.Log($"Player2 native companion movement {status}: {detail}; trace={trace}.", status == "failed" ? LogLevel.Warn : LogLevel.Info);
@@ -390,28 +415,195 @@ internal sealed class ModEntry : Mod
         this.QueueCompanionDay(snapshot, companion);
     }
 
-    /// <summary>Publishes one message to native DSH; this host never invents a reply.</summary>
+    /// <summary>
+    /// Publishes one message to native DSH; this host never invents a reply.
+    /// An explicit movement command is the player's own grant, so it starts at
+    /// submit time, concurrently with (and never waiting on) the DSH reply.
+    /// </summary>
     private bool OnSocialMessageSubmitted(string message)
     {
+        var submittedAt = DateTimeOffset.UtcNow;
         var transcript = this.transcript ??= new ChatTranscript();
+        var command = CompanionMovement.ParseCommand(message);
+        if (command is not null)
+        {
+            this.StartMovementCommand(command, submittedAt);
+        }
         if (this.IsSocialTurnPending())
         {
+            if (command is not null)
+            {
+                transcript.Append(Game1.player.Name, message);
+                CompanionTranscriptStore.Save(this.Helper, transcript, this.Monitor);
+                this.Monitor.Log("Player2 started the movement command; no new DSH reply was requested because one is still pending.", LogLevel.Info);
+                return true;
+            }
             Game1.addHUDMessage(new HUDMessage(this.T("chat.waiting")));
             this.Monitor.Log("Player2 kept the unsent chat draft because a native DSH reply is still pending.", LogLevel.Info);
             return false;
         }
         transcript.Append(Game1.player.Name, message);
         CompanionTranscriptStore.Save(this.Helper, transcript, this.Monitor);
+        var id = Guid.NewGuid().ToString();
+        this.TraceLatency("social", id, "key-enter", submittedAt);
         if (!this.supervisor.IsReady)
         {
             this.pendingSocialMessage = message;
+            this.pendingSocialId = id;
             this.pendingSocialDeadline = DateTimeOffset.UtcNow + this.config.EffectiveDshStartupTimeout();
             Game1.addHUDMessage(new HUDMessage(this.T("chat.starting")));
             this.Monitor.Log("Player2 queued the chat message while the native DSH bundle finishes loading.", LogLevel.Info);
             return true;
         }
-        this.PublishSocialMessage(message);
+        this.PublishSocialTurn(message, id, occasion: null);
         return true;
+    }
+
+    /// <summary>Starts one explicit movement command now (P2-0015 T0.2) and arms its latency trace.</summary>
+    private void StartMovementCommand(string command, DateTimeOffset submittedAt)
+    {
+        var key = Guid.NewGuid().ToString("N");
+        this.movementTraceId = $"command:{key}";
+        this.movementLatencyKey = key;
+        this.TraceLatency("command", key, "key-enter", submittedAt, command);
+        if (!ReceiptRenderer.Command(command, CompanionAppearanceStore.Load(Game1.player, this.Monitor), this.Monitor))
+            this.OnMovementReported("failed", "path-blocked");
+    }
+
+    /// <summary>Receipt-backed social memory; a damaged receipt is counted, never blocks the chat.</summary>
+    private SocialMemoryContext LoadSocialMemory(string sessionRoot, int currentDay)
+    {
+        try
+        {
+            var memory = SocialMemory.Load(sessionRoot, this.ReadState<SharedOutcome>(Game1.player, Player2Rules.LastSharedOutcomeStateKey), currentDay);
+            if (memory.SkippedReceipts > 0)
+            {
+                this.Monitor.Log($"Player2 skipped {memory.SkippedReceipts} unreadable receipt file(s) while building chat memory.", LogLevel.Warn);
+                this.AppendDevelopmentLog("SOCIAL_MEMORY_RECEIPTS_SKIPPED", $"{memory.SkippedReceipts} receipt file(s) were unreadable and skipped.", "memory");
+            }
+            return memory;
+        }
+        catch (Exception ex)
+        {
+            this.Monitor.Log($"Player2 sent the chat turn without memory because the receipts could not be listed: {ex.Message}", LogLevel.Warn);
+            return SocialMemoryContext.Empty;
+        }
+    }
+
+    /// <summary>
+    /// Applies the growth proposals DSH left since the last day (decision reflect
+    /// and day-end dream) and caches the asset every envelope carries. A refused
+    /// proposal is a traced development error and stays on disk as evidence.
+    /// </summary>
+    private void RefreshCompanionGrowth(CompanionChoice companion)
+    {
+        try
+        {
+            var intake = CompanionGrowthIntake.ConsumePendingAsync(this.SessionBridgeRoot(companion)).GetAwaiter().GetResult();
+            this.growthAsset = intake.Asset;
+            foreach (var error in intake.Errors)
+            {
+                this.Monitor.Log($"Player2 refused a growth proposal: {error}", LogLevel.Warn);
+                this.AppendDevelopmentLog("GROWTH_PROPOSAL_REFUSED", error, "growth");
+            }
+            if (intake.Applied > 0)
+            {
+                this.Monitor.Log($"Player2 applied {intake.Applied} growth proposal(s); growth revision is now {intake.Asset?.Revision ?? 0}.", LogLevel.Info);
+            }
+        }
+        catch (Exception ex)
+        {
+            this.growthAsset = null;
+            this.Monitor.Log($"Player2 could not read the companion growth asset: {ex.Message}", LogLevel.Error);
+            this.AppendDevelopmentLog("GROWTH_ASSET_UNREADABLE", ex.Message, "growth");
+        }
+    }
+
+    /// <summary>Asks DSH to pre-compose this session's social lane (graded readiness, P2-0015 T0.4).</summary>
+    private void RequestMouthWarmup(CompanionChoice companion)
+    {
+        try
+        {
+            var sessionRoot = this.SessionBridgeRoot(companion);
+            var request = MouthReadiness.WriteWarmupRequest(
+                sessionRoot,
+                new BridgeCompanionIdentity(companion.Name, companion.Role, ToBridgeSoul(companion)),
+                DecisionBridgeRules.TimestampNow());
+            this.mouthWarmupSession = sessionRoot;
+            this.mouthWarmupRequestedAt = request.RequestedAt;
+            this.mouthReadinessCountdown = 0;
+            this.TraceLatency("readiness", this.SessionLatencyKey(companion), "mouth-requested");
+        }
+        catch (Exception ex)
+        {
+            this.Monitor.Log($"Player2 could not request a DSH warm-up: {ex.Message}", LogLevel.Warn);
+        }
+    }
+
+    /// <summary>Logs bundle and mouth readiness once each; readiness is evidence, the heartbeat stays the gate.</summary>
+    private void PollGradedReadiness()
+    {
+        if (!this.bundleReadyTraced && this.supervisor.IsReady)
+        {
+            this.bundleReadyTraced = true;
+            this.TraceLatency("readiness", "bundle", "bundle-ready");
+        }
+        if (this.mouthWarmupSession is null || this.mouthWarmupRequestedAt is null)
+        {
+            return;
+        }
+        if (this.mouthReadinessCountdown-- > 0)
+        {
+            return;
+        }
+        this.mouthReadinessCountdown = Math.Clamp(this.config.PollIntervalTicks, 1, 600);
+        if (MouthReadiness.TryReadReady(this.mouthWarmupSession, this.mouthWarmupRequestedAt) is { } marker)
+        {
+            this.Monitor.Log($"Player2 companion mouth lane is ready ({marker.Mode}, composed in {marker.ComposeMs:0} ms).", LogLevel.Info);
+            this.TraceLatency("readiness", this.ResolveCompanionChoice() is { } companion ? this.SessionLatencyKey(companion) : "session", "mouth-ready-seen", null, marker.Mode);
+            this.mouthWarmupSession = null;
+            this.mouthWarmupRequestedAt = null;
+        }
+    }
+
+    private string SessionLatencyKey(CompanionChoice companion)
+    {
+        return $"{companion.Name}/{DecisionBridgeLayout.SaveId(Game1.uniqueIDForThisGame)}";
+    }
+
+    /// <summary>
+    /// The day's first line (P2-0015 T0.4): one tool-free social turn opened by
+    /// the game itself, published as soon as the bundle is alive and in
+    /// parallel with the consent proposal. A DSH failure is a traced error;
+    /// nothing local is ever shown in its place.
+    /// </summary>
+    private void TryPublishDayGreeting()
+    {
+        if (this.pendingGreetingId is null || this.pendingGreetingCompanion is null || !this.supervisor.IsReady || this.IsSocialTurnPending())
+        {
+            return;
+        }
+        var id = this.pendingGreetingId;
+        this.pendingGreetingId = null;
+        this.pendingGreetingCompanion = null;
+        this.PublishSocialTurn(SocialBridgeHost.DayStartMessage, id, SocialBridgeHost.DayStartOccasion);
+    }
+
+    /// <summary>Same-clock latency stage (P2-0015 T0.1); diagnostics never break the game flow.</summary>
+    private void TraceLatency(string lane, string key, string stage, DateTimeOffset? at = null, string? detail = null)
+    {
+        if (string.IsNullOrWhiteSpace(this.config.DecisionBridgeDirectory))
+        {
+            return;
+        }
+        try
+        {
+            LatencyTrace.Append(this.config.DecisionBridgeDirectory, lane, key, stage, at ?? DateTimeOffset.UtcNow, detail);
+        }
+        catch (Exception ex)
+        {
+            this.Monitor.Log($"Player2 could not append latency trace {lane}/{stage}: {ex.Message}", LogLevel.Trace);
+        }
     }
 
     private bool IsSocialTurnPending()
@@ -419,8 +611,13 @@ internal sealed class ModEntry : Mod
         return this.socialBridgeHost is not null || this.pendingSocialMessage is not null;
     }
 
-    /// <summary>Publishes a message only after the DSH bundle heartbeat is fresh.</summary>
-    private void PublishSocialMessage(string message)
+    /// <summary>
+    /// Publishes a social turn only after the DSH bundle heartbeat is fresh. A
+    /// chat turn carries the player's message; a day-start turn (occasion
+    /// <c>day-start</c>) carries only the fixed marker. Both carry the
+    /// receipt-backed memory and growth asset (P2-0015 T0.3).
+    /// </summary>
+    private void PublishSocialTurn(string message, string id, string? occasion)
     {
         if (string.IsNullOrWhiteSpace(this.config.DecisionBridgeDirectory))
         {
@@ -434,9 +631,10 @@ internal sealed class ModEntry : Mod
             return;
         }
         var snapshot = WorldSnapshotBuilder.Capture();
-        var id = Guid.NewGuid().ToString();
         var now = DecisionBridgeRules.TimestampNow();
         var self = snapshot.Self ?? throw new InvalidOperationException("World snapshot was missing the farmer facts required for a social turn.");
+        var sessionRoot = this.SessionBridgeRoot(companion);
+        var memory = this.LoadSocialMemory(sessionRoot, snapshot.Day);
         var actor = ReceiptRenderer.ActiveCompanion;
         var presentHere = actor?.currentLocation == Game1.currentLocation;
         var companionFacts = new NativeCompanionFacts(presentHere, actor?.currentLocation?.NameOrUniqueName,
@@ -455,12 +653,19 @@ internal sealed class ModEntry : Mod
                     self.Items.Select(item => new NativeInventoryItemFact(item.Name, item.Count)).ToArray(),
                     self.InventoryTruncated)),
             },
-            null, null, new NativePlayerMessage($"message-{++this.socialTurnCounter}-{id}", message, now), CompanionMovement.ParseCommand(message));
+            memory.PriorMemory, memory.LatestReceipt, new NativePlayerMessage($"message-{++this.socialTurnCounter}-{id}", message, now),
+            occasion is null ? CompanionMovement.ParseCommand(message) : null, this.growthAsset, occasion);
         try
         {
-            this.socialBridgeHost = new SocialBridgeHost(this.SessionBridgeRoot(companion), Math.Min(6, this.config.PollIntervalTicks), this.config.EffectiveRequestTimeout());
+            this.socialBridgeHost = new SocialBridgeHost(sessionRoot, Math.Min(6, this.config.PollIntervalTicks), this.config.EffectiveRequestTimeout());
             this.socialBridgeHost.Start(turn);
-            this.Monitor.Log($"Player2 published native DSH social turn social:{id}.", LogLevel.Info);
+            this.socialLatencyLane = occasion is null ? "social" : "day-start";
+            this.socialLatencyKey = id;
+            this.socialPublishedTraced = false;
+            this.Monitor.Log(
+                $"Player2 published native DSH social turn social:{id}" + (occasion is null ? "" : $" ({occasion})")
+                + $"; memory {(memory.PriorMemory is null ? "none" : memory.PriorMemory.Id)}, growth revision {this.growthAsset?.Revision ?? 0}.",
+                LogLevel.Info);
         }
         catch (Exception ex)
         {
@@ -538,6 +743,11 @@ internal sealed class ModEntry : Mod
             this.ReportNativeDshFailure("DSH_NOT_CONFIGURED", "DecisionBridgeDirectory is empty; the day turn was not sent to native DSH.", null);
             return;
         }
+        this.RefreshCompanionGrowth(companion);
+        this.RequestMouthWarmup(companion);
+        this.pendingGreetingId = Guid.NewGuid().ToString();
+        this.pendingGreetingCompanion = companion;
+        this.TraceLatency("day-start", this.pendingGreetingId, "day-started");
         this.QueueCompanionDay(snapshot, companion);
     }
 
@@ -619,8 +829,10 @@ internal sealed class ModEntry : Mod
         }
         this.pendingSocialDeadline = null;
         var message = this.pendingSocialMessage;
+        var id = this.pendingSocialId ?? Guid.NewGuid().ToString();
         this.pendingSocialMessage = null;
-        this.PublishSocialMessage(message);
+        this.pendingSocialId = null;
+        this.PublishSocialTurn(message, id, occasion: null);
     }
 
     private void TryShowChatHint()
@@ -680,7 +892,8 @@ internal sealed class ModEntry : Mod
             targetTileX,
             targetTileY,
             yesterdayOutcome,
-            new BridgeCompanionIdentity(companion.Name, companion.Role, ToBridgeSoul(companion)));
+            new BridgeCompanionIdentity(companion.Name, companion.Role, ToBridgeSoul(companion)),
+            this.growthAsset);
         this.pendingBridgeRequest = null;
         this.pendingBridgeProposal = null;
         this.activeBridgeRequest = null;
@@ -699,6 +912,7 @@ internal sealed class ModEntry : Mod
             this.ReportNativeDshFailure("DSH_DECISION_BRIDGE_START_FAILED", ex.Message, $"decision:{sequence}");
             return;
         }
+        this.TraceLatency("decision", sequence.ToString(CultureInfo.InvariantCulture), "published");
         this.Monitor.Log(
             $"Player2 published decision sequence {sequence} asynchronously and is waiting for DSH without blocking the game.",
             LogLevel.Info);
@@ -817,6 +1031,8 @@ internal sealed class ModEntry : Mod
         this.TryShowPendingCompanionChoice();
         this.TryOpenCompanionCustomization();
         this.TryShowChatHint();
+        this.PollGradedReadiness();
+        this.TryPublishDayGreeting();
         this.TryBeginPendingCompanionDay();
         this.TryPublishPendingSocialMessage();
         this.UpdateSocialBridge();
@@ -847,6 +1063,7 @@ internal sealed class ModEntry : Mod
         }
         if (update.Request is not null && this.activeBridgeTurn is not null)
         {
+            this.TraceLatency("decision", this.activeBridgeTurn.Sequence.ToString(CultureInfo.InvariantCulture), "mod-picked");
             var validated = DecisionBridgeRules.ValidateRequest(this.activeBridgeTurn, update.Request);
             if (update.Request.Status == DecisionBridgeRules.AutonomousStatus)
             {
@@ -919,6 +1136,7 @@ internal sealed class ModEntry : Mod
             this.pendingBridgeRequest = null;
             this.pendingBridgeProposal = null;
             this.OpenProposalDialogue(this.activeProposal);
+            this.TraceLatency("decision", this.activeBridgeRequest.Sequence.ToString(CultureInfo.InvariantCulture), "rendered");
             return;
         }
     }
@@ -931,8 +1149,16 @@ internal sealed class ModEntry : Mod
             return;
         }
         var update = this.socialBridgeHost.Update();
+        var lane = this.socialLatencyLane ?? "social";
+        var key = this.socialLatencyKey ?? this.socialBridgeHost.Turn?.Id ?? "unknown";
+        if (!this.socialPublishedTraced && this.socialBridgeHost.PublishedAt is { } publishedAt)
+        {
+            this.socialPublishedTraced = true;
+            this.TraceLatency(lane, key, "published", publishedAt);
+        }
         if (update.Error is not null)
         {
+            this.TraceLatency(lane, key, "failed");
             this.ReportNativeDshFailure("DSH_SOCIAL_TURN_FAILED", update.Error.Message, update.TraceId);
             this.socialBridgeHost.Dispose();
             this.socialBridgeHost = null;
@@ -942,18 +1168,26 @@ internal sealed class ModEntry : Mod
         {
             return;
         }
-        var transcript = this.transcript ??= new ChatTranscript();
-        transcript.Append(this.ResolveCompanionName(), update.Result.Text ?? throw new InvalidOperationException("Native DSH social result was missing text."));
-        var completedTurn = this.socialBridgeHost.Turn;
-        if (completedTurn?.MovementCommand is { } command && command == CompanionMovement.ParseCommand(completedTurn.Message.Content))
+        if (this.socialBridgeHost.PickedAt is { } pickedAt)
         {
-            this.movementTraceId = update.TraceId;
-            if (!ReceiptRenderer.Command(command, CompanionAppearanceStore.Load(Game1.player, this.Monitor), this.Monitor))
-                this.OnMovementReported("failed", "path-blocked");
+            this.TraceLatency(lane, key, "mod-picked", pickedAt);
+        }
+        var text = update.Result.Text ?? throw new InvalidOperationException("Native DSH social result was missing text.");
+        var transcript = this.transcript ??= new ChatTranscript();
+        transcript.Append(this.ResolveCompanionName(), text);
+        var completedTurn = this.socialBridgeHost.Turn;
+        if (completedTurn?.Occasion == SocialBridgeHost.DayStartOccasion)
+        {
+            // The day's first line is spoken in the world, not only in the chat log.
+            if (ReceiptRenderer.ActiveCompanion is { } actor && actor.currentLocation == Game1.currentLocation)
+                actor.showTextAboveHead(text);
+            else
+                Game1.addHUDMessage(new HUDMessage($"{this.ResolveCompanionName()}: {text}"));
         }
         CompanionTranscriptStore.Save(this.Helper, transcript, this.Monitor);
-        this.Monitor.Log($"Player2 presented native DSH social result {update.TraceId}; session {update.Result.SessionId}.", LogLevel.Info);
-        this.AppendDevelopmentLog("DSH_SOCIAL_TURN_COMPLETED", "Native DSH social response presented.", update.TraceId ?? throw new InvalidOperationException("Native DSH social result was missing trace id."));
+        this.TraceLatency(lane, key, "rendered");
+        this.Monitor.Log($"Player2 presented native DSH social result {update.TraceId}{(completedTurn?.Occasion is { } occasion ? $" ({occasion})" : "")}; session {update.Result.SessionId}.", LogLevel.Info);
+        this.AppendDevelopmentLog("DSH_SOCIAL_TURN_COMPLETED", completedTurn?.Occasion is null ? "Native DSH social response presented." : "Native DSH day-start line presented.", update.TraceId ?? throw new InvalidOperationException("Native DSH social result was missing trace id."));
         this.socialBridgeHost.Dispose();
         this.socialBridgeHost = null;
     }
@@ -1008,6 +1242,15 @@ internal sealed class ModEntry : Mod
         this.socialBridgeHost = null;
         ReceiptRenderer.ClearPresence();
         this.movementTraceId = null;
+        this.movementLatencyKey = null;
+        this.pendingSocialId = null;
+        this.pendingGreetingId = null;
+        this.pendingGreetingCompanion = null;
+        this.growthAsset = null;
+        this.mouthWarmupSession = null;
+        this.mouthWarmupRequestedAt = null;
+        this.socialLatencyLane = null;
+        this.socialLatencyKey = null;
     }
 
     private void OnProcessExit(object? sender, EventArgs e)

@@ -269,8 +269,26 @@ export const socialBridgeTurnSchema = z.object({
   priorMemory: sharedOutcomeMemorySchema.nullable(),
   latestReceipt: receiptSchema.nullable(),
   message: playerMessageSchema,
+  /**
+   * P2-0015: the applied growth asset travels with every chat turn so the
+   * conversation speaks from the same self-knowledge as the decision lane.
+   * History, never a current fact; absent from turns written before W0.
+   */
+  growth: companionGrowthSchema.nullable().optional(),
+  /**
+   * `day-start` marks the turn the game opens itself when a day begins: the
+   * player has not spoken, and the message content is a fixed marker, never
+   * player speech. Absent means an ordinary player chat turn.
+   */
+  occasion: z.enum(["day-start"]).nullable().optional(),
 });
 export type SocialBridgeTurn = z.infer<typeof socialBridgeTurnSchema>;
+
+/** Fixed message content of a day-start social turn; never shown as player speech. */
+export const dayStartSocialMessage = "[day-start]" as const;
+
+/** Upper bound of the memory note a fast social turn carries (P2-0015 T0.3). */
+export const socialMemoryNoteLimit = 600;
 
 /** Only a completed DSH run may write a player-visible social response. */
 export const socialBridgeResultSchema = z.discriminatedUnion("status", [
