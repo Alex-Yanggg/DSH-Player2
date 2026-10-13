@@ -65,10 +65,12 @@ export interface TemperamentState {
   /** Per-turn sets of sequences observed and proposed through the guard. */
   readonly observed: Map<number, Set<number>>;
   readonly proposed: Map<number, Set<number>>;
+  /** Text of the latest committed assistant message, fed by the session event stream. */
+  lastAssistantText: string | null;
 }
 
 export function createTemperamentState(): TemperamentState {
-  return { currentTurn: -1, attendedTurns: new Map(), stopReflections: new Map(), observed: new Map(), proposed: new Map() };
+  return { currentTurn: -1, attendedTurns: new Map(), stopReflections: new Map(), observed: new Map(), proposed: new Map(), lastAssistantText: null };
 }
 
 /** Extracts the text of one model-facing message defensively. */
@@ -289,15 +291,12 @@ function attentionMessage(text: string): UserMessage {
   return createUserMessage({ content: [{ type: "text", text }], source: { kind: "user" } });
 }
 
-function lastAssistantText(events: readonly { type: string; data: unknown }[]): string | null {
-  let text: string | null = null;
-  for (const event of events) {
-    if (event.type !== "assistant/message") continue;
-    const content = (event.data as { message?: { content?: { type: string; text?: string }[] } }).message?.content ?? [];
-    const candidate = content.filter((block) => block.type === "text").map((block) => block.text ?? "").join("");
-    if (candidate !== "") text = candidate;
-  }
-  return text;
+/** The non-empty text of one committed assistant message event, or null. */
+function assistantEventText(event: { type: string; data: unknown }): string | null {
+  if (event.type !== "assistant/message") return null;
+  const content = (event.data as { message?: { content?: readonly { type: string; text?: string }[] } }).message?.content ?? [];
+  const text = content.filter((block) => block.type === "text").map((block) => block.text ?? "").join("");
+  return text === "" ? null : text;
 }
 
 /**
@@ -355,7 +354,12 @@ export function createTemperamentHandlers(deps: TemperamentDeps, state = createT
         // Bookkeeping only; never let it break dispatch.
       }
     },
-    async turnStopping(payload: { turn: number; agent: { steer(message: UserMessage): void; session: { events: readonly { type: string; data: unknown }[] } } }): Promise<void> {
+    /** Tracks the latest assistant text; DSH 0.2 exposes the log as a feed, not a synchronous array. */
+    recordSessionEvent(event: { type: string; data: unknown }): void {
+      const text = assistantEventText(event);
+      if (text !== null) state.lastAssistantText = text;
+    },
+    async turnStopping(payload: { turn: number; agent: { steer(message: UserMessage): void } }): Promise<void> {
       try {
         const reference = state.attendedTurns.get(payload.turn);
         if (reference === undefined) return;
@@ -367,7 +371,7 @@ export function createTemperamentHandlers(deps: TemperamentDeps, state = createT
           payload.agent.steer(attentionMessage(decisionStopReflection(reference.sequence)));
           return;
         }
-        const text = lastAssistantText(payload.agent.session.events);
+        const text = state.lastAssistantText;
         if (text === null) return;
         let parsed: unknown = null;
         try {

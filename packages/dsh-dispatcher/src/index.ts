@@ -1,6 +1,8 @@
 /**
- * Harness-native auto-dispatch for the Player2 companion: watches the Player
- * file bridge and wakes one dedicated DSH session per decision turn.
+ * Keyless bridge watcher used by the Player2 replays: it scans the Player file
+ * bridge and hands each decision turn to an injected runner. Production turns
+ * are drained by @dsh-player2/dsh-host-plugin inside DSH; this package has no
+ * DSH dependency.
  *
  * @module @dsh-player2/dsh-dispatcher
  */
@@ -13,10 +15,8 @@ export {
 } from "./dispatcher.js";
 export { BridgeLock } from "./bridge-lock.js";
 export {
-  DshSessionDecisionRunner,
   RequestNotWrittenError,
   readBridgeRequest,
   verifyRequestWritten,
-  type DshSessionDecisionRunnerOptions,
   type DecisionTurnRunner,
 } from "./decision-runner.js";

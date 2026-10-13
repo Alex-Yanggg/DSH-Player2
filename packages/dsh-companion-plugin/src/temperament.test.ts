@@ -195,7 +195,7 @@ describe("temperament turn-stopping", () => {
     state.currentTurn = 1;
     state.attendedTurns.set(1, { lane: "decision", sequence: 7 });
     const steer = vi.fn();
-    await turnStopping({ turn: 1, agent: { steer, session: { events: [] } } });
+    await turnStopping({ turn: 1, agent: { steer } });
     expect(steer).toHaveBeenCalledOnce();
     expect(steer.mock.calls[0]?.[0]).toMatchObject({ role: "user" });
     expect(JSON.stringify(steer.mock.calls[0]?.[0])).toContain(decisionStopReflection(7).slice(0, 40));
@@ -209,7 +209,7 @@ describe("temperament turn-stopping", () => {
     state.currentTurn = 1;
     state.attendedTurns.set(1, { lane: "decision", sequence: 7 });
     const steer = vi.fn();
-    await turnStopping({ turn: 1, agent: { steer, session: { events: [] } } });
+    await turnStopping({ turn: 1, agent: { steer } });
     expect(steer).not.toHaveBeenCalled();
   });
 
@@ -219,7 +219,7 @@ describe("temperament turn-stopping", () => {
     state.currentTurn = 1;
     state.attendedTurns.set(1, { lane: "decision", sequence: 7 });
     const steer = vi.fn();
-    const agent = { steer, session: { events: [] } };
+    const agent = { steer };
     for (let attempt = 0; attempt < MAX_STOP_REFLECTIONS + 2; attempt++) {
       await turnStopping({ turn: 1, agent });
     }
@@ -228,7 +228,7 @@ describe("temperament turn-stopping", () => {
 
   it("steers a social turn whose final message is not the structured response", async () => {
     const root = await makeRoot();
-    const { turnStopping, state } = createTemperamentHandlers({ mode: "social", bridgeDirectory: root });
+    const { turnStopping, recordSessionEvent, state } = createTemperamentHandlers({ mode: "social", bridgeDirectory: root });
     state.currentTurn = 1;
     state.attendedTurns.set(1, {
       lane: "social",
@@ -245,13 +245,41 @@ describe("temperament turn-stopping", () => {
         message: { id: "m", content: "hi", createdAt: "2026-08-30T00:00:00.000Z" },
       },
     });
-    const events = [{
+    recordSessionEvent({
       type: "assistant/message",
       data: { message: { content: [{ type: "text", text: "I feel like chatting, the weather is nice!" }] } },
-    }];
+    });
     const steer = vi.fn();
-    await turnStopping({ turn: 1, agent: { steer, session: { events } } });
+    await turnStopping({ turn: 1, agent: { steer } });
     expect(steer).toHaveBeenCalledOnce();
     expect(JSON.stringify(steer.mock.calls[0]?.[0])).toContain(socialStopReflection().slice(0, 40));
+  });
+
+  it("does not steer a social turn whose latest assistant message is the structured response", async () => {
+    const root = await makeRoot();
+    const { turnStopping, recordSessionEvent, state } = createTemperamentHandlers({ mode: "social", bridgeDirectory: root });
+    state.currentTurn = 1;
+    state.attendedTurns.set(1, {
+      lane: "social",
+      envelope: {
+        version: "0.0.9",
+        id: "f4e3c2b1-aaaa-4bbb-8ccc-1234567890ab",
+        createdAt: "2026-08-30T00:00:00.000Z",
+        gameDay: 2,
+        companion: { name: "Mira", role: "farm partner", soul: testSoul },
+        adapter: { id: "a", gameId: "g", accessMode: "semantic", capabilities: [] },
+        observations: [],
+        priorMemory: null,
+        latestReceipt: null,
+        message: { id: "m", content: "hi", createdAt: "2026-08-30T00:00:00.000Z" },
+      },
+    });
+    const response = { kind: "uncertain", text: "I can't tell yet.", basedOnObservationIds: [], basedOnMemoryId: null, rememberLatestReceipt: false, memorySummary: null };
+    recordSessionEvent({ type: "assistant/message", data: { message: { content: [{ type: "text", text: "draft" }] } } });
+    recordSessionEvent({ type: "tool/call", data: { name: "skill" } });
+    recordSessionEvent({ type: "assistant/message", data: { message: { content: [{ type: "text", text: JSON.stringify(response) }] } } });
+    const steer = vi.fn();
+    await turnStopping({ turn: 1, agent: { steer } });
+    expect(steer).not.toHaveBeenCalled();
   });
 });

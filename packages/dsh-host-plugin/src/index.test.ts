@@ -5,12 +5,16 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import type { Context } from "@deepseek-ai/cordis";
 import type { CompanionIdentity } from "@dsh-player2/contracts";
+import type { SessionEvent } from "@deepseek-ai/dsh-session";
+import type { SpineEvent } from "@dsh-player2/dsh-companion-plugin";
+import { persistenceSpineStore } from "./dream.js";
 import {
-  companionPresetComposition,
+  companionPresetDefinition,
   companionPresetId,
   Config,
   ensureCompanionPreset,
   inject,
+  LaneTranscript,
   listSessionDirectories,
   name,
   Player2DshHost,
@@ -148,46 +152,122 @@ describe("Player2 DSH host bundle", () => {
     expect(companionPresetId(MIRA)).toMatch(/^player2-mira-[0-9a-f]{12}$/);
     expect(companionPresetId({ ...MIRA, role: "a changed role" })).not.toBe(companionPresetId(MIRA));
 
-    const composition = companionPresetComposition(MIRA);
-    expect(composition).toContain("name: '@deepseek-ai/dsh-persona'");
-    expect(composition).toContain("You are Mira, the player's candid farm partner.");
-    expect(composition).toContain("Hard boundaries: never invent a shared memory");
-    expect(composition).not.toContain("dsh-tool-");
+    const definition = companionPresetDefinition(MIRA);
+    expect(definition.id).toBe(companionPresetId(MIRA));
+    expect(definition.name).toBe("Mira");
+    expect(definition.plugins).toHaveLength(1);
+    const [persona] = definition.plugins;
+    expect(persona?.name).toBe("@deepseek-ai/dsh-persona");
+    const prefix = (persona?.config as { prefix: string }).prefix;
+    expect(prefix).toContain("You are Mira, the player's candid farm partner.");
+    expect(prefix).toContain("Hard boundaries: never invent a shared memory");
+    expect(JSON.stringify(definition)).not.toContain("dsh-tool-");
   });
 
-  it("materializes once through the DSH roster and rejects a conflicting preset", async () => {
-    const root = await mkdtemp(join(tmpdir(), "player2-persona-preset-"));
-    const presets = new Map<string, { id: string; path: string }>();
-    let copies = 0;
-    const agentPresets = {
-      list: async () => [...presets.values()],
-      read: async (id: string) => readFile(presets.get(id)!.path, "utf8"),
-      copy: async (_from: string, id: string) => {
-        copies++;
-        const directory = join(root, id);
-        await mkdir(directory, { recursive: true });
-        const path = join(directory, "agent.cordis.yml");
-        await writeFile(path, "copied\n");
-        presets.set(id, { id, path });
+  it("declares once through the DSH preset registry and retires on dispose", async () => {
+    const declared = new Map<string, { id: string; broken?: string }>();
+    const register = vi.fn(async (definition: { id: string }) => {
+      declared.set(definition.id, { id: definition.id });
+      return async () => { declared.delete(definition.id); };
+    });
+    const ctx = { agentPresets: {
+      list: async () => [...declared.values()],
+      register,
+      resolve: async (id: string) => declared.get(id)!,
+    } } as unknown as Context;
+
+    const registration = await ensureCompanionPreset(ctx, MIRA);
+    expect(registration.id).toBe(companionPresetId(MIRA));
+    expect(register).toHaveBeenCalledWith(companionPresetDefinition(MIRA));
+
+    // A second declaration of the same content-addressed id is refused rather
+    // than letting a stranger's composition wear this person's identity.
+    await expect(ensureCompanionPreset(ctx, MIRA)).rejects.toThrow("already declared");
+    expect(register).toHaveBeenCalledTimes(1);
+
+    await registration.dispose();
+    expect(declared.size).toBe(0);
+  });
+
+  it("retires a preset whose persona composition fails to activate", async () => {
+    const declared = new Map<string, { id: string; broken?: string }>();
+    const ctx = { agentPresets: {
+      list: async () => [...declared.values()],
+      register: async (definition: { id: string }) => {
+        declared.set(definition.id, { id: definition.id, broken: "missing service systemPrompt" });
+        return async () => { declared.delete(definition.id); };
       },
-      resolve: async (id: string) => presets.get(id)!,
+      resolve: async (id: string) => declared.get(id)!,
+    } } as unknown as Context;
+
+    await expect(ensureCompanionPreset(ctx, MIRA)).rejects.toThrow("failed to activate: missing service systemPrompt");
+    expect(declared.size).toBe(0);
+  });
+
+  it("collects exactly one armed turn from the session event feed", () => {
+    const transcript = new LaneTranscript();
+    const event = (seq: number, type: string) => ({ seq, type, data: {} }) as unknown as SessionEvent;
+    transcript.record(event(0, "turn/start"));
+    transcript.begin();
+    transcript.record(event(1, "assistant/message"));
+    transcript.record(event(2, "turn/end"));
+    expect(transcript.take().map((item) => item.seq)).toEqual([1, 2]);
+    transcript.record(event(3, "turn/start"));
+    expect(transcript.take()).toEqual([]);
+  });
+});
+
+describe("persistence spine store", () => {
+  function fakePersistence() {
+    const logs = new Map<string, SessionEvent[]>();
+    const calls: string[] = [];
+    const handle = (id: string) => ({
+      read: async (offset = 0) => ({ eventState: "detached", events: (logs.get(id) ?? []).slice(offset) }),
+      append: async (events: SessionEvent[]) => {
+        const log = logs.get(id)!;
+        if (events[0]?.seq !== log.length) throw new Error("not contiguous");
+        log.push(...events);
+      },
+      flush: async () => { calls.push(`flush:${id}`); },
+      close: async () => { calls.push(`close:${id}`); },
+    });
+    const sessionPersistence = {
+      stat: async (id: string) => (logs.has(id) ? { header: { id } } : undefined),
+      create: async (header: { id: string; isSeeded: boolean }) => {
+        calls.push(`create:${header.id}:${String(header.isSeeded)}`);
+        logs.set(header.id, []);
+        return handle(header.id);
+      },
+      open: async (id: string, access: string) => { calls.push(`open:${id}:${access}`); return handle(id); },
     };
-    const ctx = { agentPresets } as unknown as Context;
-    try {
-      const id = await ensureCompanionPreset(ctx, MIRA);
-      expect(copies).toBe(1);
-      expect(await readFile(join(root, id, "agent.cordis.yml"), "utf8"))
-        .toBe(companionPresetComposition(MIRA));
-      expect(await readFile(join(root, id, "preset.yml"), "utf8"))
-        .toContain('name: "Mira"');
+    return { ctx: { sessionPersistence } as unknown as Context, logs, calls };
+  }
 
-      await expect(ensureCompanionPreset(ctx, MIRA)).resolves.toBe(id);
-      expect(copies).toBe(1);
+  it("creates a missing spine once, then reads and durably appends through its write handle", async () => {
+    const { ctx, logs, calls } = fakePersistence();
+    const store = persistenceSpineStore(ctx);
+    await store.open("spine-a");
+    await store.open("spine-a");
+    expect(calls).toEqual(["create:spine-a:false"]);
 
-      await writeFile(join(root, id, "agent.cordis.yml"), "conflict\n");
-      await expect(ensureCompanionPreset(ctx, MIRA)).rejects.toThrow("conflicts");
-    } finally {
-      await rm(root, { recursive: true, force: true });
-    }
+    const receipt = { type: "companion/receipt-observed", seq: 0, time: 1, ignorable: true, data: {
+      sequence: 4, proposalId: "p", capabilityId: "mark-target", status: "completed", occurredAt: "2026-10-13T00:00:00.000Z",
+    } } as unknown as SpineEvent;
+    await store.append("spine-a", [receipt]);
+    expect(calls).toContain("flush:spine-a");
+    logs.get("spine-a")!.push({ type: "turn/start", seq: 1, time: 2, data: {} } as unknown as SessionEvent);
+    expect((await store.readFrom("spine-a", 0)).map((event) => event.type)).toEqual(["companion/receipt-observed"]);
+
+    await store.close();
+    expect(calls).toContain("close:spine-a");
+  });
+
+  it("reopens an existing spine for write instead of recreating it", async () => {
+    const { ctx, logs, calls } = fakePersistence();
+    logs.set("spine-b", []);
+    const store = persistenceSpineStore(ctx);
+    await store.readFrom("spine-b", 0);
+    expect(calls).toEqual(["open:spine-b:write"]);
+    await store.close();
   });
 });

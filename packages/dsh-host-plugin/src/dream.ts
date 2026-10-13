@@ -6,7 +6,8 @@
 import { createHash } from "node:crypto";
 import { join, sep } from "node:path";
 import type { Context } from "@deepseek-ai/cordis";
-import { SESSION_FORMAT_VERSION, SessionId } from "@deepseek-ai/dsh-session";
+import { SESSION_FORMAT_VERSION, SessionId, type SessionHeader } from "@deepseek-ai/dsh-session";
+import type { SessionHandle } from "@deepseek-ai/dsh-session-persistence";
 import type {
   DreamDraftInput,
   RelationshipState,
@@ -22,33 +23,58 @@ export function spineIdOf(root: string, session: string, presetId: string): stri
   return `player2-spine-${digest}`;
 }
 
+/** A spine store that owns one persistence write handle per opened spine. */
+export interface PersistenceSpineStore extends SpineStore {
+  /** Create the spine session when absent, then take its write ownership. */
+  open(id: string): Promise<void>;
+  /** Release every write handle; pending appends drain durably. */
+  close(): Promise<void>;
+}
+
 /**
- * The spine store over the app's session persistence service. The host
- * registers the spine header itself (`create` is a no-op here); a spine that
- * was registered but never appended to has no stored artifact yet, and an
- * empty log is the correct projection input for exactly that case.
+ * The spine store over the app's session persistence service. DSH 0.2 reads
+ * and writes through per-session handles, so the store keeps the single write
+ * handle of each spine it opened and serves both reads and appends from it.
  */
-export function persistenceSpineStore(ctx: Context): SpineStore {
+export function persistenceSpineStore(ctx: Context): PersistenceSpineStore {
+  const handles = new Map<string, Promise<SessionHandle>>();
+  const handleOf = (id: string): Promise<SessionHandle> => {
+    let handle = handles.get(id);
+    if (handle === undefined) {
+      handle = (async () => {
+        const sessionId = SessionId(id);
+        return await ctx.sessionPersistence.stat(sessionId) === undefined
+          ? ctx.sessionPersistence.create(spineHeader(id))
+          : ctx.sessionPersistence.open(sessionId, "write");
+      })();
+      handles.set(id, handle);
+      void handle.catch(() => handles.delete(id));
+    }
+    return handle;
+  };
   return {
     create: async () => undefined,
+    open: async (id) => { await handleOf(id); },
     readFrom: async (id, fromSeq) => {
-      try {
-        const { events } = await ctx.sessionPersistence.readFrom(SessionId(id), fromSeq);
-        return events.filter((event): event is SpineEvent => event.type.startsWith("companion/"));
-      } catch (error) {
-        if (messageOf(error).includes("not found")) return [];
-        throw error;
-      }
+      const { events } = await (await handleOf(id)).read(fromSeq);
+      return events.filter((event): event is SpineEvent => event.type.startsWith("companion/"));
     },
     append: async (id, events) => {
-      await ctx.sessionPersistence.append(SessionId(id), events);
+      const handle = await handleOf(id);
+      await handle.append(events);
+      await handle.flush();
+    },
+    close: async () => {
+      const open = [...handles.values()];
+      handles.clear();
+      await Promise.allSettled(open.map(async (handle) => (await handle).close()));
     },
   };
 }
 
 /** The detached persistence header for one spine session. */
-export function spineHeader(id: string): { version: number; id: ReturnType<typeof SessionId>; createdAt: number; cwd?: string } {
-  return { version: SESSION_FORMAT_VERSION, id: SessionId(id), createdAt: Date.now() };
+export function spineHeader(id: string): SessionHeader {
+  return { version: SESSION_FORMAT_VERSION, id: SessionId(id), createdAt: Date.now(), isSeeded: false };
 }
 
 /**
@@ -101,10 +127,6 @@ export function dreamOutcomeOf(text: string): DreamDraftInput {
     throw new Error("The dream focus must be a string or null.");
   }
   return { kind: "growth", insights, focus };
-}
-
-function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }
 
 /** Runtime state path for one spine's watermark file. */

@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Context } from "@deepseek-ai/cordis";
-import { CallId } from "@deepseek-ai/dsh-llm";
+import { ToolCallId } from "@deepseek-ai/dsh-llm";
 import SkillRegistry from "@deepseek-ai/dsh-skill";
 import SystemPrompt, { renderPrompt } from "@deepseek-ai/dsh-system-prompt";
 import ToolRuntime, { defineTool } from "@deepseek-ai/dsh-tools";
@@ -86,7 +86,7 @@ describe("Player DSH companion composition", () => {
     const execute = vi.fn(async () => "loaded");
     ctx.tools.register(defineTool({ name: "skill", description: "load", parameters: {},
       output: { schema: { type: "string" }, render: (_args, value) => [{ type: "text", text: value }] }, execute }));
-    const result = await ctx.tools.execute({ callId: CallId("fast-skill"), name: "skill", arguments: {}, signal: new AbortController().signal });
+    const result = await ctx.tools.execute({ callId: ToolCallId("fast-skill"), name: "skill", arguments: {}, signal: new AbortController().signal });
     expect(result.isError).toBe(true);
     expect(execute).not.toHaveBeenCalled();
   });
@@ -163,8 +163,8 @@ describe("Player DSH companion composition", () => {
     }));
 
     const signal = new AbortController().signal;
-    const allowed = await ctx.tools.execute({ callId: CallId("call-skill"), name: "skill", arguments: {}, signal });
-    const denied = await ctx.tools.execute({ callId: CallId("call-bash"), name: "bash", arguments: {}, signal });
+    const allowed = await ctx.tools.execute({ callId: ToolCallId("call-skill"), name: "skill", arguments: {}, signal });
+    const denied = await ctx.tools.execute({ callId: ToolCallId("call-bash"), name: "bash", arguments: {}, signal });
 
     expect(allowed.isError, JSON.stringify(allowed)).toBe(false);
     expect(executeSkill).toHaveBeenCalledOnce();
@@ -194,7 +194,7 @@ describe("Player DSH companion composition", () => {
 
     const signal = new AbortController().signal;
     const observed = await ctx.tools.execute({
-      callId: CallId("call-observe"),
+      callId: ToolCallId("call-observe"),
       name: companionPlugin.DECISION_TOOL_NAMES.observe,
       arguments: { sequence: 1 },
       signal,
@@ -202,7 +202,7 @@ describe("Player DSH companion composition", () => {
     expect(observed.isError, JSON.stringify(observed)).toBe(false);
     expect(JSON.stringify(observed.content)).toContain("The player chose Mira (the player's candid farm partner)");
     const proposed = await ctx.tools.execute({
-      callId: CallId("call-propose"),
+      callId: ToolCallId("call-propose"),
       name: companionPlugin.DECISION_TOOL_NAMES.propose,
       arguments: {
         sequence: 1,
@@ -216,12 +216,12 @@ describe("Player DSH companion composition", () => {
       signal,
     });
     const requested = await ctx.tools.execute({
-      callId: CallId("call-request"),
+      callId: ToolCallId("call-request"),
       name: companionPlugin.DECISION_TOOL_NAMES.requestAction,
       arguments: { sequence: 1, proposalId: "turn-1:proposal" },
       signal,
     });
-    const denied = await ctx.tools.execute({ callId: CallId("call-bash-decision"), name: "bash", arguments: {}, signal });
+    const denied = await ctx.tools.execute({ callId: ToolCallId("call-bash-decision"), name: "bash", arguments: {}, signal });
 
     expect(observed.isError, JSON.stringify(observed)).toBe(false);
     expect(proposed.isError, JSON.stringify(proposed)).toBe(false);
@@ -247,13 +247,13 @@ describe("Player DSH companion composition", () => {
 
     const signal = new AbortController().signal;
     await ctx.tools.execute({
-      callId: CallId("full-observe"),
+      callId: ToolCallId("full-observe"),
       name: companionPlugin.DECISION_TOOL_NAMES.observe,
       arguments: { sequence: 1 },
       signal,
     });
     await ctx.tools.execute({
-      callId: CallId("full-propose"),
+      callId: ToolCallId("full-propose"),
       name: companionPlugin.DECISION_TOOL_NAMES.propose,
       arguments: {
         sequence: 1,
@@ -267,7 +267,7 @@ describe("Player DSH companion composition", () => {
       signal,
     });
     const ordered = await ctx.tools.execute({
-      callId: CallId("full-order"),
+      callId: ToolCallId("full-order"),
       name: companionPlugin.DECISION_TOOL_NAMES.requestAction,
       arguments: { sequence: 1, proposalId: "turn-1:proposal" },
       signal,
@@ -300,7 +300,7 @@ describe("Player DSH companion composition", () => {
 
     const decision = await createComposition({ mode: "decision", bridgeDirectory });
     const recalled = await decision.tools.execute({
-      callId: CallId("call-recall"),
+      callId: ToolCallId("call-recall"),
       name: companionPlugin.DECISION_TOOL_NAMES.recall,
       arguments: {},
       signal: new AbortController().signal,
@@ -310,7 +310,7 @@ describe("Player DSH companion composition", () => {
 
     const social = await createComposition();
     const denied = await social.tools.execute({
-      callId: CallId("call-recall-social"),
+      callId: ToolCallId("call-recall-social"),
       name: companionPlugin.DECISION_TOOL_NAMES.recall,
       arguments: {},
       signal: new AbortController().signal,

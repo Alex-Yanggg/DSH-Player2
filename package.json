@@ -13,8 +13,6 @@
     "accept:0.0.5": "npm run accept:0.0.4 && npm run replay:dispatch",
     "accept:0.0.7": "npm run accept:0.0.5 && npm run replay:dual",
     "build": "npm run build --workspaces --if-present",
-    "companion:dispatch": "npm run build && node scripts/dispatch-companion-turns.mjs",
-    "smoke:dsh-companion": "npm run build && node scripts/live-dsh-companion-smoke.mjs",
     "replay": "npm run build && node scripts/replay-social-turn.mjs",
     "replay:decision": "npm run build && node scripts/replay-decision-turn.mjs",
     "replay:decision:stardew": "npm run build && node scripts/replay-decision-turn.mjs fixtures/decision-turn/stardew-visual-receipt.json",
@@ -34,9 +32,13 @@
     "accept:0.1.4": "npm run accept:0.1.2 && npm run replay:dream"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "4.0.1",
-    "@deepseek-ai/cordis-plugin-include": "1.0.6",
-    "@deepseek-ai/cordis-plugin-loader": "1.0.2",
+    "@deepseek-ai/cordis": "4.0.4",
+    "@deepseek-ai/cordis-plugin-include": "1.0.9",
+    "@deepseek-ai/cordis-plugin-loader": "1.0.5",
+    "@deepseek-ai/dsh-llm": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-skill": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-system-prompt": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-tools": "0.2.0-rc.2",
     "typescript": "5.9.3",
     "vitest": "4.1.11"
   }

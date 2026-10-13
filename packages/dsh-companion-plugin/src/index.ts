@@ -9,6 +9,7 @@ import type { Context } from "@deepseek-ai/cordis";
 import type {} from "@deepseek-ai/dsh-agent";
 import { join } from "node:path";
 import type {} from "@deepseek-ai/dsh-invariants";
+import type {} from "@deepseek-ai/dsh-session";
 import type {} from "@deepseek-ai/dsh-skill";
 import type {} from "@deepseek-ai/dsh-system-prompt";
 import type {} from "@deepseek-ai/dsh-user-approval";
@@ -275,6 +276,7 @@ export function apply(ctx: Context, config: Config): void {
       }
       return next();
     });
+    ctx.on("session/event", (_session, event) => handlers.recordSessionEvent(event));
     ctx.on("agent/turn-stopping", (payload) => handlers.turnStopping(payload));
   }
 

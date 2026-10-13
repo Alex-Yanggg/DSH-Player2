@@ -52,7 +52,7 @@ Prerequisites:
 - Stardew Valley with SMAPI 4.5+
 - .NET 6 SDK
 - Node.js 24.x
-- An existing DeepSeek Harness checkout/profile with the Player2 host bundle installed
+- DeepSeek Harness `0.2.0-rc.2` installed globally (`@deepseek-ai/dsh`); Player2 is only a plugin and ships no runtime of its own
 
 Install dependencies and verify the keyless core:
 
