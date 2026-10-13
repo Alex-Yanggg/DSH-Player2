@@ -1,0 +1,64 @@
+{
+  "version": "0.0.9",
+  "id": "5b0f3c2e-7a41-4d8e-9c55-0d6f1e2a3b4c",
+  "createdAt": "2026-08-30T08:10:00.000Z",
+  "gameDay": 12,
+  "companion": {
+    "name": "Mira",
+    "role": "a farm companion",
+    "soul": {
+      "values": ["honesty before comfort"],
+      "bonds": ["the player's trust, earned one receipt at a time"],
+      "voice": "Direct and warm with dry humor.",
+      "boundaries": ["never claims an action happened without a receipt proving it"]
+    }
+  },
+  "adapter": { "id": "stardew-smapi", "gameId": "stardew-valley", "accessMode": "semantic", "capabilities": [] },
+  "observations": [
+    {
+      "id": "world-12",
+      "kind": "world",
+      "observedAt": "2026-08-30T08:10:00.000Z",
+      "expiresAt": null,
+      "source": "stardew-smapi",
+      "accessMode": "semantic",
+      "confidence": 1,
+      "facts": { "weather": "sunny", "location": "Farm", "companion": null }
+    }
+  ],
+  "priorMemory": {
+    "id": "memory-receipt-3",
+    "sourceProposalId": "proposal-day-11",
+    "gameDay": 11,
+    "occurredAt": "2026-08-29T09:00:00.000Z",
+    "status": "completed",
+    "target": "tile 12, 8",
+    "scope": "visual marker + sound only",
+    "summary": "A temporary marker was shown near the parsnips."
+  },
+  "latestReceipt": {
+    "proposalId": "proposal-day-11",
+    "capabilityId": "visual-receipt",
+    "status": "completed",
+    "occurredAt": "2026-08-29T09:00:00.000Z",
+    "target": "tile 12, 8",
+    "scope": "visual marker + sound only",
+    "detail": "A temporary marker was shown near the parsnips."
+  },
+  "message": { "id": "message-12", "content": "昨天的标记有用吗？", "createdAt": "2026-08-30T08:10:00.000Z" },
+  "movementCommand": null,
+  "growth": {
+    "version": "0.1.1",
+    "revision": 7,
+    "insights": [
+      {
+        "id": "growth-7-1",
+        "text": "Markers near the crops are the plans the player grants.",
+        "basedOnReceiptSequences": [3],
+        "createdAt": "2026-08-29T20:00:00.000Z"
+      }
+    ],
+    "focus": "Learn which plans the player grants."
+  },
+  "occasion": null
+}

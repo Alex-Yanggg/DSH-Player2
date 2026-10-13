@@ -188,7 +188,7 @@ describe("Player DSH companion composition", () => {
     }));
 
     expect(skills).toEqual([expect.objectContaining({ name: companionPlugin.GROUNDED_DECISION_SKILL })]);
-    expect(prompt).toContain("game_observe → companion_recall → optional companion_reflect → companion_propose → game_request_action");
+    expect(prompt).toContain("game_observe → companion_propose → game_request_action; recall and reflection stay off this critical path");
     expect(prompt).toContain("Recalled outcomes are history");
     expect(prompt).toContain("supersede your configured identity");
 

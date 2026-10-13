@@ -12,6 +12,12 @@ namespace DSHPlayer2.Core;
 public sealed class SocialBridgeHost : IDisposable
 {
     private const string Version = "0.0.9";
+
+    /// <summary>The occasion of a turn the game opens itself at day start, with no player message.</summary>
+    public const string DayStartOccasion = "day-start";
+
+    /// <summary>The fixed message content of a day-start turn; it is never shown as player speech.</summary>
+    public const string DayStartMessage = "[day-start]";
     private static readonly HashSet<string> ResponseKinds = new(StringComparer.Ordinal)
     {
         "reply", "question", "disagreement", "suggestion", "uncertain",
@@ -52,6 +58,12 @@ public sealed class SocialBridgeHost : IDisposable
     public int PollIntervalTicks { get; }
     public TimeSpan Timeout => this.timeout;
     public NativeSocialBridgeTurn? Turn { get; private set; }
+
+    /// <summary>Wall-clock moment the turn file became visible to DSH (latency trace).</summary>
+    public DateTimeOffset? PublishedAt { get; private set; }
+
+    /// <summary>Wall-clock moment the Player side finished reading the DSH result (latency trace).</summary>
+    public DateTimeOffset? PickedAt { get; private set; }
 
     public void Start(NativeSocialBridgeTurn turn)
     {
@@ -178,6 +190,15 @@ public sealed class SocialBridgeHost : IDisposable
     {
         if (turn.MovementCommand is not null && turn.MovementCommand != CompanionMovement.ParseCommand(turn.Message.Content))
             throw new InvalidOperationException("Movement requires an explicit matching player command.");
+        if (turn.Occasion is not null && turn.Occasion != DayStartOccasion)
+            throw new InvalidOperationException($"A social turn occasion must be absent or {DayStartOccasion}.");
+        if (turn.Occasion == DayStartOccasion && turn.MovementCommand is not null)
+            throw new InvalidOperationException("A day-start turn carries no player message and therefore no movement command.");
+        SocialMemory.ValidateContext(turn.PriorMemory, turn.LatestReceipt);
+        if (turn.Growth is not null)
+        {
+            CompanionGrowthStore.ValidateAsset(turn.Growth);
+        }
         if (turn.Version != Version)
         {
             throw new InvalidOperationException($"A native DSH social turn must use wire version {Version}.");
@@ -243,11 +264,15 @@ public sealed class SocialBridgeHost : IDisposable
         {
             throw new InvalidDataException("The social response cited an observation the turn never advertised.");
         }
-        // This mod authors priorMemory as null on the social turn, so the only
-        // available memory id is none; a claimed id is always unavailable.
-        if (!string.IsNullOrEmpty(response.BasedOnMemoryId))
+        // The only citable memory is the one receipt-backed outcome the turn
+        // carried as priorMemory; any other id is invented history.
+        if (!string.IsNullOrEmpty(response.BasedOnMemoryId) && response.BasedOnMemoryId != turn.PriorMemory?.Id)
         {
             throw new InvalidDataException("The social response cited memory the turn never carried.");
+        }
+        if (response.RememberLatestReceipt && turn.LatestReceipt?.Status is not ("completed" or "failed"))
+        {
+            throw new InvalidDataException("The social response remembered a receipt the turn never carried as a completed or failed outcome.");
         }
         if (response.RememberLatestReceipt && string.IsNullOrWhiteSpace(response.MemorySummary))
         {
@@ -274,6 +299,7 @@ public sealed class SocialBridgeHost : IDisposable
         {
             await File.WriteAllTextAsync(temporaryPath, JsonSerializer.Serialize(turn, JsonOptions), token).ConfigureAwait(false);
             File.Move(temporaryPath, path);
+            this.PublishedAt = DateTimeOffset.UtcNow;
         }
         finally
         {
@@ -289,8 +315,10 @@ public sealed class SocialBridgeHost : IDisposable
         var path = Path.Combine(this.root, "social-outbox", $"result-{id}.json");
         if (!File.Exists(path)) return null;
         var json = await ReadBoundedAsync(path, token).ConfigureAwait(false);
-        return JsonSerializer.Deserialize<NativeSocialBridgeResult>(json, JsonOptions)
+        var result = JsonSerializer.Deserialize<NativeSocialBridgeResult>(json, JsonOptions)
             ?? throw new InvalidDataException("DSH wrote an empty social bridge result.");
+        this.PickedAt = DateTimeOffset.UtcNow;
+        return result;
     }
 
     /// <summary>
@@ -322,10 +350,19 @@ public sealed class SocialBridgeHost : IDisposable
     }
 }
 
+/// <summary>
+/// One live social turn. <c>PriorMemory</c> is yesterday's receipt-backed shared
+/// outcome, <c>LatestReceipt</c> the newest readable receipt, and <c>Growth</c>
+/// the applied growth asset; all three are history, never current facts.
+/// </summary>
 public sealed record NativeSocialBridgeTurn(
     string Version, string Id, string CreatedAt, int GameDay, NativeCompanionIdentity Companion,
-    NativeAdapterDescriptor Adapter, NativeObservation[] Observations, object? PriorMemory, object? LatestReceipt,
-    NativePlayerMessage Message, string? MovementCommand = null);
+    NativeAdapterDescriptor Adapter, NativeObservation[] Observations, NativeSharedOutcomeMemory? PriorMemory, BridgeActionReceipt? LatestReceipt,
+    NativePlayerMessage Message, string? MovementCommand = null, BridgeGrowthAsset? Growth = null, string? Occasion = null);
+
+/// <summary>The one receipt-backed outcome of the previous game day that a social reply may cite.</summary>
+public sealed record NativeSharedOutcomeMemory(
+    string Id, string SourceProposalId, int GameDay, string OccurredAt, string Status, string? Target, string Scope, string Summary);
 public sealed record NativeCompanionIdentity(
     string Name,
     string Role,

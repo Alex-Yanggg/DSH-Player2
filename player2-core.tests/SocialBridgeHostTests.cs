@@ -159,6 +159,77 @@ public sealed class SocialBridgeHostTests : IDisposable
     }
 
     [Fact]
+    public async Task RejectsAResultThatCitesMemoryTheTurnNeverCarried()
+    {
+        using var host = this.CreateHost();
+        var turn = this.CreateTurn();
+        host.Start(turn);
+        await this.WaitForFileAsync(host, Path.Combine(this.root, "social-inbox", $"turn-{turn.Id}.json"));
+        var response = this.ValidResponse();
+        response.BasedOnMemoryId = "memory-receipt-404";
+        await this.WriteResultAsync(turn.Id, status: "completed", response);
+
+        var update = await this.WaitForAsync(host, value => value.Error is not null);
+
+        Assert.IsType<InvalidDataException>(update.Error);
+        Assert.Contains("never carried", update.Error!.Message);
+    }
+
+    [Fact]
+    public async Task AcceptsAResultThatCitesTheCarriedPriorMemory()
+    {
+        using var host = this.CreateHost();
+        var turn = this.CreateTurn() with { PriorMemory = PriorMemory() };
+        host.Start(turn);
+        await this.WaitForFileAsync(host, Path.Combine(this.root, "social-inbox", $"turn-{turn.Id}.json"));
+        var response = this.ValidResponse();
+        response.BasedOnMemoryId = "memory-receipt-3";
+        await this.WriteResultAsync(turn.Id, status: "completed", response);
+
+        var update = await this.WaitForAsync(host, value => value.Result is not null || value.Error is not null);
+
+        Assert.Null(update.Error);
+        Assert.Equal("memory-receipt-3", update.Result?.Response?.BasedOnMemoryId);
+    }
+
+    [Fact]
+    public async Task RejectsRememberingAReceiptTheTurnDidNotCarry()
+    {
+        using var host = this.CreateHost();
+        var turn = this.CreateTurn();
+        host.Start(turn);
+        await this.WaitForFileAsync(host, Path.Combine(this.root, "social-inbox", $"turn-{turn.Id}.json"));
+        var response = this.ValidResponse();
+        response.RememberLatestReceipt = true;
+        response.MemorySummary = "We marked the parsnips.";
+        await this.WriteResultAsync(turn.Id, status: "completed", response);
+
+        var update = await this.WaitForAsync(host, value => value.Error is not null);
+
+        Assert.IsType<InvalidDataException>(update.Error);
+        Assert.Contains("never carried", update.Error!.Message);
+    }
+
+    [Fact]
+    public void DayStartTurnsCannotCarryAMovementCommandOrAnUnknownOccasion()
+    {
+        using var host = this.CreateHost();
+        var dayStart = this.CreateTurn(SocialBridgeHost.DayStartMessage) with { Occasion = SocialBridgeHost.DayStartOccasion };
+        Assert.Throws<InvalidOperationException>(() => host.Start(dayStart with { Occasion = "night" }));
+        Assert.Throws<InvalidOperationException>(() => host.Start(this.CreateTurn("来我面前") with { Occasion = SocialBridgeHost.DayStartOccasion, MovementCommand = "come" }));
+        host.Start(dayStart);
+        Assert.Equal(SocialBridgeHost.DayStartOccasion, host.Turn?.Occasion);
+    }
+
+    [Fact]
+    public void RejectsAPriorMemoryThatIsNotAReceiptBackedOutcome()
+    {
+        using var host = this.CreateHost();
+        Assert.Throws<InvalidOperationException>(() => host.Start(this.CreateTurn() with { PriorMemory = PriorMemory() with { Status = "declined" } }));
+        Assert.Throws<InvalidOperationException>(() => host.Start(this.CreateTurn() with { PriorMemory = PriorMemory() with { Summary = new string('x', 401) } }));
+    }
+
+    [Fact]
     public void RejectsAnOversizedPlayerMessageAtTheBoundary()
     {
         using var host = this.CreateHost();
@@ -239,6 +310,13 @@ public sealed class SocialBridgeHostTests : IDisposable
                     "Alex", 1250, 3, 12, new[] { new NativeInventoryItemFact("Axe", 1) }, false)),
             },
             null, null, new NativePlayerMessage("message-1", message ?? "hello", "2026-08-30T00:00:00.000Z"));
+    }
+
+    private static NativeSharedOutcomeMemory PriorMemory()
+    {
+        return new NativeSharedOutcomeMemory(
+            "memory-receipt-3", "proposal-day-11", 11, "2026-08-29T09:00:00.000Z", "completed",
+            "tile 12, 8", "visual marker + sound only", "A temporary marker was shown near the parsnips.");
     }
 
     private NativeSocialResponse ValidResponse()

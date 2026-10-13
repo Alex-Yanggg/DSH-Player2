@@ -56,6 +56,7 @@ export {
 } from "./spine.js";
 export { DreamFileLane } from "./spine-dream.js";
 export type { DreamDraftInput, DreamOutcome } from "./spine-dream.js";
+export { SOCIAL_MEMORY_TAG, socialMemoryNote } from "./social-memory.js";
 
 /** Cordis plugin name. */
 export const name = "player2-companion";
@@ -233,7 +234,9 @@ export function apply(ctx: Context, config: Config): void {
         "This is live in-game conversation. Answer the latest message directly in one or two short, natural sentences.",
         "Do not repeat greetings, add speaker labels, numbered choices, markdown, stage directions, or technical setup advice.",
         "Your only current world evidence is the latest envelope. Earlier messages are conversation, not fresh observations.",
-        "If movementCommand is present, the player has explicitly requested that bounded movement; the game will attempt it after validating your reply. Acknowledge the request without claiming arrival or success. Otherwise no movement is queued.",
+        "If movementCommand is present, the player gave that bounded movement as an explicit command and the game has already started attempting it, independently of your reply. Acknowledge it without claiming arrival or success. Otherwise no movement is queued.",
+        "A SOCIAL_MEMORY note, when present, is receipt-backed shared history: let it shape continuity, never treat it as a current observation, and cite only its yesterday id as basedOnMemoryId.",
+        "If occasion is day-start, the player has not spoken yet: the message is only a marker. Open the new day with one short line in your own voice, grounded in the observations and, when it fits, yesterday's shared outcome. Do not answer the marker itself.",
         SKILL_CONTENT,
         languageLine,
       ].join("\n") : [

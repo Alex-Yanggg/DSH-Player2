@@ -14,6 +14,7 @@ import type {
   SpineEvent,
   SpineStore,
 } from "@dsh-player2/dsh-companion-plugin";
+import { parseModelJson } from "./json-reply.js";
 
 /** A stable spine session id for one person on one save, across all lanes. */
 export function spineIdOf(root: string, session: string, presetId: string): string {
@@ -99,7 +100,7 @@ export function relationshipDigest(state: RelationshipState, gameDay: number): s
 export function dreamOutcomeOf(text: string): DreamDraftInput {
   let parsed: unknown;
   try {
-    parsed = JSON.parse(text) as unknown;
+    parsed = parseModelJson(text);
   } catch {
     throw new Error("The dream turn did not end with the required JSON object.");
   }
