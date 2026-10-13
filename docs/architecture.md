@@ -170,3 +170,30 @@ W0 stabilizes the loop the player actually feels before any new capability lands
 - **Graded readiness.** The heartbeat stays the only gate. On save load the Mod also writes `<session>/warmup/mouth.json`; the host composes or resumes that session's social lane without a model turn and answers with `<session>/readiness/mouth.json` (`mode` reused / resumed / created, `composeMs`).
 - **Same-clock latency trace.** The Mod appends to `development-logs/latency-mod.jsonl`, the host to `development-logs/latency-host.jsonl`; each line is `{at, source, lane, key, stage, detail}` with a UTC millisecond timestamp. `node scripts/latency-report.mjs <bridge-dir> [--since <ISO>]` joins them on lane and key and prints n / P50 / P95 per segment, failures, and turns that never finished. Lanes: `command` (key-enter → motion-started), `social` and `day-start` (published → host-picked → agent-ready → first-token → model-done → written → mod-picked → rendered), `decision`, `readiness`, `dream`.
 - **Fenced model JSON.** The 0.2 runtime sometimes wraps the final JSON in one Markdown fence; the host strips exactly one outer fence before the unchanged schema and grounding checks.
+
+## W1 One Mind (P2-0016)
+
+Every lane now speaks from the same mind. The **Mind Core** ([`mind/`](../packages/dsh-companion-plugin/src/mind/core.ts)) runs inside the DSH host around each lane turn and keeps one **Persona Ledger** per companion person, beside that person's bridge project. It changes no authority boundary: the ledger is memory, never a current observation, never a capability, and never the soul.
+
+```text
+<bridge>/projects/<person>/ledger/
+  person.json                 traits (cross-save, ≤24 active) + growth-migration bookkeeping
+  remember.md                 player-readable export, rewritten after every dream
+  saves/<save>/episodes.jsonl append-only experience, ≤2,000 per save, importance-based forgetting
+  saves/<save>/state.json     receipt watermark already ingested
+  saves/<save>/mood.json      four decaying scalars: valence, arousal, energy, closeness
+  saves/<save>/story.json     "our story so far", ≤600 characters, rewritten by the dream
+  saves/<save>/why.jsonl      the episodes each recent reply was given
+```
+
+- **Episodes** come from three sources: every Player-persisted receipt above the watermark (automatic, idempotent, damaged receipts skipped and counted); at most one nomination per chat turn (`remember`: utterance, correction, milestone, or shared-event); and nothing else. Ids are content-addressed, so a retried turn never writes twice.
+- **Retrieval** is BM25 over episode summaries (Latin words, CJK unigrams and bigrams), weighted by recency and salience, filtered to the current game. No vector store, no new dependency.
+- **MindContext** is one bounded note (≤1,400 characters): mood, the retrieved episodes (≤5 for chat, ≤3 for decisions), our story, and the top in-scope active traits. The social and day-start lanes put it after the W0 `SOCIAL_MEMORY` note; the decision lane puts it ahead of the turn marker; the dream lane gets the ledger digest instead. A reply may cite episodes in an optional `episodeIds` field; citing one the turn was not given fails the turn, exactly like an unknown observation id. Both extras are stripped by the result schema, so the Player result file is unchanged.
+- **Mood** moves by fixed rules (receipt outcomes, chat, nominated episodes, a night's sleep) and decays toward rest by wall-clock half-lives. It colours tone only.
+- **Dream upgrade.** The day-end dream also sees the day's episodes (≤40), the traits, and the story, and may add an optional `ledger` field: a story rewrite, trait add / strengthen / weaken / retire with episode evidence, and episodes to forget. A new trait is active only with two independent episodes (no shared provenance) or one player correction; otherwise it stays a candidate until evidence accumulates. Receipts are never forgotten, nor is evidence a live trait still cites. "No change" stays normal.
+- **Why did you say that.** A chat line that asks why ("你为什么这么说") carries the previous reply and the episodes it was given, so the companion explains from its real inputs.
+- **Growth migration.** The applied growth asset's insights become traits once per revision, citing the receipt episodes they were grounded in; a single-receipt insight starts as a candidate.
+- **Failure posture.** A ledger failure before a turn is traced (`DSH_MIND_PREPARE_FAILED`) and the turn runs without MindContext; bookkeeping after a written turn never fails it. A damaged person file is a loud error, never a silent reset.
+- `node scripts/ledger-export.mjs <bridge> [person] [--stdout]` refreshes the export on demand; deleting `ledger/` forgets everything and the next turn rebuilds episodes from receipts.
+
+The Mod side adds one interaction change: chat lines sent while a reply is pending queue in order ([`ChatInputQueue`](../player2-core/ChatInputQueue.cs), at most three) instead of being refused, and are published one at a time, so the DSH social lane still sees one turn in flight.

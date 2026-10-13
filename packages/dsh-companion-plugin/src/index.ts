@@ -57,6 +57,7 @@ export {
 export { DreamFileLane } from "./spine-dream.js";
 export type { DreamDraftInput, DreamOutcome } from "./spine-dream.js";
 export { SOCIAL_MEMORY_TAG, socialMemoryNote } from "./social-memory.js";
+export * from "./mind/index.js";
 
 /** Cordis plugin name. */
 export const name = "player2-companion";
@@ -238,6 +239,7 @@ export function apply(ctx: Context, config: Config): void {
         "A SOCIAL_MEMORY note, when present, is receipt-backed shared history: let it shape continuity, never treat it as a current observation, and cite only its yesterday id as basedOnMemoryId.",
         "If occasion is day-start, the player has not spoken yet: the message is only a marker. Open the new day with one short line in your own voice, grounded in the observations and, when it fits, yesterday's shared outcome. Do not answer the marker itself.",
         SKILL_CONTENT,
+        ...MIND_CONTEXT_POLICY_LINES,
         languageLine,
       ].join("\n") : [
         "You are {{companion_name}}, {{companion_relationship_role}}.",
@@ -335,7 +337,17 @@ const DREAM_POLICY_LINES = [
   '1. {"kind":"no-change"} — the day gave you nothing worth keeping.',
   '2. {"kind":"growth","insights":[{"text":"...","basedOnReceiptSequences":[<n>...]}],"focus":null} — at most three insights, and every insight cites only receipt sequence numbers that actually appear in the provided timeline.',
   "Growth is self-knowledge shaped by shared history. A dream can refine how you speak or what you focus on; it can never rewrite your constitution, grant a capability, or authorize any action.",
-  "Your final assistant message must be exactly one of these JSON objects, with no prose fence and no other fields.",
+  "Your final assistant message must be exactly one of these JSON objects, with no prose fence and no other fields except the optional ledger field described in the turn.",
+];
+
+/**
+ * How the fast social lane reads MindContext and reports its two optional
+ * extras (P2-0016). The host strips both before the game sees the reply.
+ */
+const MIND_CONTEXT_POLICY_LINES = [
+  "A MIND_CONTEXT note, when present, is your own memory: remembered episodes, our story, your tendencies, and your current mood. It is history, never a current observation. Let the mood colour your tone and let memories shape continuity; never claim a memory that is not there.",
+  "Keep your voice alive: vary how you open and phrase lines instead of repeating your recent ones, and react to what is new.",
+  "Besides the six required fields you may add two optional fields: episodeIds, an array of the [ep-…] ids from MIND_CONTEXT your words actually rely on (omit or [] when none; never invent one); and remember, null or one thing worth keeping from this exchange as {\"kind\":\"utterance\"|\"correction\"|\"milestone\"|\"shared-event\",\"summary\":\"one sentence, at most 240 characters\",\"salience\":0..1,\"valence\":-1..1}. Use correction when the player corrects you or states a preference. Most turns remember nothing.",
 ];
 
 const SKILL_CONTENT = `# Grounded companion deliberation

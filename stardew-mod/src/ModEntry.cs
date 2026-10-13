@@ -47,6 +47,7 @@ internal sealed class ModEntry : Mod
     private string? playerFavoriteThingBeforeCustomization;
     private bool playerCustomizedBeforeCustomization;
     private SocialBridgeHost? socialBridgeHost;
+    private readonly ChatInputQueue chatQueue = new();
     private int socialTurnCounter;
     private WorldSnapshot? pendingDaySnapshot;
     private CompanionChoice? pendingDayCompanion;
@@ -438,8 +439,18 @@ internal sealed class ModEntry : Mod
                 this.Monitor.Log("Player2 started the movement command; no new DSH reply was requested because one is still pending.", LogLevel.Info);
                 return true;
             }
+            // P2-0016: a line sent while a reply is pending waits its turn in
+            // order instead of being refused; only a full queue keeps the draft.
+            if (this.chatQueue.TryEnqueue(message, submittedAt) is { } queued)
+            {
+                transcript.Append(Game1.player.Name, message);
+                CompanionTranscriptStore.Save(this.Helper, transcript, this.Monitor);
+                this.TraceLatency("social", queued.Id, "key-enter", submittedAt);
+                this.Monitor.Log($"Player2 queued chat line social:{queued.Id} behind the pending reply ({this.chatQueue.Count} waiting).", LogLevel.Info);
+                return true;
+            }
             Game1.addHUDMessage(new HUDMessage(this.T("chat.waiting")));
-            this.Monitor.Log("Player2 kept the unsent chat draft because a native DSH reply is still pending.", LogLevel.Info);
+            this.Monitor.Log("Player2 kept the unsent chat draft because the chat queue is full.", LogLevel.Info);
             return false;
         }
         transcript.Append(Game1.player.Name, message);
@@ -609,6 +620,22 @@ internal sealed class ModEntry : Mod
     private bool IsSocialTurnPending()
     {
         return this.socialBridgeHost is not null || this.pendingSocialMessage is not null;
+    }
+
+    /// <summary>
+    /// Publishes the oldest queued chat line once nothing else is in flight
+    /// (P2-0016). The DSH social lane still sees exactly one turn at a time.
+    /// </summary>
+    private void TryPublishQueuedChat()
+    {
+        if (this.chatQueue.Count == 0 || !this.supervisor.IsReady || this.IsSocialTurnPending())
+        {
+            return;
+        }
+        if (this.chatQueue.TryDequeue() is { } next)
+        {
+            this.PublishSocialTurn(next.Message, next.Id, occasion: null);
+        }
     }
 
     /// <summary>
@@ -820,6 +847,7 @@ internal sealed class ModEntry : Mod
             {
                 this.pendingSocialMessage = null;
                 this.pendingSocialDeadline = null;
+                this.chatQueue.Clear();
                 this.ReportNativeDshFailure(
                     "DSH_STARTUP_TIMEOUT",
                     "The queued chat message was not sent because the Player2 DSH bundle never became ready.",
@@ -1036,6 +1064,7 @@ internal sealed class ModEntry : Mod
         this.TryBeginPendingCompanionDay();
         this.TryPublishPendingSocialMessage();
         this.UpdateSocialBridge();
+        this.TryPublishQueuedChat();
         this.TryPresentPendingBridgeChoice();
         if (this.pendingBridgeRequest is not null || this.activeBridgeRequest is not null)
         {
@@ -1233,6 +1262,7 @@ internal sealed class ModEntry : Mod
         this.pendingDaySnapshot = null;
         this.pendingDayCompanion = null;
         this.pendingSocialMessage = null;
+        this.chatQueue.Clear();
         this.pendingDayDeadline = null;
         this.pendingSocialDeadline = null;
         this.chatHintPending = false;

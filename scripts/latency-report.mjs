@@ -17,17 +17,17 @@ const LANES = {
   // "follow" and "stay" never arrive anywhere, so a command is finished once it moves.
   command: { stages: ["key-enter", "motion-started", "arrived"], end: "motion-started", totals: [["key-enter", "motion-started", "A1 submit → motion"]], minimum: 20 },
   social: {
-    stages: ["key-enter", "published", "host-picked", "agent-ready", "first-token", "model-done", "written", "mod-picked", "rendered"],
+    stages: ["key-enter", "published", "host-picked", "mind-ready", "agent-ready", "first-token", "model-done", "written", "mod-picked", "rendered"],
     totals: [["key-enter", "rendered", "F2 total"], ["key-enter", "first-token", "F2 → first token"]],
     minimum: 30,
   },
   "day-start": {
-    stages: ["day-started", "published", "host-picked", "agent-ready", "first-token", "model-done", "written", "mod-picked", "rendered"],
+    stages: ["day-started", "published", "host-picked", "mind-ready", "agent-ready", "first-token", "model-done", "written", "mod-picked", "rendered"],
     totals: [["day-started", "rendered", "day start → first line"]],
     minimum: 10,
   },
   decision: {
-    stages: ["published", "host-picked", "agent-ready", "first-token", "model-done", "written", "mod-picked", "rendered"],
+    stages: ["published", "host-picked", "mind-ready", "agent-ready", "first-token", "model-done", "written", "mod-picked", "rendered"],
     totals: [["published", "rendered", "decision total"]],
     minimum: 0,
   },

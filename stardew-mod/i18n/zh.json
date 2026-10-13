@@ -3,7 +3,7 @@
   "chat.empty": "Player2：请先输入内容。",
   "chat.hint": "按 {{key}} 打开 Player2 聊天框；它不会常驻屏幕。",
   "chat.starting": "Player2 正在等待 DSH 加载完成；这条消息会在就绪后自动发送。",
-  "chat.waiting": "Player2 仍在回复上一条消息；当前输入已保留，请稍后再发送。",
+  "chat.waiting": "Player2 还有几条消息在排队等回复；当前输入已保留，等下一条回复后再发送。",
   "chat.waiting-short": "回复中…",
   "chat.input-placeholder": "输入消息或：过来 / 跟着我 / 停下",
   "weather.rain": "雨天",
