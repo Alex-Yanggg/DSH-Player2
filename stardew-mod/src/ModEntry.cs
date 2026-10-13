@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -310,7 +310,7 @@ internal sealed class ModEntry : Mod
         this.pendingAppearanceSnapshot = null;
         if (customized is not null && snapshot is not null && this.ResolveCompanionChoice() is { } companion)
         {
-            this.QueueCompanionDay(snapshot, companion);
+            this.StartCompanionDay(snapshot, companion);
         }
     }
 
@@ -738,6 +738,17 @@ internal sealed class ModEntry : Mod
             return;
         }
         this.EnsureCompanionPresent(appearance, "day start");
+        this.StartCompanionDay(snapshot, companion);
+    }
+
+    /// <summary>
+    /// Starts a companion day once identity and appearance exist: growth refresh,
+    /// mouth warm-up, the day's first line, and the queued day turn (P2-0015 W0).
+    /// Shared by a normal day start and by the first day of a save, where the
+    /// day only begins after the companion choice and native customization.
+    /// </summary>
+    private void StartCompanionDay(WorldSnapshot snapshot, CompanionChoice companion)
+    {
         if (string.IsNullOrWhiteSpace(this.config.DecisionBridgeDirectory))
         {
             this.ReportNativeDshFailure("DSH_NOT_CONFIGURED", "DecisionBridgeDirectory is empty; the day turn was not sent to native DSH.", null);

@@ -32,7 +32,9 @@ const LANES = {
     minimum: 0,
   },
   readiness: {
+    // Two chains on separate keys ("bundle" per game start, "<companion>/<save>" per load); either end finishes one.
     stages: ["mod-entry", "bundle-ready", "mouth-requested", "mouth-ready", "mouth-ready-seen"],
+    ends: ["bundle-ready", "mouth-ready-seen"],
     totals: [["mod-entry", "bundle-ready", "A2 bundle ready"], ["mouth-requested", "mouth-ready-seen", "A2 mouth ready"]],
     minimum: 0,
   },
@@ -56,9 +58,7 @@ if (Number.isNaN(since)) {
 const logs = join(resolve(bridge), "development-logs");
 const lines = [...await readLines(join(logs, "latency-mod.jsonl")), ...await readLines(join(logs, "latency-host.jsonl"))];
 let malformed = 0;
-/** lane → key → stage → first timestamp (ms) */
-const turns = new Map();
-const failures = new Map();
+const entries = [];
 for (const line of lines) {
   let entry;
   try {
@@ -72,7 +72,25 @@ for (const line of lines) {
     malformed++;
     continue;
   }
-  if (at < since) continue;
+  if (at >= since) entries.push({ ...entry, at });
+}
+// One clock, one order: the two files interleave in time.
+entries.sort((a, b) => a.at - b.at);
+
+/** lane → key → stage → first timestamp (ms) */
+const turns = new Map();
+const failures = new Map();
+/** Readiness keys ("bundle", "<companion>/<save>") repeat on every game start or save load: when the stage
+ * that opened a key's current occurrence arrives again, it opens a new occurrence instead of pairing across runs. */
+const occurrence = new Map();
+for (const raw of entries) {
+  const at = raw.at;
+  const laneKey = `${raw.lane}\u0000${raw.key}`;
+  const current = turns.get(raw.lane)?.get(occurrence.get(laneKey) ?? raw.key);
+  if (current?.keys().next().value === raw.stage) {
+    occurrence.set(laneKey, `${raw.key}@${new Date(at).toISOString()}`);
+  }
+  const entry = { ...raw, key: occurrence.get(laneKey) ?? raw.key };
   if (FAILURE_STAGES.has(entry.stage)) {
     const list = failures.get(entry.lane) ?? [];
     list.push({ key: entry.key, source: entry.source, detail: entry.detail ?? null });
@@ -94,10 +112,10 @@ for (const [lane, spec] of Object.entries(LANES)) {
     segments.push(segment(byKey, spec.stages[index], spec.stages[index + 1]));
   }
   const totals = spec.totals.map(([from, to, label]) => ({ ...segment(byKey, from, to), label }));
-  const last = spec.end ?? spec.stages[spec.stages.length - 1];
+  const ends = spec.ends ?? [spec.end ?? spec.stages[spec.stages.length - 1]];
   const failedKeys = new Set((failures.get(lane) ?? []).map((item) => item.key));
   const unfinished = [...byKey.entries()]
-    .filter(([key, stages]) => !stages.has(last) && !failedKeys.has(key))
+    .filter(([key, stages]) => !ends.some((end) => stages.has(end)) && !failedKeys.has(key))
     .map(([key, stages]) => ({ key, lastStage: [...stages.entries()].sort((a, b) => a[1] - b[1]).at(-1)?.[0] ?? null }));
   report.lanes[lane] = {
     turns: byKey.size,
