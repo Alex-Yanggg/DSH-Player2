@@ -8,6 +8,7 @@ DSH-Player2 is a public reference application for a trustworthy, game-native AI 
 - Treat `@deepseek-ai/dsh-*` package interfaces and the configuration contract as the integration boundary. Do not import source files from a local Harness checkout.
 - Keep game-specific state, permissions, presentation, and adapters in this repository. A reusable capability belongs in a separate plugin package only after two consumers need the same contract.
 - Do not introduce a change to DeepSeek Harness as incidental support for this application. Record a concrete upstream requirement separately, with its own rationale and tests.
+- Treat the DSH runtime as the environment, not as part of this repository. Install and upgrade it from the published `@deepseek-ai/dsh` package outside this checkout, run it from that package rather than from Harness source, and keep a runtime upgrade out of this repository's branches and commits. Adapting this repository to a new DSH version is its own task contract.
 
 ## Product rules
 
@@ -19,7 +20,7 @@ DSH-Player2 is a public reference application for a trustworthy, game-native AI 
 
 - Keep the application runnable from a clean checkout and document the supported game, platform, prerequisites, and verification command in `README.md`.
 - Add focused automated coverage for behavior changes. User-visible changes also require a reproducible manual verification path.
-- While the repository is in development mode, follow [`docs/development-mode.md`](docs/development-mode.md): never replace a missing or invalid native DSH result with a player-visible local fallback, and preserve the correlated local development log.
+- Never replace a missing or invalid native DSH result with a player-visible local fallback; surface it as an error and keep the correlated local log.
 - Use conventional, reviewable commits and keep generated files out of changes unless the repository declares them authoritative.
 - Add a nested `AGENTS.md` only when a subtree has genuinely different rules; link to the parent instead of restating it.
 

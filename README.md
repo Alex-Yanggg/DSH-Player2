@@ -133,4 +133,4 @@ Read [AGENTS.md](AGENTS.md) and [docs/operating-model.md](docs/operating-model.m
 
 ## Status
 
-This repository is still a development build. The 0.1.x line has a playable Stardew vertical slice and a strong keyless regression chain, but no public release package and no selected license yet. Detailed change history lives in [CHANGELOG.md](CHANGELOG.md).
+This repository is pre-release. The 0.1.x line has a playable Stardew vertical slice and a strong keyless regression chain, but no public release package and no selected license yet. Detailed change history lives in [CHANGELOG.md](CHANGELOG.md).

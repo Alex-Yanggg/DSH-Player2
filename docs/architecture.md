@@ -156,16 +156,3 @@ The lane consumes only installed kernel surfaces (`ctx.tools`, `ctx.approval`, `
 `@deepseek-ai/dsh-agent-presets` is now a real runtime dependency rather than a researched possibility. The host derives `player2-<name>-<identity-hash>` from the complete validated identity, creates it through the roster's copy authoring seam, and specializes the composition to one `@deepseek-ai/dsh-persona` row before any agent can mount it. Reuse requires byte-identical content; a collision fails loudly. The decision/social setup order is preset first, then the lane-local skill/tool/policy plugin, yielding DSH's intended `agent → preset → global` lookup chain. `meta.agentPreset` makes the identity reconstructable from the durable session header.
 
 The migration deliberately changes the session-id salt. A pre-0.1.3 session cannot be resumed under an identity composition it never recorded; the new lane starts clean while Player-owned receipts and growth assets carry the relationship across. Soul remains on the wire for bootstrap and older hosts, but the model-facing stable identity is no longer assembled by a Player2-specific Soul prompt section.
-
-## Audit Conformance (2026-08-30)
-
-The eight-item audit recorded on 2026-08-30 and its remediation:
-
-1. **人格五层只落了"身体+经历"** — resolved: Soul rows bootstrap a native DSH persona preset, both lanes call `agentPresets.mount()`, and the temperament checkpoint plugin supplies pre-step attention / pre-execute reflection / turn-stopping.
-2. **记忆→行为闭环未闭合** — resolved: pre-step attention injects the receipt digest into every turn, social turns included.
-3. **live 桌面玩家验证仍是最高优先未偿债** — open by design: all automated gates remain keyless/gameless golden replays; `stardew-mod/README.md` now carries the twenty-step manual verification path for a player-run desktop session.
-4. **文档-代码漂移** — resolved on 2026-08-30 in place; this section supersedes the lost draft with the current state.
-5. **社交通道是二等公民** — resolved: bounded reads, full validation, typed facts, consumed-file cleanup and stale sweep, one policy implementation with two thin transports, and the project/session layout.
-6. **核心语义未中立** — resolved: the companion name follows the player-chosen identity everywhere (no template default, no host-side default), and `AdapterProfile` carries adapter id, game id, and target schemes so the core names no game; weather display words resolve in the adapter.
-7. **ModEntry 上帝类** — resolved along the audit's named seams: `DshProcessSupervisor`, `ReceiptRenderer`, `CompanionTranscriptStore`, the development-log writer, plus `WorldSnapshotBuilder` and the game-free `CompanionSettlementStore`; ModEntry keeps only the SMAPI adapter role. `stardew-mod` still has no own test project because the mod assembly cannot build without a game install — the game-free logic moved into `player2-core`, where it is tested.
-8. **杂项** — resolved: wall-clock deadlines everywhere (config in seconds, legacy Ticks migrated), a farmhand social refusal instead of the tenant asymmetry, an explicit **F6** same-day retry entry that never re-runs a completed day, and `ApiKeyMode` making the registry credential fallback an explicit opt-in with the security note in `stardew-mod/README.md`.
