@@ -48,8 +48,4 @@ npm run accept:0.0.2
 npm run accept:0.0.3
 ```
 
-The optional live acceptance smoke additionally requires `DEEPSEEK_API_KEY` and `DSH_JSONRPC_AGENT_ENTRY`. A source TypeScript entry also needs `tsx/esm` resolvable from this repository or an absolute `DSH_TSX_IMPORT`; set `DSH_JSONRPC_AGENT_CWD` to that source checkout so its workspace imports resolve. The smoke fails unless the DSH SDK's returned session events contain a `skill` tool call:
-
-```powershell
-npm run smoke:dsh-companion
-```
+Live verification runs through the host bundle inside a DSH profile; see the repository README.

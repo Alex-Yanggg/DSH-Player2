@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { Context } from "@deepseek-ai/cordis";
-import { CallId } from "@deepseek-ai/dsh-llm";
+import { ToolCallId } from "@deepseek-ai/dsh-llm";
 import SkillRegistry from "@deepseek-ai/dsh-skill";
 import SystemPrompt from "@deepseek-ai/dsh-system-prompt";
 import ToolRuntime from "@deepseek-ai/dsh-tools";
@@ -54,7 +54,7 @@ try {
   const signal = new AbortController().signal;
   const calls = [
     {
-      callId: CallId("replay-observe"),
+      callId: ToolCallId("replay-observe"),
       name: companionPlugin.DECISION_TOOL_NAMES.observe,
       arguments: { sequence: fixture.turn.sequence },
       signal,
@@ -62,7 +62,7 @@ try {
   ];
   if (fixture.reflect) {
     calls.push({
-      callId: CallId("replay-reflect"),
+      callId: ToolCallId("replay-reflect"),
       name: companionPlugin.DECISION_TOOL_NAMES.reflect,
       arguments: fixture.reflect,
       signal,
@@ -70,13 +70,13 @@ try {
   }
   calls.push(
     {
-      callId: CallId("replay-propose"),
+      callId: ToolCallId("replay-propose"),
       name: companionPlugin.DECISION_TOOL_NAMES.propose,
       arguments: { sequence: fixture.turn.sequence, ...proposalArguments },
       signal,
     },
     {
-      callId: CallId("replay-request"),
+      callId: ToolCallId("replay-request"),
       name: companionPlugin.DECISION_TOOL_NAMES.requestAction,
       arguments: { sequence: fixture.turn.sequence, proposalId: `turn-${fixture.turn.sequence}:proposal` },
       signal,

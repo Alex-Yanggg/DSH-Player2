@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { Context } from "@deepseek-ai/cordis";
-import { CallId } from "@deepseek-ai/dsh-llm";
+import { ToolCallId } from "@deepseek-ai/dsh-llm";
 import SkillRegistry from "@deepseek-ai/dsh-skill";
 import SystemPrompt from "@deepseek-ai/dsh-system-prompt";
 import ToolRuntime from "@deepseek-ai/dsh-tools";
@@ -67,25 +67,25 @@ try {
       runnerCalls += 1;
       const calls = [
         {
-          callId: CallId(`dispatch-observe-${sequence}`),
+          callId: ToolCallId(`dispatch-observe-${sequence}`),
           name: companionPlugin.DECISION_TOOL_NAMES.observe,
           arguments: { sequence },
           signal,
         },
         {
-          callId: CallId(`dispatch-recall-${sequence}`),
+          callId: ToolCallId(`dispatch-recall-${sequence}`),
           name: companionPlugin.DECISION_TOOL_NAMES.recall,
           arguments: {},
           signal,
         },
         {
-          callId: CallId(`dispatch-propose-${sequence}`),
+          callId: ToolCallId(`dispatch-propose-${sequence}`),
           name: companionPlugin.DECISION_TOOL_NAMES.propose,
           arguments: { sequence, ...proposalArguments },
           signal,
         },
         {
-          callId: CallId(`dispatch-request-${sequence}`),
+          callId: ToolCallId(`dispatch-request-${sequence}`),
           name: companionPlugin.DECISION_TOOL_NAMES.requestAction,
           arguments: { sequence, proposalId: `turn-${sequence}:proposal` },
           signal,

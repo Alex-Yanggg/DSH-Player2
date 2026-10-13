@@ -3,7 +3,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Context } from "@deepseek-ai/cordis";
-import { CallId } from "@deepseek-ai/dsh-llm";
+import { ToolCallId } from "@deepseek-ai/dsh-llm";
 import SkillRegistry from "@deepseek-ai/dsh-skill";
 import SystemPrompt from "@deepseek-ai/dsh-system-prompt";
 import ToolRuntime from "@deepseek-ai/dsh-tools";
@@ -91,13 +91,13 @@ const dispatcher = new BridgeDispatcher({
     async runDecisionTurn(turnSequence) {
       const calls = [
         {
-          callId: CallId(`dual-observe-${turnSequence}`),
+          callId: ToolCallId(`dual-observe-${turnSequence}`),
           name: companionPlugin.DECISION_TOOL_NAMES.observe,
           arguments: { sequence: turnSequence },
           signal,
         },
         {
-          callId: CallId(`dual-recall-${turnSequence}`),
+          callId: ToolCallId(`dual-recall-${turnSequence}`),
           name: companionPlugin.DECISION_TOOL_NAMES.recall,
           arguments: {},
           signal,
@@ -109,7 +109,7 @@ const dispatcher = new BridgeDispatcher({
         const cited = (await receiptSequences(bridgeDirectory)).slice(0, 8);
         if (cited.length > 0) {
           calls.push({
-            callId: CallId(`dual-reflect-${turnSequence}`),
+            callId: ToolCallId(`dual-reflect-${turnSequence}`),
             name: companionPlugin.DECISION_TOOL_NAMES.reflect,
             arguments: {
               sequence: turnSequence,
@@ -125,7 +125,7 @@ const dispatcher = new BridgeDispatcher({
       }
       calls.push(
         {
-          callId: CallId(`dual-propose-${turnSequence}`),
+          callId: ToolCallId(`dual-propose-${turnSequence}`),
           name: companionPlugin.DECISION_TOOL_NAMES.propose,
           arguments: {
             sequence: turnSequence,
@@ -141,7 +141,7 @@ const dispatcher = new BridgeDispatcher({
           signal,
         },
         {
-          callId: CallId(`dual-request-${turnSequence}`),
+          callId: ToolCallId(`dual-request-${turnSequence}`),
           name: companionPlugin.DECISION_TOOL_NAMES.requestAction,
           arguments: { sequence: turnSequence, proposalId: `turn-${turnSequence}:proposal` },
           signal,
