@@ -60,6 +60,25 @@ describe("Player2 DSH host bundle", () => {
       await rm(root, { recursive: true, force: true });
     }
   });
+  it("traces a day-start turn's pickup under the day-start lane, not the chat lane", async () => {
+    const root = await mkdtemp(join(tmpdir(), "player2-day-start-lane-"));
+    const session = join(root, "projects", "mira", "sessions", "1");
+    const fixture = JSON.parse(await readFile(new URL("../../../fixtures/social-turn/stardew-social-memory.json", import.meta.url), "utf8")) as { id: string };
+    await mkdir(join(session, "social-inbox"), { recursive: true });
+    await mkdir(join(root, "development-logs"), { recursive: true });
+    await writeFile(join(session, "social-inbox", `turn-${fixture.id}.json`), JSON.stringify({ ...fixture, occasion: "day-start" }));
+    const host = new Player2DshHost({} as Context, { bridgeDirectory: root });
+    const internals = host as unknown as { runSocial(session: string, id: string): Promise<void>; socialAgent(): Promise<never> };
+    vi.spyOn(internals, "socialAgent").mockRejectedValue(new Error("no agent in this test"));
+    try {
+      await internals.runSocial(session, fixture.id);
+      const lines = (await readFile(join(root, "development-logs", "latency-host.jsonl"), "utf8")).trim().split("\n").map((line) => JSON.parse(line) as { lane: string; stage: string });
+      expect(lines.map(({ lane, stage }) => `${lane}/${stage}`)).toEqual(["day-start/host-picked", "day-start/failed"]);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("declares the DSH services needed to create owned native agents", () => {
     expect(name).toBe("player2-dsh-host");
     expect(inject).toEqual(["agents", "agentDefaultModel", "agentPresets", "sessions", "sessionPersistence"]);

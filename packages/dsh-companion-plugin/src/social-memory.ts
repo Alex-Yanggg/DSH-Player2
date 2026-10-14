@@ -32,7 +32,9 @@ export function socialMemoryNote(
   }
   const receipt = turn.latestReceipt;
   if (receipt !== null && receipt !== undefined && receipt.proposalId !== memory?.sourceProposalId) {
-    lines.push(`- latest receipt: ${receipt.status} ${receipt.capabilityId}, ${clip(receipt.detail)}`);
+    // A receipt is never a memory id; only a completed or failed one may be remembered (rememberLatestReceipt).
+    const rememberable = receipt.status === "completed" || receipt.status === "failed";
+    lines.push(`- latest receipt: ${receipt.status} ${receipt.capabilityId}, ${clip(receipt.detail)} [not citable; ${rememberable ? "may be remembered" : "do not remember"}]`);
   }
   const growth = turn.growth;
   if (growth !== null && growth !== undefined) {
@@ -40,7 +42,11 @@ export function socialMemoryNote(
     for (const insight of [...growth.insights].reverse()) lines.push(`- you learned: ${clip(insight.text)}`);
   }
   if (lines.length === 0) return "";
-  const header = `${SOCIAL_MEMORY_TAG} (shared history, never current facts; only the yesterday id is citable):`;
+  // Without a yesterday line nothing is citable; saying so stops the model from citing a receipt's proposal id,
+  // which the validator rejects on every later turn of the save.
+  const header = memory !== null && memory !== undefined
+    ? `${SOCIAL_MEMORY_TAG} (shared history, never current facts; only the yesterday id is citable):`
+    : `${SOCIAL_MEMORY_TAG} (shared history, never current facts; nothing here is citable, so basedOnMemoryId must be null):`;
   let note = header;
   for (const line of lines) {
     if (note.length + 1 + line.length > limit) break;
