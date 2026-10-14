@@ -1,22 +1,18 @@
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { dreamRequestSchema, socialBridgeTurnSchema, type Episode, type PersonLedger, type SocialBridgeTurn } from "@dsh-player2/contracts";
+import type { Episode, PersonLedger } from "@dsh-player2/contracts";
 import { MindCore } from "./core.js";
 import { applyLedgerEdits, isIndependent, parseLedgerEdits } from "./dream-ledger.js";
 import { EPISODES_PER_SAVE, PersonaLedger, episodeId, forgetLeastImportant } from "./ledger.js";
 import { MIND_CONTEXT_LIMIT, MIND_CONTEXT_TAG, isWhyQuestion, mindContextNote } from "./mind-context.js";
 import { applyMoodEvent, decayMood, describeMood, restingMood } from "./mood.js";
 import { retrieveEpisodes, tokenize } from "./retrieval.js";
-import { socialTurnExtras } from "./turn-extras.js";
+import { nominationOf } from "./turn-extras.js";
 
 const NOW = new Date("2026-08-30T08:10:00.000Z");
-
-const golden = (): SocialBridgeTurn => socialBridgeTurnSchema.parse(
-  JSON.parse(readFileSync(new URL("../../../../fixtures/social-turn/stardew-social-memory.json", import.meta.url), "utf8")),
-);
 
 function episode(id: string, summary: string, extra: Partial<Episode> = {}): Episode {
   return {
@@ -28,15 +24,8 @@ function episode(id: string, summary: string, extra: Partial<Episode> = {}): Epi
 async function session(): Promise<string> {
   const root = mkdtempSync(join(tmpdir(), "player2-mind-"));
   const dir = join(root, "projects", "mira", "sessions", "save-1");
-  await mkdir(join(dir, "receipts"), { recursive: true });
+  await mkdir(dir, { recursive: true });
   return dir;
-}
-
-async function receipt(dir: string, sequence: number, status: string, detail: string): Promise<void> {
-  await writeFile(join(dir, "receipts", `receipt-${sequence}.json`), JSON.stringify({
-    proposalId: `proposal-${sequence}`, capabilityId: "visual-receipt", status,
-    occurredAt: "2026-08-29T09:00:00.000Z", target: "tile 12, 8", scope: "visual marker + sound only", detail,
-  }));
 }
 
 describe("flavor-cue selection (P2-0016)", () => {
@@ -85,20 +74,9 @@ describe("mood (P2-0016)", () => {
 });
 
 describe("persona ledger files (P2-0016)", () => {
-  it("appends idempotently and ingests receipts once, skipping damaged ones", async () => {
+  it("appends idempotently", async () => {
     const dir = await session();
-    await receipt(dir, 1, "completed", "A marker was shown near the parsnips.");
-    await writeFile(join(dir, "receipts", "receipt-2.json"), "{ damaged");
-    await receipt(dir, 3, "failed", "The path to the pond was blocked.");
     const { ledger, save } = PersonaLedger.forSession(dir);
-    const first = await ledger.ingestReceipts(dir, save, "stardew-valley", 11, NOW);
-    expect(first.added.map((item) => item.refs[0])).toEqual(["receipt:1", "receipt:3"]);
-    expect(first.skipped).toBe(1);
-    const again = await ledger.ingestReceipts(dir, save, "stardew-valley", 11, NOW);
-    expect(again.added).toHaveLength(0);
-    expect((await ledger.episodes(save)).episodes).toHaveLength(2);
-    expect((await ledger.mood(save, NOW)).arousal).toBeGreaterThan(restingMood(NOW).arousal);
-
     const draft = { at: NOW.toISOString(), gameDay: 12, game: "stardew-valley", kind: "utterance" as const, summary: "liked the rain", salience: 0.4, valence: 0.2, refs: ["social:x"] };
     expect(await ledger.appendEpisodes(save, [draft])).toHaveLength(1);
     expect(await ledger.appendEpisodes(save, [draft])).toHaveLength(0);
@@ -122,20 +100,6 @@ describe("persona ledger files (P2-0016)", () => {
     expect(kept.some((item) => item.summary === "e0")).toBe(false);
   });
 
-  it("migrates the growth asset into traits once, as candidates without two receipts", async () => {
-    const dir = await session();
-    await receipt(dir, 3, "completed", "A marker was shown near the parsnips.");
-    await mkdir(join(dir, "growth"), { recursive: true });
-    await writeFile(join(dir, "growth", "growth.json"), JSON.stringify(golden().growth));
-    const { ledger, save } = PersonaLedger.forSession(dir);
-    await ledger.ingestReceipts(dir, save, "stardew-valley", 11, NOW);
-    expect(await ledger.migrateGrowth(dir, save, NOW)).toBe(1);
-    expect(await ledger.migrateGrowth(dir, save, NOW)).toBe(0);
-    const person = await ledger.person();
-    expect(person.traits[0].status).toBe("candidate");
-    expect(person.migratedGrowth[save]).toBe(7);
-  });
-
   it("refuses a damaged person file loudly", async () => {
     const dir = await session();
     const { ledger } = PersonaLedger.forSession(dir);
@@ -145,19 +109,14 @@ describe("persona ledger files (P2-0016)", () => {
   });
 });
 
-describe("social turn extras (P2-0016)", () => {
-  const citable = new Set(["ep-000000000001"]);
-  it("accepts given citations and one well-formed nomination", () => {
-    const extras = socialTurnExtras({ episodeIds: ["ep-000000000001"], remember: { kind: "correction", summary: "The player prefers being asked first.", salience: 2 } }, citable);
-    expect(extras.cited).toEqual(["ep-000000000001"]);
-    expect(extras.nomination).toEqual({ kind: "correction", summary: "The player prefers being asked first.", salience: 1, valence: 0 });
+describe("remember nominations (P2-0016)", () => {
+  it("accepts one well-formed nomination and clamps its numbers", () => {
+    expect(nominationOf({ kind: "correction", summary: "The player prefers being asked first.", salience: 2 }))
+      .toEqual({ kind: "correction", summary: "The player prefers being asked first.", salience: 1, valence: 0 });
   });
-  it("fails a turn that cites an episode it was not given", () => {
-    expect(() => socialTurnExtras({ episodeIds: ["ep-ffffffffffff"] }, citable)).toThrow(/not given/);
-  });
-  it("drops a malformed or receipt nomination without failing", () => {
-    expect(socialTurnExtras({ remember: { kind: "receipt", summary: "x" } }, citable).droppedNomination).toMatch(/kind/);
-    expect(socialTurnExtras({}, citable)).toEqual({ cited: [], nomination: null, droppedNomination: null });
+  it("refuses a malformed or receipt nomination with a reason", () => {
+    expect(nominationOf({ kind: "receipt", summary: "x" })).toMatch(/kind/);
+    expect(nominationOf({ kind: "milestone", summary: "" })).toMatch(/summary/);
   });
 });
 
@@ -196,7 +155,7 @@ describe("dream ledger edits (P2-0016)", () => {
     episode("ep-000000000003", "same turn echo", { refs: ["social:a"] }),
     episode("ep-000000000004", "marker shown", { kind: "receipt", refs: ["receipt:1"] }),
   ];
-  const empty: PersonLedger = { version: "0.1", traits: [], migratedGrowth: {} };
+  const empty: PersonLedger = { version: "0.1", traits: [] };
   const apply = (raw: unknown, person: PersonLedger = empty) => applyLedgerEdits(parseLedgerEdits(raw)!, { person, story: null, shown: known, known, game: "stardew-valley", now: NOW });
 
   it("activates a trait with two independent episodes and keeps a single-source one as a candidate", () => {
@@ -238,35 +197,27 @@ describe("dream ledger edits (P2-0016)", () => {
 });
 
 describe("Mind Core end to end (P2-0016)", () => {
-  it("retrieves, records why, answers a why-question, and lets a dream rewrite the story", async () => {
+  it("remembers, records why, answers a why-question, and lets a dream rewrite the story", async () => {
     const dir = await session();
-    await receipt(dir, 3, "completed", "A temporary marker was shown near the parsnips.");
     const core = new MindCore(dir);
-    const turn = golden();
-    const prepared = await core.prepareSocial({ ...turn, message: { ...turn.message, content: "parsnips 的标记有用吗" } }, NOW);
-    const receiptEpisode = prepared.retrieved[0].episode;
-    expect(receiptEpisode.kind).toBe("receipt");
-    expect(prepared.note).toContain(`[${receiptEpisode.id}]`);
-    expect(prepared.citable.has(receiptEpisode.id)).toBe(true);
+    await core.remember({ kind: "shared-event", summary: "We planted parsnips by the pond together.", salience: 0.7, valence: 0.5 }, "stardew-valley", 12, "turn:1", NOW);
+    const prepared = await core.prepareTurn("chat", "parsnips 长得怎么样", "stardew-valley", 12, NOW);
+    const remembered = prepared.retrieved[0].episode;
+    expect(remembered.summary).toContain("parsnips");
+    expect(prepared.note).toContain(`[${remembered.id}]`);
+    await core.commitTurn("chat", "s:1", "长得很好，多亏我们一起种！", prepared, NOW);
 
-    const extras = socialTurnExtras({ episodeIds: [receiptEpisode.id], remember: { kind: "shared-event", summary: "We agreed the parsnip marker helped.", salience: 0.6, valence: 0.5 } }, prepared.citable);
-    await core.commitSocial(turn, extras, "那个标记很管用！", prepared, NOW);
-    expect((await core.ledger.episodes(core.save)).episodes).toHaveLength(2);
+    const why = await core.prepareTurn("chat", "你为什么这么说？", "stardew-valley", 12, NOW);
+    expect(why.note).toContain("多亏我们一起种");
 
-    const why = await core.prepareSocial({ ...turn, id: "6b0f3c2e-7a41-4d8e-9c55-0d6f1e2a3b4c", message: { ...turn.message, content: "你为什么这么说？" } }, NOW);
-    expect(why.note).toContain("那个标记很管用");
-    expect(why.citable.has(receiptEpisode.id)).toBe(true);
-
-    const request = dreamRequestSchema.parse({ version: "0.1.1", sequence: 9, createdAt: NOW.toISOString(), gameDay: 12, companion: turn.companion });
-    const dream = await core.prepareDream(request, NOW);
-    expect(dream.digest).toContain("TODAYS_EPISODES(");
+    const dream = await core.prepareDream(12);
+    expect(dream.digest).toContain("TODAYS_EPISODES(1)");
     expect(dream.game).toBe("stardew-valley");
-    const outcome = await core.commitDream(request, { kind: "no-change", ledger: { story: "春天里我们靠一个小标记找到了节奏。" } }, dream, NOW);
+    const outcome = await core.commitDream({ story: "春天里我们在池塘边种下了防风草。" }, dream, "Mira", NOW);
     expect(outcome?.applied).toContain("story: revision 1");
-    expect((await core.ledger.story(core.save))?.text).toBe("春天里我们靠一个小标记找到了节奏。");
+    expect((await core.ledger.story(core.save))?.text).toBe("春天里我们在池塘边种下了防风草。");
     const exported = await readFile(join(core.ledger.root, "remember.md"), "utf8");
     expect(exported).toContain("Mira 记得什么");
-    expect(exported).toContain("春天里我们靠一个小标记找到了节奏。");
   });
 
   it("rejects a session path outside the bridge layout", () => {

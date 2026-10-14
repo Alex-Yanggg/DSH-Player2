@@ -33,7 +33,6 @@ public sealed class BodyChannel
     private readonly Dictionary<int, BodyTaskStatus> statuses = new();
     private readonly Dictionary<int, TaskCompletionSource<BodyTaskStatus>> waiters = new();
     private readonly HashSet<int> cancelled = new();
-    private readonly Queue<string> speech = new();
     private string declaration = "null";
     private string state = "null";
     private string world = "null";
@@ -52,7 +51,6 @@ public sealed class BodyChannel
             this.tasks.Clear();
             this.statuses.Clear();
             this.cancelled.Clear();
-            this.speech.Clear();
         }
     }
 
@@ -100,16 +98,6 @@ public sealed class BodyChannel
         lock (this.gate) return this.cancelled.Contains(seq) && this.tasks.TryGetValue(seq, out var task) && task.TaskId == taskId;
     }
 
-    public IReadOnlyList<string> TakeSpeech()
-    {
-        lock (this.gate)
-        {
-            var lines = this.speech.ToArray();
-            this.speech.Clear();
-            return lines;
-        }
-    }
-
     public BodyCheatGrant? ReadCheatGrant()
     {
         var path = this.cheatGrantPath;
@@ -127,7 +115,6 @@ public sealed class BodyChannel
         Tool("body_run", "Plays one raw input sequence on the body and returns its final status. A paused world holds the wait.",
             Schema(("steps", "array"), ("until", "object"), ("fastState", "boolean"), ("timeoutMs", "number")), this.RunAsync),
         Tool("body_cancel", "Stops the body's running input sequence.", Empty(), (_, _) => Task.FromResult(this.CancelActive())),
-        Tool("say", "Says one short line in the world, above the body.", Schema(("text", "string")), (args, _) => Task.FromResult(this.Say(args))),
         Tool("cheat_grant", "Records the player's own spoken grant or withdrawal of cheat inputs for this save.",
             Schema(("granted", "boolean"), ("quote", "string")), (args, _) => Task.FromResult(this.Grant(args))),
     };
@@ -173,14 +160,6 @@ public sealed class BodyChannel
             foreach (var seq in this.waiters.Keys) this.cancelled.Add(seq);
             return this.waiters.Count == 0 ? "nothing was running" : "cancel requested";
         }
-    }
-
-    private string Say(JsonObject args)
-    {
-        var text = (args["text"]?.GetValue<string>() ?? "").Trim();
-        if (text.Length == 0) throw new InvalidDataException("text is empty");
-        lock (this.gate) this.speech.Enqueue(text.Length > 400 ? text[..400] : text);
-        return "said";
     }
 
     private string Grant(JsonObject args)

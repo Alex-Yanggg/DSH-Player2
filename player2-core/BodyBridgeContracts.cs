@@ -118,8 +118,6 @@ public sealed record BodyTask(
     BodyUntil? Until,
     bool? FastState);
 
-public sealed record BodyCancel(string Version, int Seq, string TaskId, string At);
-
 public sealed record BodyEvent(long Tick, string Kind, string Detail);
 
 public sealed record BodyTaskStatus(
@@ -134,10 +132,11 @@ public sealed record BodyTaskStatus(
     long StateRevision,
     string UpdatedAt);
 
-public sealed record BodySpeech(string Version, int Seq, string Text, string At);
-
-/// <summary>Spoken cheat grant for one save, written by the DSH host (`goal/cheat.json`).</summary>
+/// <summary>The player's spoken cheat grant for one save (`goal/cheat.json` in the save's session folder).</summary>
 public sealed record BodyCheatGrant(string Version, bool Granted, string At, string Quote);
 
-/// <summary>The player's own stop command forwarded to the goal lane (`goal/interrupt-&lt;ms&gt;.json`).</summary>
-public sealed record BodyGoalInterrupt(string Version, string At, string Command);
+public static class BodyWire
+{
+    /// <summary>Now in the wire format the TypeScript contracts accept: UTC with a "Z" suffix.</summary>
+    public static string Now() => System.DateTimeOffset.UtcNow.UtcDateTime.ToString("O", System.Globalization.CultureInfo.InvariantCulture);
+}

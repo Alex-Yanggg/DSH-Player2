@@ -1,31 +1,22 @@
 import { defineTool } from "@deepseek-ai/dsh-tools";
 import type { BodyDeclaration, BodyInputStep, BodyItem, BodyState, BodyUntil, BodyWorld } from "@dsh-player2/contracts";
-import type { BodyPort, BodyRun } from "./client.js";
+import type { BodyPort, BodyRun } from "./port.js";
 import type { PersonaDice } from "./knobs.js";
 import { runMelee } from "./reflex.js";
 import { walkTo } from "./walk.js";
 
 /**
- * What the goal lane hands the companion plugin (P2-0021 T21.4). The host owns
- * the goal record and budget; the plugin owns the model-facing tools.
+ * The companion's hands as DSH tools (P2-0021): raw perception, raw input,
+ * and the navigation and reflex helpers built on them. Every call runs under
+ * the caller's own cancellation, so a cancelled turn stops the body too. The
+ * adapter itself refuses cheat inputs while no cheat switch is on.
  */
-export interface GoalController {
-  readonly goalId: string;
+export interface BodyContext {
   readonly body: BodyPort;
   readonly dice: PersonaDice;
-  /** Aborted when the player stops or replaces the goal. */
-  readonly signal: AbortSignal;
-  /** Whether cheat-class inputs are allowed right now (settings switch or spoken grant). */
-  cheatsAllowed(): Promise<boolean>;
-  note(text: string): Promise<void>;
-  finish(status: "done" | "failed", summary: string): Promise<void>;
-  /** Tool calls left in the engineering budget. */
-  toolCallsLeft(): number;
-  /** Counts one executed tool call against the budget. */
-  toolCalled?(name: string): void;
 }
 
-export const GOAL_TOOL_NAMES = {
+export const BODY_TOOL_NAMES = {
   observe: "world_observe",
   find: "world_find",
   map: "world_map",
@@ -34,30 +25,25 @@ export const GOAL_TOOL_NAMES = {
   use: "body_use",
   input: "body_input",
   melee: "reflex_melee",
-  say: "companion_say",
-  note: "goal_note",
-  finish: "goal_finish",
 } as const;
 
 const textOutput = { schema: { type: "string" }, render: (_args: unknown, value: unknown) => [{ type: "text" as const, text: String(value) }] } as const;
 
-export function createGoalTools(goal: GoalController) {
+export function createBodyTools(hands: BodyContext) {
   let declaration: BodyDeclaration | undefined;
   let world: BodyWorld | undefined;
-  const limits = async () => (declaration ??= await goal.body.declaration()).limits;
-  const loadWorld = async () => (world ??= await goal.body.world());
-  const signalOpt = () => ({ signal: goal.signal });
-
+  const limits = async () => (declaration ??= await hands.body.declaration()).limits;
+  const loadWorld = async () => (world ??= await hands.body.world());
   return [
     defineTool({
-      name: GOAL_TOOL_NAMES.observe,
+      name: BODY_TOOL_NAMES.observe,
       description: "Look at the game right now: clock, your body (location, tile, toolbar, stamina), the player, things near you nearest first, characters and exits. Raw game state, no interpretation.",
       parameters: { radius: { type: "integer", description: "How many tiles around you to list things (default 10, max 40)." } },
       output: textOutput,
-      execute: async (args) => renderObservation(await goal.body.state(), Math.min(40, Math.max(1, args.radius ?? 10))),
+      execute: async (args) => renderObservation(await hands.body.state(), Math.min(40, Math.max(1, args.radius ?? 10))),
     }),
     defineTool({
-      name: GOAL_TOOL_NAMES.find,
+      name: BODY_TOOL_NAMES.find,
       description: "Search everything exported in your current location by kind and/or name (case-insensitive substring), nearest to you first. Kinds include object, forage, dirt, tree, grass, clump, bush, item, machine.",
       parameters: {
         kind: { type: "string", description: "Exact kind, optional." },
@@ -67,7 +53,7 @@ export function createGoalTools(goal: GoalController) {
       },
       output: textOutput,
       execute: async (args) => {
-        const state = await goal.body.state();
+        const state = await hands.body.state();
         const name = args.name?.toLowerCase();
         const origin = state.body ?? state.player;
         const hits = state.objects
@@ -82,7 +68,7 @@ export function createGoalTools(goal: GoalController) {
       },
     }),
     defineTool({
-      name: GOAL_TOOL_NAMES.map,
+      name: BODY_TOOL_NAMES.map,
       description: "Read the raw tile grid around a point of your current location, using the adapter's legend ('.' walkable, '#' blocked, '~' water, 'W' walk warp, 'D' door). Row labels are y, column header is x.",
       parameters: {
         x: { type: "integer", description: "Centre x (default: your tile)." },
@@ -90,10 +76,10 @@ export function createGoalTools(goal: GoalController) {
         radius: { type: "integer", description: "Half-size of the window (default 8, max 20)." },
       },
       output: textOutput,
-      execute: async (args) => renderMap(await goal.body.state(), args.x, args.y, Math.min(20, Math.max(2, args.radius ?? 8))),
+      execute: async (args) => renderMap(await hands.body.state(), args.x, args.y, Math.min(20, Math.max(2, args.radius ?? 8))),
     }),
     defineTool({
-      name: GOAL_TOOL_NAMES.locations,
+      name: BODY_TOOL_NAMES.locations,
       description: "List the game's locations and how they connect (exits), from the exported world graph.",
       parameters: { near: { type: "string", description: "Only this location and its neighbours." } },
       output: textOutput,
@@ -106,7 +92,7 @@ export function createGoalTools(goal: GoalController) {
       },
     }),
     defineTool({
-      name: GOAL_TOOL_NAMES.walk,
+      name: BODY_TOOL_NAMES.walk,
       description: "Navigation helper: walk your body to a tile, across locations if needed. It plans a route on the exported map and plays it as held direction buttons, looking again after each leg. mode stand = stand on the tile; adjacent = stop next to it and face it (use before a tool or the action button on that tile). Reports honestly where you ended up.",
       parameters: {
         x: { type: "integer", required: true, description: "Target tile x." },
@@ -115,13 +101,13 @@ export function createGoalTools(goal: GoalController) {
         mode: { type: "string", enum: ["stand", "adjacent"], description: "Default stand." },
       },
       output: textOutput,
-      execute: async (args) => {
-        const result = await walkTo(goal.body, await limits(), loadWorld, { x: args.x, y: args.y, mode: args.mode === "adjacent" ? "adjacent" : "stand", ...(args.location ? { location: args.location } : {}) }, goal.signal);
+      execute: async (args, exec) => {
+        const result = await walkTo(hands.body, await limits(), loadWorld, { x: args.x, y: args.y, mode: args.mode === "adjacent" ? "adjacent" : "stand", ...(args.location ? { location: args.location } : {}) }, exec.signal);
         return `${result.ok ? "OK" : "NOT REACHED"}: ${result.reason}. Now at ${result.location ?? "?"} (${result.x ?? "?"},${result.y ?? "?"}) after ${result.legs} leg(s), ${Math.round(result.ms / 100) / 10} s.${eventsLine(result.events)}`;
       },
     }),
     defineTool({
-      name: GOAL_TOOL_NAMES.use,
+      name: BODY_TOOL_NAMES.use,
       description: "Press a button with your body: UseTool (the selected tool on the faced tile), Action (harvest, plant the selected seed, pick up forage, open a door), or DropItem (drop the selected stack in front of you). Optionally walk next to tile x,y first, select a toolbar slot (1-12) and press several times. Reports what the game did and how your inventory changed.",
       parameters: {
         button: { type: "string", required: true, enum: ["UseTool", "Action", "DropItem"], description: "Which button." },
@@ -131,23 +117,23 @@ export function createGoalTools(goal: GoalController) {
         times: { type: "integer", description: "Presses, 1-20 (default 1)." },
       },
       output: textOutput,
-      execute: async (args) => {
-        const before = await goal.body.state();
+      execute: async (args, exec) => {
+        const before = await hands.body.state();
         if (args.x !== undefined && args.y !== undefined) {
-          const walk = await walkTo(goal.body, await limits(), loadWorld, { x: args.x, y: args.y, mode: "adjacent" }, goal.signal);
+          const walk = await walkTo(hands.body, await limits(), loadWorld, { x: args.x, y: args.y, mode: "adjacent" }, exec.signal);
           if (!walk.ok) return `Did not press ${args.button}: could not get next to (${args.x},${args.y}): ${walk.reason}.`;
         }
         const steps: BodyInputStep[] = [];
         if (args.slot !== undefined) steps.push({ press: [`Slot${Math.min(12, Math.max(1, args.slot))}`], ms: 0 });
         const gap = args.button === "UseTool" ? 350 : 150;
         for (let i = 0; i < Math.min(20, Math.max(1, args.times ?? 1)); i++) steps.push({ press: [args.button], ms: gap });
-        const run = await goal.body.run(steps, signalOpt());
+        const run = await hands.body.run(steps, { signal: exec.signal });
         return describeRun(run, before);
       },
     }),
     defineTool({
-      name: GOAL_TOOL_NAMES.input,
-      description: "Raw input: play a sequence of steps on your body. Each step holds buttons (hold) for ms milliseconds and fires press buttons once at its start. Button ids come from the adapter's declaration (MoveUp/Right/Down/Left hold; FaceUp..., UseTool, Action, DropItem, Slot1-12, MenuUp/MenuDown/MenuConfirm/MenuClose press; cheat modifiers only while a cheat switch is on). until can stop early: blockedMs, monsterWithin (tiles), warped, arrive {location,x,y,radius}.",
+      name: BODY_TOOL_NAMES.input,
+      description: "Raw input: play a sequence of steps on your body. Each step holds buttons (hold) for ms milliseconds and fires press buttons once at its start. Button ids come from the adapter's declaration (MoveUp/Right/Down/Left hold; FaceUp..., UseTool, Action, DropItem, Slot1-12, MenuUp/MenuDown/MenuConfirm/MenuClose press; cheat modifiers only while a cheat switch is on, otherwise the game refuses the sequence). until can stop early: blockedMs, monsterWithin (tiles), warped, arrive {location,x,y,radius}.",
       parameters: {
         steps: {
           type: "array", required: true, description: "1-64 steps.",
@@ -163,20 +149,14 @@ export function createGoalTools(goal: GoalController) {
         until: { type: "object", additionalProperties: true, description: "Optional stop conditions." },
       },
       output: textOutput,
-      execute: async (args) => {
-        const decl = declaration ??= await goal.body.declaration();
-        const cheatIds = new Set(decl.inputs.filter((input) => input.cheat === true).map((input) => input.id));
-        const steps = args.steps as BodyInputStep[];
-        if (steps.some((step) => [...(step.hold ?? []), ...(step.press ?? [])].some((id) => cheatIds.has(id))) && !await goal.cheatsAllowed()) {
-          return "Refused: that sequence uses a cheat input and no cheat switch is on (settings switch off and the player has not allowed it in chat for this save).";
-        }
-        const before = await goal.body.state();
-        const run = await goal.body.run(steps, { ...(args.until ? { until: args.until as BodyUntil } : {}), ...signalOpt() });
+      execute: async (args, exec) => {
+        const before = await hands.body.state();
+        const run = await hands.body.run(args.steps as BodyInputStep[], { ...(args.until ? { until: args.until as BodyUntil } : {}), signal: exec.signal });
         return describeRun(run, before);
       },
     }),
     defineTool({
-      name: GOAL_TOOL_NAMES.melee,
+      name: BODY_TOOL_NAMES.melee,
       description: "Reflex script: fight nearby monsters with your weapon in a closed loop at the game's pace (face, swing, step in), until the time is up, the area is clear, or enough monsters are gone. You set the tactic; it reports swings, monsters gone and the measured loop latency.",
       parameters: {
         seconds: { type: "integer", description: "How long, 1-120 (default 20)." },
@@ -184,60 +164,16 @@ export function createGoalTools(goal: GoalController) {
         targetKills: { type: "integer", description: "Stop after this many are gone (0 = no target)." },
       },
       output: textOutput,
-      execute: async (args) => {
-        const report = await runMelee(goal.body, await limits(), {
+      execute: async (args, exec) => {
+        const report = await runMelee(hands.body, await limits(), {
           seconds: Math.min(120, Math.max(1, args.seconds ?? 20)),
           chaseTiles: Math.min(15, Math.max(1, args.chaseTiles ?? 6)),
           targetKills: Math.max(0, args.targetKills ?? 0),
-        }, goal.dice.hands(), `${goal.goalId}:melee`, goal.signal);
+        }, hands.dice.hands(), `${exec.callId}:melee`, exec.signal);
         return `Melee ended by ${report.endedBy}: ${report.detail}. Swings ${report.swings}, steps ${report.steps}, monsters gone ${report.monstersGone}. Loop latency: state age p50 ${report.stateAgeMs.p50} ms / p95 ${report.stateAgeMs.p95} ms; input accept p50 ${report.acceptMs.p50} ms / p95 ${report.acceptMs.p95} ms.`;
       },
     }),
-    defineTool({
-      name: GOAL_TOOL_NAMES.say,
-      description: "Say one line to the player in the game world (above your head, or on their screen when you are elsewhere). Your own words, in character.",
-      parameters: { text: { type: "string", required: true, description: "At most 400 characters." } },
-      output: textOutput,
-      execute: async (args) => { await goal.body.say(args.text); return "Said."; },
-    }),
-    defineTool({
-      name: GOAL_TOOL_NAMES.note,
-      description: "Keep a short note about your route for this goal (what you chose and why: plant or buy, where, what it cost). Notes carry across turns and days.",
-      parameters: { text: { type: "string", required: true, description: "At most 240 characters." } },
-      output: textOutput,
-      execute: async (args) => { await goal.note(args.text.slice(0, 240)); return "Noted."; },
-    }),
-    defineTool({
-      name: GOAL_TOOL_NAMES.finish,
-      description: "End this goal. status done when it is achieved (check the state first), failed when it cannot be done or you decide to stop. summary is what you tell the player: the route you took (planted or bought, where, how much it cost) or honestly why it failed. It is said in the game.",
-      parameters: {
-        status: { type: "string", required: true, enum: ["done", "failed"] },
-        summary: { type: "string", required: true, description: "At most 400 characters, in character." },
-      },
-      output: textOutput,
-      execute: async (args) => {
-        await goal.finish(args.status === "done" ? "done" : "failed", args.summary.slice(0, 400));
-        return `Goal closed as ${args.status}.`;
-      },
-    }),
   ] as const;
-}
-
-/** The goal lane's standing policy. */
-export function goalPolicyText(languageLine: string): string {
-  return [
-    "You are {{companion_name}}, {{companion_relationship_role}}. This lane is your hands: you are playing the game alongside the player, pursuing a goal they gave you.",
-    "The player's request is your authorization. How you pursue it is your call, in character: spending, routes, risks and shortcuts are your choices. Nothing here asks you to check back first.",
-    "You perceive the world only through world_* tools (raw game state) and act only through body_* and reflex_* tools (raw input: walking, the tool button, the action button). No tool knows what anything is for: you plan.",
-    "Use what you know about the game. When you are unsure, use a web search tool if one is available; treat what you find as a hint and check it against the state, never as fact.",
-    "Work in short loops: observe, plan, do one step, observe again. Prefer body_walk_to for travel and body_use for tools; fall back to body_input for anything else.",
-    "Be honest: when something fails, is blocked, or the game refuses, say so plainly and adapt. Never claim progress the state does not show.",
-    "Keep route notes with goal_note. When the goal is achieved, check the state, then call goal_finish done with a summary of your route. If it cannot be done, call goal_finish failed with the real reason. Do not loop on the same failing step.",
-    "End each turn with one short plain sentence about where you are in the plan; the next turn continues from the state.",
-    "Everything you say to the player (companion_say, the goal_finish summary) is heard in the game: say it as a person, with places by their in-game names, no coordinates, tool names or budgets.",
-    "A paused game is the player stepping away, not a failure: when the state says paused, end the turn and wait; never close the goal because of it.",
-    languageLine,
-  ].join("\n");
 }
 
 function describeRun(run: BodyRun, before: BodyState): string {

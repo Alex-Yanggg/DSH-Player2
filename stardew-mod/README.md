@@ -1,129 +1,84 @@
-# Stardew SMAPI probe
+# Stardew SMAPI adapter
 
-At the beginning of each game day, the mod captures only direct game facts (day, weather, and location). It does not invent a pending task from weather or fixed templates. DSH may use those facts plus receipt-backed history to form a proposal; the mod validates it, asks the player to agree or decline, then records a visible receipt and player-owned outcome.
+The mod is the companion's body and voice in Stardew Valley; its mind is a DeepSeek Harness session. On each save the mod starts `dsh --profile acp` as its own child process, opens one DSH session for that save, and talks to it over ACP (stdio JSON-RPC). The companion's hands are a small MCP endpoint the mod serves on localhost: raw state export and raw button input, no task semantics. Models, tools, goals, memory hooks and logs are DSH's own; the mod keeps no request logs.
 
-The daily world receipt is deliberately limited to one temporary visual marker or one temporary companion presence plus a sound. Since P2-0021 the companion also has a **body** it plays with when the player gives it a goal in chat: the Mod exports raw state and plays raw button sequences on the companion (walk, use the selected tool, act on the faced tile), and DSH decides every button. The Mod has no task semantics of its own (see [B line](#b-line-goal-driven-companion-p2-0021)). The LLM workflow stays in the mounted native DSH plugin rather than inside the Mod.
+## Install
 
-Press **F2** (configurable via `ChatKey`) while the player is free to open the companion chat window; press **F2** again or **Esc** to close it. It behaves like the multiplayer ChatBox: recent lines stay visible above the input, the mouse wheel and PageUp/PageDown scroll back through history, **Up** recalls your last message, and **Enter** sends while keeping the window open. While DSH is replying, the header shows a waiting state and a second draft remains in the input instead of being discarded. The history is bounded (50 lines) and persists per save. A reply is displayed only after the mounted native DSH plugin returns validated output; a missing, malformed, or timed-out DSH result is an in-game error with a trace id, never a local reply. An explicit movement command in chat ("come here", "follow me", "stay", or the Chinese equivalents) starts moving the moment you press Enter, even while an earlier reply is still pending; the companion's reply to that message arrives independently. Negated, quoted, or questioning phrases never move the companion, and a blocked path is reported as `path-blocked`.
+1. Install DeepSeek Harness `0.2.0-rc.2` (`@deepseek-ai/dsh`) and set `DEEPSEEK_API_KEY`.
+2. From the repository root, build the plugin and add it to DSH's acp profile once:
 
-The game shows this **F2** hint once after a save is loaded. The chat is a compact bottom-left overlay and is intentionally hidden until invoked; it does not remain on the desktop or cover the play area.
+   ```powershell
+   npm ci
+   npm run build
+   dsh plugin --profile acp add ./packages/dsh-companion-plugin
+   ```
+
+3. Build and deploy the mod (the SMAPI build package finds a standard game installation; pass `-p:GamePath="FULL_GAME_PATH"` otherwise):
+
+   ```powershell
+   dotnet build DSHPlayer2.Stardew.csproj --configuration Release -p:OS=Windows_NT
+   ```
+
+4. Start the game through `StardewModdingAPI.exe`.
+
+`DshCommand` in `config.json` overrides how `dsh` is found (default: the pnpm shim, then `PATH`). `ApiKeyMode`: `InheritOnly` (default) passes `DEEPSEEK_API_KEY` from the SMAPI environment; `IncludeUserRegistry` also reads the Windows user variable. The key only travels in the child's environment and is never written or logged.
+
+## What the game sends
+
+The mod sends plain prompts into the save's session; the plugin reads the marker and DSH does the rest:
+
+| When | Prompt |
+| --- | --- |
+| A day starts | `[day-start day=N]` |
+| The player sends a chat line | `[chat day=N] <text>` (sent at once; DSH queues lines that arrive while the companion is busy) |
+| The day ends | `[day-end day=N]` (the companion's dream: it rewrites its story and memory ledger) |
+| The world runs again after a pause | `[resume]` (re-arms a paused goal without a model call) |
+
+A frozen world (a menu, an event, an unfocused window) for about three seconds stops the turn in flight; DSH pauses the goal instead of failing it, and `[resume]` re-arms it once the world runs again. The chat window does not stop a pending reply.
+
+What the companion says appears above its head when it is in the player's location, otherwise as a HUD line, and always in the chat history. A DSH failure is an in-game error naming the code; the details are in the SMAPI log and the DSH session log.
+
+## Chat and movement
+
+Press **F2** (`ChatKey`) to open or close the chat window. Recent lines stay visible, the mouse wheel and PageUp/PageDown scroll, **Up** recalls your last line, and **Enter** sends. The history (50 lines) persists per save. An explicit movement command ("come here", "follow me", "stay", or the Chinese equivalents) moves the companion the moment you press Enter and takes the body back from whatever it was doing; negated, quoted or questioning phrases never move it.
+
+Give the companion a goal in chat ("给我弄 3 根胡萝卜"): it creates a DSH goal, plays with its own body over the following days, and says how it went. Its body carries its own 12-slot toolbar (hoe, watering can, pickaxe, axe, scythe, rusty sword), saved on the farmer. Design: [docs/p2-0021-b-line-goal-driven-companion.md](../docs/p2-0021-b-line-goal-driven-companion.md).
 
 ## Choosing a companion
 
-On the first day of a save the mod asks who your companion is through native question dialogue and remembers the choice on that farmer. Three defaults ship; rename them, add entries, or pin one via `config.json`:
+On the first day of a save the mod asks who your companion is and remembers the choice on that farmer, then opens Stardew Valley's own character-customization screen for the companion's look. **F7** (`CustomizeCompanionKey`) reopens it. Edit the roster in `config.json`:
 
 ```json
 {
-  "CompanionName": "Mira",
   "CompanionChoices": [{
     "Name": "Mira",
     "Role": "the player's candid farm partner",
     "SoulValues": ["curiosity, kindness, and finding one small delight in each farm day"],
     "SoulBonds": ["the player, as a trusted friend and equal partner"],
     "SoulVoice": "Bright, gently playful, and honest about uncertainty.",
-    "SoulBoundaries": ["never invents a fact, memory, or completed action"]
+    "SoulBoundaries": ["never invents a fact, memory, or completed action"],
+    "Knobs": { "Talkativeness": 0.5, "HelpSeeking": 0.5, "Risk": 0.5, "Obedience": 0.5, "Skill": 0.5 }
   }]
 }
 ```
 
-Clearing `CompanionName` brings the choice dialog back on the next day. Immediately after choosing, the Mod opens Stardew Valley's own full character-customization screen. The resulting hair, skin, clothes, colors, and accessories are stored on that farmer and rendered through the native `FarmerRenderer` whenever the companion appears. Every decision turn carries the chosen identity and complete soul (`SoulValues`, `SoulBonds`, `SoulVoice`, `SoulBoundaries`); an empty soul is invalid configuration and stops the mod at startup instead of silently composing a personality-free assistant. These values, bonds, voice, and hard boundaries become the persona constitution that turn data can never rewrite.
+The soul becomes the persona constitution in DSH's system prompt; a soul without any commitment fails the plugin mount loudly.
+
+## Where things live
+
+Under `%USERPROFILE%\.dsh\player2\bridge` (`DecisionBridgeDirectory`): `player2.patch.yml` (the overlay the mod hands to `dsh --profile acp`), and `projects/<person>/sessions/<saveId>/` as the save's DSH session directory. The persona ledger lives in `projects/<person>/ledger/` (`remember.md` is a readable export rewritten after each dream). DSH's own session logs are in DSH's home.
 
 ## Mod settings
 
-When Generic Mod Config Menu is installed, Player2 exposes its chat, retry, and re-customize keys plus **Allow cheat capabilities** in the standard Mod Options screen. The cheat-capability switch defaults off; with it off, cheat-class body inputs are refused unless the player allows cheating in chat for the current save (logged with the player's words). This build's only cheat input is the `NoClip` walking modifier. Without GMCM, the same values remain editable in `config.json`, and **F7** (configurable via `CustomizeCompanionKey`) reopens the native character customizer.
+With Generic Mod Config Menu installed, the chat and re-customize keys and **Allow cheat capabilities** appear in Mod Options. The cheat switch defaults off; with it off, cheat-class inputs (this build: the `NoClip` walking modifier) are refused unless the player allows cheating in chat for this save.
 
-### Daily prose and fixed text
+## Manual check
 
-The complete daily proposal line is generated by the DSH decision agent from fresh world observations and the active soul; the Mod displays that validated persona-authored `utterance` verbatim, with the game's localized location name and no tile coordinates or fixed sentence shell. Its workflow and prompt constraints live in `packages/dsh-companion-plugin/src/decision-loop.ts`, while buttons, hints, waiting states, and errors live in `stardew-mod/i18n/default.json` and `stardew-mod/i18n/zh.json`. Edit `config.json` for the active soul today; a novice-facing, conversational Soul workshop should produce a reviewed draft and require explicit activation rather than allowing ordinary chat to rewrite the active soul.
-
-## DSH-owned bridge
-
-The bridge is enabled by default at `%USERPROFILE%\\.dsh\\player2\\bridge`, the same root used by the Player2 DSH bundle. Install that bundle once into the profile you run, then restart DSH:
-
-```json
-{
-  "PollIntervalTicks": 60,
-  "DshStartupTimeoutSeconds": 60,
-  "RequestTimeoutSeconds": 60,
-  "ApiKeyMode": "InheritOnly"
-}
-```
-
-Run `dsh plugin --profile web add ./packages/dsh-host-plugin` from the repository root once. On each SMAPI startup the Mod checks port 3080; when normal DSH Web is not already running, it starts `dsh --profile web --port 3080 --no-open` as a hidden normal DSH process. `ApiKeyMode` controls credential hand-off: `InheritOnly` (default) passes `DEEPSEEK_API_KEY` through only when the SMAPI environment already carries it; `IncludeUserRegistry` restores the legacy user-registry fallback. The key is never logged, stored, displayed, or transmitted by Player2 either way. The game waits for the mounted Player2 bundle's fresh heartbeat before publishing the first day or chat turn; an open Web port alone is not treated as ready. Set `AutoStartDshWeb` to `false` only when diagnosing a startup failure, or change `DshProfile`/`DshWebPort` when your DSH installation uses a different profile or port.
-
-### One project per person, one session per save
-
-Every turn, grant, receipt, and social file lives under `<bridge>/projects/<person>/sessions/<saveId>/` — one project directory is one companion person, and each save is one session inside it, with the lane directories (`inbox/`, `outbox/`, `drafts/`, `grants/`, `receipts/`, `social-inbox/`, `social-outbox/`) per session. Conversations and receipt-backed memories therefore never leak across saves, and durable DSH sessions are keyed to one person on one save. Only `development-logs/` and the `runtime/` readiness heartbeat live at the root. A pre-layout flat bridge is migrated once into `projects/legacy/sessions/legacy` at SMAPI startup, before DSH starts. Consumed social files are deleted immediately, and any social-lane file older than seven days is swept at day start, so abandoned turns cannot accumulate. The layout is deliberately transport-neutral: a future real-time social channel can replace the file read/write ends without moving anything.
-
-If no valid request arrives within `RequestTimeoutSeconds`, the Mod reports a traceable native-DSH error. Once a valid request is ready, its countdown is frozen while another game menu owns the screen; closing that menu presents the queued consent dialogue instead of racing it. A DSH request never executes directly: it must cite the current world observation, select an advertised capability and exact location-qualified target, survive C# revalidation, and receive an unexpired native player agreement.
-
-## Social lane tenancy and same-day retry
-
-The social lane has one tenant: the host farmer. A farmhand pressing **F2** gets a clear refusal instead of a turn that silently hangs. **F6** (`RetryDayKey`) re-opens a settled day turn after a same-day failure; a day whose receipt recorded a completed shared outcome refuses with an explanation, and the consent flow itself never changes.
-
-## Build and verify
-
-1. Install SMAPI 4.5+ and the .NET 6 SDK.
-2. Run `dotnet build` in this directory. The SMAPI build package discovers a standard game installation and deploys the mod to the game's `Mods/DSHPlayer2` folder.
-3. If discovery cannot find a custom game installation, run `dotnet build -p:GamePath="FULL_GAME_PATH"` instead. Keep that machine-specific path out of this public project file.
-4. Start the game through `StardewModdingAPI.exe`, load or start a save, and begin a day.
-5. Confirm that the SMAPI console contains `Player2 snapshot: day …`, then inspect the consent dialogue: it should read as the chosen companion speaking naturally, name the localized game location, and contain no semantic target, tile coordinate, or stitched field label.
-6. Choose **Agree to this small plan**. Confirm the requested temporary marker or customized companion presence appears and the SMAPI console records `status completed`.
-7. Begin the next day. Confirm the HUD recalls only the previous day's one outcome before the new proposal appears, and that the companion speaks the day's first line above their head (or in the HUD when elsewhere) without any tool step. Ask in chat what happened yesterday and confirm the reply refers to that same receipt-backed outcome.
-8. On a separate day choose **Not today**. Confirm that the HUD acknowledges the refusal and that no marker, sound, or new Player2 state is produced.
-9. For bridge validation, enable the config and DSH composition, then confirm the SMAPI log reports a published sequence followed by a grounded proposal. Move to another location before agreeing and confirm the result is `failed` with no misplaced marker. Repeat without moving and confirm a single completed receipt; reload the day and confirm the same sequence is not shown or executed again.
-10. On a fresh save, confirm the companion choice dialog offers the configured roster; pick one, finish the native character-customization screen, and confirm that the day's proposal follows only afterward. Trigger a presence proposal and confirm the full customized farmer composite appears briefly. Load the save again and confirm both the identity and appearance persist.
-11. Open the chat window, press F2 again to close it, reopen it, then send two messages and confirm both sides remain visible. While the first reply is pending, send two more lines; confirm all three are answered in the order sent, and that a fifth line typed while three are still waiting stays in the input with the queue-full HUD and no `DSH_SOCIAL_TURN_BUSY` development error. Scroll back with the mouse wheel or PageUp, recall your last message with Up, and confirm the history reopens with the save. Type "来我面前" while a reply is pending and confirm the companion starts walking immediately; type "不要来我面前" and confirm nothing moves.
-12. With the game language set to Chinese, confirm the dialogs, HUD lines, and native DSH replies render in Chinese.
-13. Stop the DSH profile, trigger a day turn, the day's first line, and an F2 turn, and confirm each produces a traceable error rather than a local fallback; an explicit movement command still moves the companion with DSH stopped.
-14. Inspect the bridge root: confirm the session layout `projects/<companion>/sessions/<saveId>/…` was created with this save's turn, grant, and receipt files, and that `social-inbox`/`social-outbox` are empty after a consumed chat reply. Load a second save with the same companion and confirm it gets its own session directory and its own receipts.
-15. Delete a test session's empty `social-outbox`, send one chat message, and confirm the game recreates the reply lane before publishing; after the reply arrives, confirm the pair of files for that turn is gone from `social-inbox`/`social-outbox`.
-16. Keep inventory or settings open until after DSH has written the day's action request, even beyond `RequestTimeoutSeconds`; confirm no timeout or conflicting popup occurs. Close the menu and confirm the queued consent dialogue appears once.
-17. On a farmhand client, press **F2** and confirm the refusal HUD appears and no social turn is published.
-18. With DSH stopped, let a day turn fail, then press **F6** and confirm the day turn is retried after the bundle becomes ready. Complete an action, then press **F6** again and confirm the completed day refuses to retry.
-19. With Generic Mod Config Menu installed, confirm Player2's key bindings, re-customize action, and default-off cheat permission appear in Mod Options. Without it, press **F7** and confirm re-customization still works.
-20. With the temperament layer enabled (default), confirm `development-logs/dsh-player2-host.jsonl` shows decision turns completing through `game_request_action` and that a deliberately incomplete turn produces a corrective continuation instead of ending silently.
-
-### W0 latency baseline (P2-0015)
-
-Every run also writes a same-clock latency trace: `development-logs/latency-mod.jsonl` from the Mod and `development-logs/latency-host.jsonl` from the DSH host. After a play session, run from the repository root:
-
-```powershell
-node scripts/latency-report.mjs "$env:USERPROFILE\.dsh\player2\bridge" --since 2026-10-13T00:00:00Z
-```
-
-The report prints n / P50 / P95 for every segment (key press, publish, host pickup, agent ready, first token, model done, write, game pickup, render), failure counts, and turns that never finished. The baseline needs at least 10 day-first lines, 30 F2 chat turns, and 20 movement commands; the report says when a lane has too few samples. Graded readiness is logged once per save load: `Player2 companion mouth lane is ready (reused|resumed|created, composed in N ms)`.
-
-### W1 one mind (P2-0016)
-
-21. After a day with a completed and a failed receipt, open `projects/<companion>/ledger/saves/<saveId>/episodes.jsonl` and confirm one `receipt` episode per receipt; send a chat line about that outcome and confirm the reply refers to it and `development-logs/dsh-player2-host.jsonl` shows `DSH_SOCIAL_TURN_COMPLETED` with that episode in `citedEpisodes`.
-22. Correct the companion ("我不喜欢你替我做决定") and confirm a `correction` episode is written; ask "你为什么这么说？" and confirm the reply explains from the episodes the previous line was given, or says none applied.
-23. End the day (sleep) and confirm `ledger/remember.md` is rewritten with the story, traits, mood, and recent episodes; a dream that changes nothing still writes the export and leaves `ledger/person.json` unchanged.
-24. Delete `ledger/` and confirm chat, the day's first line, and decisions keep working and the ledger is rebuilt from receipts on the next turn.
-
-Passing these gates proves the event-driven game entry point, a refutable permission turn, a bounded world receipt, a persisted native companion appearance, and two local state values with next-day recall.
-
-On this Windows workspace the build package requires the OS property explicitly because the shell environment omits it:
-
-```powershell
-dotnet build DSHPlayer2.Stardew.csproj --configuration Release -p:OS=Windows_NT
-```
-
-## B line: goal-driven companion (P2-0021)
-
-Give the companion a goal in chat ("给我弄 3 根胡萝卜"); it starts at once, plays with its own body, and tells you how it went. Say "停下" (or type the "stay" command) to stop it; a new goal replaces the old one. The body carries its own 12-slot toolbar (starter kit: hoe, watering can, pickaxe, axe, scythe, rusty sword), saved on the farmer. Each persona has five knobs in `config.json` (`CompanionChoices[].Knobs`: `Talkativeness`, `HelpSeeking`, `Risk`, `Obedience`, `Skill`, each 0–1).
-
-Files: `<session>/body/` (declaration, state, world, input, status), `<session>/goal/` (current goal, dice log, cheat grant, stop commands), `<session>/speech/`. Design and protocol: [docs/p2-0021-b-line-goal-driven-companion.md](../docs/p2-0021-b-line-goal-driven-companion.md).
-
-Manual verification on a fresh save:
-
-25. Load a save and open `body/declaration.json` and `body/state.json`: the declaration lists only raw inputs (`MoveUp`… `UseTool`, `Action`, `DropItem`, `Slot1`–`Slot12`, `NoClip` marked cheat), and `state.json` shows the companion's tile, toolbar and the location grid. Note the file size and the SMAPI line `Player2 body state export: N builds, mean X ms` (S12).
-26. With the companion on the farm, write `body/input/task-<n>.json` by hand with `{"version":"0.1","taskId":"<uuid>","seq":<n>,"createdAt":"<now>","steps":[{"hold":["MoveRight"],"ms":1000}]}`: the companion walks right about four tiles, stops at walls, and `body/status/task-<n>.json` ends `done` (S9). Open the chat during a long hold: the body pauses with the world and resumes when the chat closes.
-27. Write a task `[{"press":["Slot1"],"ms":0},{"press":["FaceDown","UseTool"],"ms":400}]` on open farmland: the tile below the companion is tilled; with `Slot2` (watering can) it is watered (S9).
-28. In chat, ask "给我弄 3 根胡萝卜". Confirm `goal/current.json` turns `active`, the companion acts on its own over the following days, and it ends with a line saying which route it took (planted or bought, where, what it cost). Repeat on five fresh saves; at least four should finish.
-28b. Stand the companion at Pierre's counter during opening hours and write a task `[{"press":["FaceUp","Action"],"ms":200}]`: `state.json` shows `body.menu` with the seed stock and prices; `[{"press":["MenuDown"],"ms":0},{"press":["MenuConfirm"],"ms":0},{"press":["MenuClose"],"ms":0}]` buys one packet into the body's toolbar and the player's gold drops by its price. Outside opening hours the status says `shop-refused`.
-29. While a goal runs, type "stay" (or say "停下"): the companion stops at its next step, `goal/current.json` is `stopped` with the reason, and `body/status/` shows the active task `cancelled`.
-30. Ask for something impossible ("给我钓一条传说之鱼" on day 1): the companion reports honestly, and the goal ends `failed` or `budget-exceeded` instead of looping.
-31. With **Allow cheat capabilities** off, ask the companion to walk through a wall: a `NoClip` task is refused. Say "这局随便开挂" and confirm `goal/cheat.json` is `granted` and `development-logs/dsh-player2-host.jsonl` has `DSH_CHEAT_SWITCH` with your words.
-32. In the mines, give a fighting goal and let it use `reflex_melee`; record the reported state-age and input-accept p50/p95 (S11). Record "去矿洞带 30 个骨头回来" as a stretch run without a pass bar.
-33. Check `goal/dice.jsonl` (seed and rolls per turn) and, in the goal agent's DSH session log, any web search it made.
+1. Load a save. The SMAPI console shows `Player2 started DSH (acp profile) for companion <name>.`, and the companion greets you above its head without any input.
+2. Press F2, say hello, and confirm the reply appears in the chat window in the game's language. Send two more lines quickly; both are answered in order.
+3. Type "来我面前" and confirm the companion starts walking at once; "不要来我面前" moves nothing.
+4. Ask for 3 carrots. Confirm the companion acts on its own, keeps going across days, and ends with a line about how it went. Open the inventory mid-goal for a few seconds, close it, and confirm the goal continues.
+5. Type "停下" during a goal and confirm the companion stops.
+6. Sleep, then open `projects/<person>/ledger/remember.md` and confirm the day is in its story.
+7. Close the game and confirm no `dsh` process is left running.
+8. Rename `DshCommand` to something missing, load a save, and confirm an in-game error names `DSH_START_FAILED` or `DSH_EXITED`; movement commands still work.

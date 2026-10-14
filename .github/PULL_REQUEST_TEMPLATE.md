@@ -12,7 +12,7 @@
 
 ## Verification evidence
 
-- [ ] `npm run accept:0.1.0` (or explain the narrower command)
+- [ ] `npm run accept` (or explain the narrower command)
 - [ ] `node scripts/verify-docs.mjs`
 - [ ] Manual Stardew path updated when the adapter changes
 

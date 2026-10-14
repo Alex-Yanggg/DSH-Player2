@@ -1,10 +1,25 @@
 # Changelog
 
-## Unreleased - slimming toward DSH-native transport
+## Unreleased - DSH-native transport
 
-- removes the unused `@dsh-player2/dsh-dispatcher` package and the
-  `replay:dispatch` script; production already dispatched inside the DSH host
-  plugin, and the keyless dual-end replays now play the DSH role directly.
+- the mod now starts `dsh --profile acp` as its own child process, one DSH
+  session per save, and talks ACP over stdio: `[day-start]`, `[chat]`,
+  `[day-end]` and `[resume]` prompts; what the companion says is shown above
+  its head, on the HUD and in the chat history;
+- the companion's hands are a localhost MCP endpoint served by the mod
+  (raw state and raw input); the plugin's body tools call it directly;
+- goals are DSH's own (`create_goal` / `update_goal`); a paused game cancels
+  the turn in flight, DSH pauses the goal, and `[resume]` re-arms it without a
+  model call;
+- removes the file bridge (turn, proposal, grant, receipt, social, speech and
+  goal files), the consent dialogue and decision lane, the host plugin and its
+  goal lane, the runtime package, the dual-host harness, the readiness
+  heartbeat, `dsh --profile web` auto-start, the F6 retry key, the chat queue,
+  and Player2's own development and latency logs (DSH's session logs are the
+  record);
+- memory episodes now come only from what the companion chooses to `remember`;
+  the dream closes with `dream_commit`;
+- `npm run accept` replaces the versioned acceptance chains.
 
 ## Unreleased - P2-0021 B line goal-driven companion
 

@@ -16,7 +16,7 @@ sys.path.insert(0, str(ROOT))
 import gamepilot as gp  # noqa: E402
 from games.stardew import Paths, StardewGame, build_test_save  # noqa: E402
 
-CATEGORIES = ("boot", "consent", "presence", "conversation", "movement", "boundaries", "feel", "w0")
+CATEGORIES = ("boot", "presence", "conversation", "movement", "boundaries", "feel", "bline")
 _results: list[dict] = []
 _state: dict = {}
 
@@ -58,33 +58,26 @@ def game(art):
 
 
 @pytest.fixture(scope="session")
-def bare_world(game):
-    """Past the title screen, in the isolated save, companion chosen, DSH bundle ready. Any daily proposal
-    dialogue is left untouched (the consent tests own it)."""
+def world(game):
+    """Past the title screen, in the isolated save, companion chosen and DSH started; the chat closed, so F2 and
+    typing reach the chat."""
     game.ensure_world()
+    game.close_chat()
     return game
-
-
-@pytest.fixture(scope="session")
-def world(bare_world):
-    """`bare_world` plus: no modal dialogue up and the chat closed, so F2 and typing reach the chat."""
-    bare_world.clear_modal()
-    bare_world.close_chat()
-    return bare_world
 
 
 @pytest.fixture(scope="session")
 def hello(world, art):
     """One ordinary chat turn shared by every test that only needs *a* completed/failed exchange."""
     ex = world.send_chat("你好", timeout=90)
-    art.record("shared_hello_exchange", outcome=ex.outcome, error=ex.error, trace_id=ex.trace_id,
-               latencies=ex.latencies(), companion_facts=ex.companion_facts, turn=ex.turn, reply=ex.reply)
+    art.record("shared_hello_exchange", outcome=ex.outcome, error=ex.error, stop_reason=ex.stop_reason,
+               latencies=ex.latencies(), reply=ex.reply)
     world.shot("hello_after")
     return ex
 
 
 def require_dsh(ex):
-    """Skip (do not fail) tests whose subject is downstream of a working DSH round trip."""
+    """Skip (do not fail) tests whose subject is downstream of a working DSH turn (`sent:` ... `turn ended:`)."""
     if ex.outcome != "completed":
         pytest.skip(f"BLOCKED by conversation round-trip ({ex.outcome}): {(ex.error or '')[:140]}")
 

@@ -38,6 +38,6 @@ def test_unsupported_request_is_not_faked(world, dsh_ok, art, name):
     art.record(f"gap_{name}", outcome=ex.outcome, reply=ex.reply, latencies=ex.latencies())
     assert ex.outcome == "completed", ex.error
     assert vision.diff_fraction(before, after, HOTBAR) < 0.02, "inventory bar changed after an unsupported request"
-    text = str(ex.reply or "")
+    text = ex.reply or ""
     assert not CLAIMS_DONE.search(text) or "不能" in text or "没法" in text or "无法" in text or "can't" in text.lower(), \
         f"reply may claim an action the product cannot perform: {text[:200]}"

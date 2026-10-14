@@ -1,5 +1,4 @@
 """Game-free self-tests of the gamepilot core. These run anywhere pytest does (no game, no display input)."""
-import json
 import time
 
 import numpy as np
@@ -34,33 +33,12 @@ def test_diff_and_color_fraction():
     assert abs(vision.color_fraction(b, (250, 0, 0), tol=5) - 0.5) < 1e-6
 
 
-def test_jsonl_tail_sees_only_new_records(tmp_path):
-    p = tmp_path / "log.jsonl"
-    p.write_text(json.dumps({"code": "OLD"}) + "\n", encoding="utf-8")
-    tail = gp.JsonlTail(p)
-    with open(p, "a", encoding="utf-8") as f:
-        f.write(json.dumps({"code": "NEW", "at": "2026-09-08T11:54:48.9891860+00:00"}) + "\n")
-    hit = tail.wait_for(lambda r: r.get("code") == "NEW", timeout=1)
-    assert hit and not tail.with_code("OLD")
-    assert abs(gp.parse_iso("2026-09-08T11:54:48.9891860+00:00") - 1788868488.989186) < 1e-3
-
-
 def test_text_tail_survives_truncation(tmp_path):
     p = tmp_path / "smapi.txt"
     p.write_text("x" * 50 + "\n", encoding="utf-8")
     tail = gp.TextTail(p)
     p.write_text("[21:52:29 INFO  DSH Player2 Companion] hello\n", encoding="utf-8")  # relaunch truncates
     assert tail.wait_for(r"Player2 Companion\] hello", timeout=1)
-
-
-def test_dirwatch_keeps_transient_files(tmp_path):
-    w = gp.DirWatch(tmp_path)
-    f = tmp_path / "turn.json"
-    f.write_text(json.dumps({"a": {"companion": {"distance": 3.5}}}), encoding="utf-8")
-    w.poll()
-    f.unlink()  # consumed by the other side
-    (_, doc), = list(w.json_files())
-    assert gp.find_key(doc, "distance") == 3.5
 
 
 def test_timeline_and_summary():

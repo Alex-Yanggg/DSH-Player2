@@ -1,5 +1,5 @@
 import type { BodyCharacter, BodyDeclaration, BodyState } from "@dsh-player2/contracts";
-import { sleep, type BodyPort } from "./client.js";
+import { sleep, type BodyPort } from "./port.js";
 import { seededUniform } from "./knobs.js";
 import { directionTo, faceButton, findPath, moveButton, neighbours, pathToSteps, walkMs, Walkability, type Direction } from "./navigation.js";
 

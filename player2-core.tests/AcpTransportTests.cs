@@ -152,9 +152,9 @@ public sealed class GameMcpServerTests
         Assert.Equal("player2-game", (await Call("initialize"))["result"]!["serverInfo"]!["name"]!.GetValue<string>());
         var names = (await Call("tools/list"))["result"]!["tools"]!.AsArray();
         Assert.Contains(names, tool => tool!["name"]!.GetValue<string>() == "body_run");
-        var said = await Call("tools/call", new JsonObject { ["name"] = "say", ["arguments"] = new JsonObject { ["text"] = "  hello  " } });
-        Assert.False(said["result"]!["isError"]!.GetValue<bool>());
-        Assert.Equal(new[] { "hello" }, channel.TakeSpeech());
+        var cancel = await Call("tools/call", new JsonObject { ["name"] = "body_cancel", ["arguments"] = new JsonObject() });
+        Assert.False(cancel["result"]!["isError"]!.GetValue<bool>());
+        Assert.Equal("nothing was running", cancel["result"]!["content"]![0]!["text"]!.GetValue<string>());
         var unknown = await Call("tools/call", new JsonObject { ["name"] = "fly" });
         Assert.True(unknown["result"]!["isError"]!.GetValue<bool>());
     }
@@ -212,5 +212,15 @@ public sealed class BodyChannelTests
             await Task.Delay(10);
         }
         throw new TimeoutException("no task was submitted");
+    }
+}
+
+public sealed class SessionLayoutTests
+{
+    [Fact]
+    public void ScopesOneSaveOfOnePersonToOneSafeFolder()
+    {
+        Assert.Equal(System.IO.Path.Combine("root", "projects", "mira-chan", "sessions", "42"), SessionLayout.SessionDirectory("root", " Mira Chan! ", SessionLayout.SaveId(42)));
+        Assert.Throws<ArgumentException>(() => SessionLayout.SessionDirectory("root", "???", "1"));
     }
 }

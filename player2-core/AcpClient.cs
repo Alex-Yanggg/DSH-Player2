@@ -35,6 +35,7 @@ public sealed class AcpClient : IDisposable
     private string? openMessageId;
     private string? openSessionId;
     private readonly StringBuilder openText = new();
+    private readonly Queue<string> diagnostics = new();
 
     public AcpClient(Stream toServer, Stream fromServer, Process? process = null)
     {
@@ -44,32 +45,58 @@ public sealed class AcpClient : IDisposable
         new Thread(() => this.ReadLoop(reader)) { IsBackground = true, Name = "player2-acp" }.Start();
     }
 
+    /// <summary>Whether DSH's output has closed; a closed client never recovers.</summary>
+    public bool HasExited { get; private set; }
+
     /// <summary>Companion speech and turn ends, in arrival order.</summary>
     public ConcurrentQueue<AcpEvent> Events { get; } = new();
 
-    /// <summary>Starts <c>dsh --profile acp</c> with the given patch overlays and connects to it.</summary>
-    public static AcpClient Launch(string dshCommand, IEnumerable<string> patches, string workingDirectory)
+    /// <summary>
+    /// Starts <c>dsh --profile acp</c> with the given patch overlays and connects to it.
+    /// A Windows <c>.cmd</c> shim runs through the command shell; DSH's own
+    /// diagnostics on stderr are kept as the last lines for an exit report.
+    /// </summary>
+    public static AcpClient Launch(string dshCommand, IEnumerable<string> patches, string workingDirectory, IReadOnlyDictionary<string, string>? environment = null)
     {
+        var arguments = new List<string> { "--profile", "acp" };
+        foreach (var patch in patches)
+        {
+            arguments.Add("--patch");
+            arguments.Add(patch);
+        }
         var start = new ProcessStartInfo
         {
-            FileName = dshCommand,
             UseShellExecute = false,
             CreateNoWindow = true,
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
-            RedirectStandardError = false,
+            RedirectStandardError = true,
             WorkingDirectory = workingDirectory,
             StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8,
         };
-        start.ArgumentList.Add("--profile");
-        start.ArgumentList.Add("acp");
-        foreach (var patch in patches)
+        if (OperatingSystem.IsWindows() && dshCommand.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase))
         {
-            start.ArgumentList.Add("--patch");
-            start.ArgumentList.Add(patch);
+            start.FileName = Environment.GetEnvironmentVariable("ComSpec") ?? "cmd.exe";
+            start.Arguments = $"/d /s /c \"{Quote(dshCommand)} {string.Join(" ", arguments.ConvertAll(Quote))}\"";
         }
+        else
+        {
+            start.FileName = dshCommand;
+            foreach (var argument in arguments) start.ArgumentList.Add(argument);
+        }
+        foreach (var (name, value) in environment ?? new Dictionary<string, string>()) start.Environment[name] = value;
         var process = Process.Start(start) ?? throw new InvalidOperationException("DSH did not start.");
-        return new AcpClient(process.StandardInput.BaseStream, process.StandardOutput.BaseStream, process);
+        var client = new AcpClient(process.StandardInput.BaseStream, process.StandardOutput.BaseStream, process);
+        process.ErrorDataReceived += (_, line) => client.RecordDiagnostic(line.Data);
+        process.BeginErrorReadLine();
+        return client;
+    }
+
+    /// <summary>DSH's last diagnostic lines (stderr), for reporting why it stopped.</summary>
+    public string Diagnostics
+    {
+        get { lock (this.diagnostics) return string.Join("\n", this.diagnostics); }
     }
 
     public Task InitializeAsync() =>
@@ -125,6 +152,18 @@ public sealed class AcpClient : IDisposable
         }
     }
 
+    private void RecordDiagnostic(string? line)
+    {
+        if (string.IsNullOrWhiteSpace(line)) return;
+        lock (this.diagnostics)
+        {
+            this.diagnostics.Enqueue(line.Length > 300 ? line[..300] : line);
+            while (this.diagnostics.Count > 8) this.diagnostics.Dequeue();
+        }
+    }
+
+    private static string Quote(string value) => value.IndexOfAny(new[] { ' ', '"', '&', '(', ')', '^' }) < 0 ? value : $"\"{value.Replace("\"", "\"\"", StringComparison.Ordinal)}\"";
+
     private async Task<JsonNode?> RequestAsync(string method, JsonObject parameters, string? promptSession = null)
     {
         var id = Interlocked.Increment(ref this.nextId);
@@ -166,6 +205,7 @@ public sealed class AcpClient : IDisposable
         foreach (var waiting in this.pending.Values) waiting.TrySetException(new AcpException("DSH exited"));
         this.pending.Clear();
         this.Events.Enqueue(new AcpEvent(Exited, "", error ?? "DSH closed its output"));
+        this.HasExited = true;
     }
 
     private void Dispatch(JsonObject frame)
@@ -178,7 +218,9 @@ public sealed class AcpClient : IDisposable
             {
                 // Updates precede their prompt's response on the wire, so the turn's last words are already buffered.
                 this.FlushMessage();
-                var stop = frame["result"]?["stopReason"]?.GetValue<string>() ?? "error";
+                var stop = frame["error"] is JsonNode error
+                    ? $"error: {error["message"]?.GetValue<string>() ?? error.ToJsonString()}"
+                    : frame["result"]?["stopReason"]?.GetValue<string>() ?? "end_turn";
                 this.Events.Enqueue(new AcpEvent(TurnEnded, promptSession, stop));
             }
             if (frame["error"] is JsonNode failure) waiting.TrySetException(new AcpException(failure.ToJsonString()));

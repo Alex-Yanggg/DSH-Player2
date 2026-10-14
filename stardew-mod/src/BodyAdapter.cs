@@ -57,16 +57,15 @@ internal sealed class BodyAdapter
     // fast cadence (state every 6 ticks, input every tick) lasts this long after
     // a fast-state task ends.
     private const int FastGraceTicks = 120;
-    private const int SpeechPollTicks = 15;
 
     private readonly IMonitor monitor;
     private readonly Func<NativeCompanion?> body;
     private readonly Func<bool> cheatSetting;
-    private readonly Action<string> speak;
+    private readonly BodyChannel channel;
     private readonly BodyStateExporter exporter;
     private readonly Dictionary<Debris, int> droppedByBody = new();
     private BodyShop? shop;
-    private BodyBridgeFiles? files;
+    private bool attached;
     private BodyTaskRunner? runner;
     private int lastStatusUpdate = -1;
     private int lastSeq;
@@ -74,46 +73,32 @@ internal sealed class BodyAdapter
     private int fastUntilTick = -1;
     private int lastWorldTick = -1;
     private int stateCountdown;
-    private int speechCountdown;
     private bool forceState;
 
-    public BodyAdapter(IMonitor monitor, Func<NativeCompanion?> body, Func<bool> cheatSetting, Action<string> speak)
+    public BodyAdapter(IMonitor monitor, BodyChannel channel, Func<NativeCompanion?> body, Func<bool> cheatSetting)
     {
         this.monitor = monitor;
+        this.channel = channel;
         this.body = body;
         this.cheatSetting = cheatSetting;
-        this.speak = speak;
         this.exporter = new BodyStateExporter(monitor);
     }
 
     public string? SessionRoot { get; private set; }
 
-    /// <summary>Binds the lane to one person and save and declares what it exports and accepts.</summary>
+    /// <summary>Binds the body to one person and save and declares what it exports and accepts.</summary>
     public void Attach(string sessionRoot)
     {
-        if (this.SessionRoot == sessionRoot && this.files is not null)
+        if (this.SessionRoot == sessionRoot && this.attached)
         {
             this.WriteDeclarationAndWorld();
             return;
         }
         this.Detach("session-changed");
         this.SessionRoot = sessionRoot;
-        this.files = new BodyBridgeFiles(sessionRoot);
-        try
-        {
-            this.files.SweepOlderThan(TimeSpan.FromDays(1), DateTimeOffset.UtcNow);
-            // Tasks written while the game was not running are stale: answer
-            // them cancelled instead of replaying old input into a new day.
-            foreach (var seq in this.files.PendingTaskSequences(0))
-            {
-                this.lastSeq = Math.Max(this.lastSeq, seq);
-                this.TryAnswerStale(seq);
-            }
-        }
-        catch (Exception ex)
-        {
-            this.monitor.Log($"Player2 body lane could not tidy old frames: {ex.Message}", LogLevel.Warn);
-        }
+        // Pending work of another save is dropped with the old binding.
+        this.channel.Attach(sessionRoot);
+        this.attached = true;
         this.WriteDeclarationAndWorld();
         this.forceState = true;
     }
@@ -127,7 +112,7 @@ internal sealed class BodyAdapter
         }
         this.runner = null;
         this.body()?.SetHeld(Array.Empty<string>());
-        this.files = null;
+        this.attached = false;
         this.SessionRoot = null;
         this.lastSeq = 0;
         this.droppedByBody.Clear();
@@ -137,12 +122,12 @@ internal sealed class BodyAdapter
     /// <summary>Re-writes the location graph (day start).</summary>
     public void WriteDeclarationAndWorld()
     {
-        if (this.files is null) return;
+        if (!this.attached) return;
         try
         {
             this.exporter.InvalidateGrid();
-            this.files.WriteDeclaration(this.Declaration());
-            var bytes = this.files.WriteWorld(this.exporter.BuildWorld());
+            this.channel.WriteDeclaration(this.Declaration());
+            var bytes = this.channel.WriteWorld(this.exporter.BuildWorld());
             this.monitor.Log($"Player2 body lane declared {Inputs.Length} inputs; world graph {bytes} bytes.", LogLevel.Trace);
         }
         catch (Exception ex)
@@ -166,7 +151,7 @@ internal sealed class BodyAdapter
     /// <summary>One game tick (called after the game's own update).</summary>
     public void OnTick()
     {
-        if (this.files is null) return;
+        if (!this.attached) return;
         var actor = this.body();
         // The game freezes its world (Game1.ticks stops) when the window loses
         // focus, while SMAPI keeps ticking this lane: that is a pause too.
@@ -214,27 +199,22 @@ internal sealed class BodyAdapter
             this.WriteState(actor, paused);
         }
         if (this.runner is not null && this.runner.Update != this.lastStatusUpdate) this.WriteStatus();
-        if (--this.speechCountdown <= 0)
-        {
-            this.speechCountdown = SpeechPollTicks;
-            this.PollSpeech();
-        }
     }
 
     private bool CheatsAllowed()
     {
-        return this.cheatSetting() || this.files?.ReadCheatGrant() is { Granted: true };
+        return this.cheatSetting() || this.channel.ReadCheatGrant() is { Granted: true };
     }
 
     private BodyDeclaration Declaration()
     {
         return new BodyDeclaration(
-            BodyBridgeFiles.ProtocolVersion,
+            BodyChannel.ProtocolVersion,
             "stardew-smapi",
             "stardew-valley",
-            DecisionBridgeRules.TimestampNow(),
-            new BodyStateDescriptor("state.json", "world.json",
-                "Raw Stardew Valley state around the companion's body: the body's location map as one character per tile, objects and terrain features as the game holds them, characters, warps, both farmers' inventories, and the clock. world.json is the location graph.",
+            BodyWire.Now(),
+            new BodyStateDescriptor("world_state", "world_map",
+                "Raw Stardew Valley state around the companion's body: the body's location map as one character per tile, objects and terrain features as the game holds them, characters, warps, both farmers' inventories, and the clock. world_map is the location graph.",
                 BodyStateExporter.Fields,
                 BodyStateExporter.Legend),
             Inputs,
@@ -244,16 +224,16 @@ internal sealed class BodyAdapter
 
     private void PollInput(NativeCompanion? actor)
     {
-        if (this.files is null) return;
+        if (!this.attached) return;
         try
         {
-            if (this.runner is { IsTerminal: false } running && this.files.IsCancelled(running.Task.Seq, running.Task.TaskId))
+            if (this.runner is { IsTerminal: false } running && this.channel.IsCancelled(running.Task.Seq, running.Task.TaskId))
             {
                 running.Cancel("cancelled", Game1.ticks);
                 actor?.SetHeld(Array.Empty<string>());
                 this.forceState = true;
             }
-            var pending = this.files.PendingTaskSequences(this.lastSeq);
+            var pending = this.channel.PendingTaskSequences(this.lastSeq);
             if (pending.Count == 0) return;
             // Newest wins, like a player changing the input: older unanswered
             // tasks are answered as superseded instead of replayed.
@@ -262,7 +242,7 @@ internal sealed class BodyAdapter
             BodyTask task;
             try
             {
-                task = this.files.ReadTask(seq);
+                task = this.channel.ReadTask(seq);
             }
             catch (Exception ex) when (ex is System.Text.Json.JsonException or System.IO.InvalidDataException)
             {
@@ -294,10 +274,10 @@ internal sealed class BodyAdapter
     {
         try
         {
-            var task = this.files!.ReadTask(seq);
+            var task = this.channel.ReadTask(seq);
             var stale = new BodyTaskRunner(task, Inputs, false, 1000d / 60d, MaxSteps, MaxStepMs);
             stale.Cancel(reason, Game1.ticks);
-            this.files.WriteStatus(stale.ToStatus(this.exporter.Revision, DecisionBridgeRules.TimestampNow()));
+            this.channel.WriteStatus(stale.ToStatus(this.exporter.Revision, BodyWire.Now()));
         }
         catch (Exception ex)
         {
@@ -577,12 +557,12 @@ internal sealed class BodyAdapter
     private void WriteState(NativeCompanion? actor, bool paused)
     {
         this.forceState = false;
-        if (this.files is null) return;
+        if (!this.attached) return;
         try
         {
             if (this.shop is not null && (actor is null || !this.shop.StillAt(actor))) this.shop = null;
             var state = this.exporter.BuildState(actor, paused, this.runner is { IsTerminal: false } r ? r.Task.Seq : null, this.shop?.ToWire());
-            this.files.WriteState(state);
+            this.channel.WriteState(state);
         }
         catch (Exception ex)
         {
@@ -592,28 +572,15 @@ internal sealed class BodyAdapter
 
     private void WriteStatus()
     {
-        if (this.files is null || this.runner is null) return;
+        if (!this.attached || this.runner is null) return;
         try
         {
-            this.files.WriteStatus(this.runner.ToStatus(this.exporter.Revision, DecisionBridgeRules.TimestampNow()));
+            this.channel.WriteStatus(this.runner.ToStatus(this.exporter.Revision, BodyWire.Now()));
             this.lastStatusUpdate = this.runner.Update;
         }
         catch (Exception ex)
         {
             this.monitor.Log($"Player2 body status write failed: {ex.Message}", LogLevel.Warn);
-        }
-    }
-
-    private void PollSpeech()
-    {
-        if (this.files is null) return;
-        try
-        {
-            foreach (var line in this.files.TakeSpeech()) this.speak(line.Text);
-        }
-        catch (Exception ex)
-        {
-            this.monitor.Log($"Player2 speech lane failed: {ex.Message}", LogLevel.Warn);
         }
     }
 

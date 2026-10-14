@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using DSHPlayer2.Core;
 using StardewModdingAPI;
 
 namespace DSHPlayer2.Stardew;
@@ -90,43 +89,31 @@ public sealed class CompanionKnobs
     public double Obedience { get; set; } = 0.5;
     public double Skill { get; set; } = 0.5;
 
-    public NativePersonaKnobs ToWire()
+    /// <summary>The knobs as the companion plugin's config reads them, each clamped to 0..1.</summary>
+    public Dictionary<string, double> ToWire()
     {
         static double Clamp(double value) => double.IsFinite(value) ? Math.Clamp(value, 0, 1) : 0.5;
-        return new NativePersonaKnobs(Clamp(this.Talkativeness), Clamp(this.HelpSeeking), Clamp(this.Risk), Clamp(this.Obedience), Clamp(this.Skill));
+        return new Dictionary<string, double>
+        {
+            ["talkativeness"] = Clamp(this.Talkativeness),
+            ["helpSeeking"] = Clamp(this.HelpSeeking),
+            ["risk"] = Clamp(this.Risk),
+            ["obedience"] = Clamp(this.Obedience),
+            ["skill"] = Clamp(this.Skill),
+        };
     }
 }
 
-/// <summary>Player-owned local configuration for the optional asynchronous DSH bridge.</summary>
+/// <summary>Player-owned local configuration.</summary>
 internal sealed class ModConfig
 {
     /// <summary>
-    /// DSH-owned bridge root. It deliberately lives under the Harness home so
-    /// the game joins the already-running DSH plugin rather than launching a
-    /// second, disconnected runtime.
+    /// Player2's data root under the DSH home: one folder per companion
+    /// person and save (the save's DSH session works there) and the
+    /// companion's memory ledger. The name is kept so existing configs and
+    /// memories carry over.
     /// </summary>
     public string DecisionBridgeDirectory { get; set; } = DefaultBridgeDirectory();
-
-    /// <summary>Game ticks between outbox polls; 60 ticks is approximately one second.</summary>
-    public int PollIntervalTicks { get; set; } = 60;
-
-    /// <summary>
-    /// Wall-clock seconds before an unanswered native DSH turn becomes a
-    /// visible development error. The deadline runs in real time, so game
-    /// pauses no longer stretch or shrink it. Legacy configs that only set
-    /// <see cref="RequestTimeoutTicks"/> keep working: Ticks/60 is used when
-    /// this value is unset.
-    /// </summary>
-    public int RequestTimeoutSeconds { get; set; } = 60;
-
-    /// <summary>Legacy tick-based request timeout kept for existing config files.</summary>
-    public int RequestTimeoutTicks { get; set; } = 3600;
-
-    /// <summary>Wall-clock seconds allowed for the DSH Player2 bundle to publish a fresh readiness heartbeat.</summary>
-    public int DshStartupTimeoutSeconds { get; set; } = 60;
-
-    /// <summary>Legacy tick-based startup timeout kept for existing config files.</summary>
-    public int DshStartupTimeoutTicks { get; set; } = 3600;
 
     /// <summary>The roster the in-game choice dialog offers; players may rename or extend it.</summary>
     public List<CompanionChoice> CompanionChoices { get; set; } = new()
@@ -210,14 +197,8 @@ internal sealed class ModConfig
     /// <summary>Key that opens the companion chat window.</summary>
     public SButton ChatKey { get; set; } = SButton.F2;
 
-    /// <summary>Starts the normal DSH web profile when SMAPI starts, unless disabled for diagnosis.</summary>
-    public bool AutoStartDshWeb { get; set; } = true;
-
-    /// <summary>DSH profile that owns the installed Player2 bundle.</summary>
-    public string DshProfile { get; set; } = "web";
-
-    /// <summary>Local Web UI port used to detect an already-running normal DSH profile.</summary>
-    public int DshWebPort { get; set; } = 3080;
+    /// <summary>The DSH command; empty finds the per-user pnpm shim first, then PATH.</summary>
+    public string DshCommand { get; set; } = string.Empty;
 
     /// <summary>
     /// How the mod supplies DEEPSEEK_API_KEY to the DSH process it spawns.
@@ -227,9 +208,6 @@ internal sealed class ModConfig
     /// the secret out of the config file either way.
     /// </summary>
     public ApiKeyMode ApiKeyMode { get; set; } = ApiKeyMode.InheritOnly;
-
-    /// <summary>Key that retries the companion day turn after a same-day failure; the consent flow itself never changes.</summary>
-    public SButton RetryDayKey { get; set; } = SButton.F6;
 
     /// <summary>Key that reopens Stardew Valley's native appearance editor for the companion.</summary>
     public SButton CustomizeCompanionKey { get; set; } = SButton.F7;
@@ -259,31 +237,10 @@ internal sealed class ModConfig
                 throw new InvalidOperationException(
                     $"Companion '{companion.Name}' has an illegal empty soul. Values, bonds, voice, and boundaries are all required.");
             }
-            DecisionBridgeRules.ValidateCompanionSoul(new BridgeCompanionSoul(
-                companion.SoulValues.ToArray(),
-                companion.SoulBonds.ToArray(),
-                companion.SoulVoice.Trim(),
-                companion.SoulBoundaries.ToArray()));
         }
     }
 
-    /// <summary>Returns the effective request timeout, honoring the legacy tick value when no seconds are configured.</summary>
-    public TimeSpan EffectiveRequestTimeout()
-    {
-        return this.RequestTimeoutSeconds > 0
-            ? TimeSpan.FromSeconds(this.RequestTimeoutSeconds)
-            : TimeSpan.FromSeconds(Math.Max(1, this.RequestTimeoutTicks) / 60.0);
-    }
-
-    /// <summary>Returns the effective DSH startup timeout, honoring the legacy tick value when no seconds are configured.</summary>
-    public TimeSpan EffectiveDshStartupTimeout()
-    {
-        return this.DshStartupTimeoutSeconds > 0
-            ? TimeSpan.FromSeconds(this.DshStartupTimeoutSeconds)
-            : TimeSpan.FromSeconds(Math.Max(1, this.DshStartupTimeoutTicks) / 60.0);
-    }
-
-    /// <summary>Returns the single bridge location shared with the DSH profile bundle.</summary>
+    /// <summary>The default data root under the DSH home.</summary>
     public static string DefaultBridgeDirectory()
     {
         return System.IO.Path.Combine(

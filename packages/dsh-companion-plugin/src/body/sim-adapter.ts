@@ -1,8 +1,6 @@
-import { mkdir, readdir, readFile, rename, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { randomUUID } from "node:crypto";
 import {
   bodyProtocolVersion,
-  bodyTaskSchema,
   type BodyCharacter,
   type BodyDeclaration,
   type BodyEvent,
@@ -12,12 +10,15 @@ import {
   type BodyTask,
   type BodyTaskStatus,
   type BodyWarp,
+  type BodyWorld,
+  type BodyInputStep,
 } from "@dsh-player2/contracts";
+import { sleep, type BodyPort, type BodyRun, type RunOptions } from "./port.js";
 
 /**
- * A keyless stand-in for the Stardew body adapter, speaking the same file
- * protocol (P2-0021). Replays and tests use it to drive the plugin-side
- * client, navigation, goal tools and reflexes without a game. Its world is a
+ * A keyless stand-in for the Stardew body, behind the same body port
+ * (P2-0021). Replays and tests use it to drive navigation, the body tools and
+ * reflexes without a game. Its world is a
  * toy: tile collision, a hoe, a watering can, seeds that grow when told to,
  * and monsters that vanish when hit.
  */
@@ -45,7 +46,7 @@ const FACES: Record<string, BodyState["body"] extends infer B ? B extends { faci
 const TICK_MS = 1000 / 60;
 const SPEED = 4;
 
-export class SimAdapter {
+export class SimAdapter implements BodyPort {
   public readonly locations: Map<string, SimLocation>;
   public body: { location: string; px: number; py: number; facing: "up" | "right" | "down" | "left"; slot: number; items: (BodyItem | null)[]; stamina: number };
   public player: { location: string; x: number; y: number; items: BodyItem[]; money: number };
@@ -59,11 +60,13 @@ export class SimAdapter {
   private lastSeq = 0;
   private task: { task: BodyTask; step: number; stepTick: number; ticks: number[]; events: BodyEvent[]; status: BodyTaskStatus["status"]; reason: string | null; update: number; startLocation: string; still: number } | undefined;
   private writing: Promise<void> = Promise.resolve();
+  private submitted: BodyTask | undefined;
+  private cancelSeq = 0;
   public readonly inputsSeen: BodyTask[] = [];
   private readonly shops: NonNullable<SimOptions["shops"]>;
   private menu: { shopId: string; cursor: number; at: { location: string; x: number; y: number } } | undefined;
 
-  public constructor(private readonly session: string, options: SimOptions) {
+  public constructor(options: SimOptions) {
     this.locations = new Map(options.locations.map((location) => [location.name, location]));
     const items: (BodyItem | null)[] = Array.from({ length: 12 }, () => null);
     for (const item of options.body.items) items[item.slot] = item;
@@ -95,14 +98,6 @@ export class SimAdapter {
   }
 
   public async start(tickMs = 2): Promise<void> {
-    await mkdir(join(this.session, "body", "input"), { recursive: true });
-    await mkdir(join(this.session, "body", "status"), { recursive: true });
-    await this.writeJson("declaration.json", SimAdapter.declaration(this.cheatSetting));
-    await this.writeJson("world.json", {
-      version: bodyProtocolVersion, writtenAt: new Date().toISOString(),
-      locations: [...this.locations.values()].map((l) => ({ name: l.name, displayName: l.name, outdoors: true, warps: l.warps })),
-    });
-    await this.writeState();
     // A sim tick runs faster than wall time so tests stay quick; durations still count ticks.
     this.timer = setInterval(() => { this.writing = this.writing.then(() => this.step()).catch(() => undefined); }, tickMs);
   }
@@ -115,31 +110,19 @@ export class SimAdapter {
 
   private async step(): Promise<void> {
     this.tick++;
-    if (this.tick % 3 === 0) await this.pollInput();
+    if (this.tick % 3 === 0) this.pollInput();
     const task = this.task;
     if (task !== undefined && !["done", "interrupted", "failed", "cancelled"].includes(task.status) && !this.paused) this.playTick(task);
-    if (this.tick % 3 === 0 || (task !== undefined && task.update !== this.writtenUpdate)) {
-      await this.writeState();
-      if (task !== undefined && task.update !== this.writtenUpdate) await this.writeStatus();
-    }
   }
 
-  private writtenUpdate = -1;
-
-  private async pollInput(): Promise<void> {
-    const input = join(this.session, "body", "input");
-    const names = await readdir(input).catch(() => [] as string[]);
-    const cancels = new Set(names.map((n) => /^cancel-(\d+)\.json$/.exec(n)?.[1]).filter(Boolean).map(Number));
-    if (this.task && cancels.has(this.task.task.seq) && !["done", "interrupted", "failed", "cancelled"].includes(this.task.status)) this.finish(this.task, "cancelled", "cancelled");
-    const seqs = names.map((n) => /^task-(\d+)\.json$/.exec(n)?.[1]).filter(Boolean).map(Number).filter((n) => n > this.lastSeq).sort((a, b) => a - b);
-    if (seqs.length === 0) return;
-    const seq = seqs[seqs.length - 1];
-    this.lastSeq = seq;
-    const task = bodyTaskSchema.parse(JSON.parse(await readFile(join(input, `task-${seq}.json`), "utf8")));
+  private pollInput(): void {
+    if (this.task && this.cancelSeq === this.task.task.seq && !["done", "interrupted", "failed", "cancelled"].includes(this.task.status)) this.finish(this.task, "cancelled", "cancelled");
+    const task = this.submitted;
+    if (task === undefined || task.seq <= this.lastSeq) return;
+    this.lastSeq = task.seq;
     this.inputsSeen.push(task);
     if (this.task && !["done", "interrupted", "failed", "cancelled"].includes(this.task.status)) {
       this.finish(this.task, "cancelled", "preempted");
-      await this.writeStatus();
     }
     const declared = SimAdapter.declaration(this.cheatSetting).inputs;
     const ids = task.steps.flatMap((s) => [...(s.hold ?? []), ...(s.press ?? [])]);
@@ -315,17 +298,6 @@ export class SimAdapter {
     task.update++;
   }
 
-  private async writeStatus(): Promise<void> {
-    const task = this.task;
-    if (task === undefined) return;
-    this.writtenUpdate = task.update;
-    const status: BodyTaskStatus = {
-      version: bodyProtocolVersion, taskId: task.task.taskId, seq: task.task.seq, status: task.status, update: task.update,
-      step: task.step, events: task.events.slice(-32), reason: task.reason, stateRevision: this.revision, updatedAt: new Date().toISOString(),
-    };
-    await this.writeJson(join("status", `task-${task.task.seq}.json`), status);
-  }
-
   public snapshot(): BodyState {
     const location = this.location();
     const t = this.tile;
@@ -351,14 +323,52 @@ export class SimAdapter {
     };
   }
 
-  private async writeState(): Promise<void> {
-    await this.writeJson("state.json", this.snapshot());
+  // The body port, in memory.
+  public declaration(): Promise<BodyDeclaration> { return Promise.resolve(SimAdapter.declaration(this.cheatSetting)); }
+  public state(): Promise<BodyState> { return Promise.resolve(this.snapshot()); }
+
+  public world(): Promise<BodyWorld> {
+    return Promise.resolve({
+      version: bodyProtocolVersion, writtenAt: new Date().toISOString(),
+      locations: [...this.locations.values()].map((l) => ({ name: l.name, displayName: l.name, outdoors: true, warps: l.warps })),
+    });
   }
 
-  private async writeJson(name: string, value: unknown): Promise<void> {
-    const path = join(this.session, "body", name);
-    const temp = `${path}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;
-    await writeFile(temp, JSON.stringify(value), "utf8");
-    await rename(temp, path);
+  public async run(steps: readonly BodyInputStep[], options: RunOptions = {}): Promise<BodyRun> {
+    const started = Date.now();
+    const task: BodyTask = {
+      version: bodyProtocolVersion, taskId: randomUUID(), seq: (this.submitted?.seq ?? 0) + 1, createdAt: new Date().toISOString(), steps: [...steps],
+      ...(options.until === undefined ? {} : { until: options.until }), ...(options.fastState === true ? { fastState: true } : {}),
+    };
+    this.submitted = task;
+    // Like the game's channel, only unpaused time counts against the budget.
+    let budget = options.timeoutMs ?? steps.reduce((sum, step) => sum + Math.max(step.ms, 17), 0) + 15_000;
+    let last = started;
+    for (;;) {
+      const now = Date.now();
+      if (!this.paused) budget -= now - last;
+      last = now;
+      const current = this.task?.task.seq === task.seq ? this.task : undefined;
+      if (current !== undefined && ["done", "interrupted", "failed", "cancelled"].includes(current.status)) {
+        return { seq: task.seq, status: current.status, reason: current.reason, events: current.events.slice(-32), state: this.snapshot(), acceptMs: undefined, totalMs: Date.now() - started };
+      }
+      if (options.signal?.aborted) await this.cancelActive();
+      if (budget <= 0) {
+        this.cancelSeq = task.seq;
+        return { seq: task.seq, status: "timeout", reason: "not finished in time", events: current?.events ?? [], state: this.snapshot(), acceptMs: undefined, totalMs: Date.now() - started };
+      }
+      await sleep(2);
+    }
+  }
+
+  public cancelActive(): Promise<void> {
+    if (this.task !== undefined) this.cancelSeq = this.task.task.seq;
+    return Promise.resolve();
+  }
+
+
+  public grantCheats(granted: boolean): Promise<string> {
+    this.cheatGrant = granted;
+    return Promise.resolve(granted ? "cheats granted for this save" : "cheats withdrawn for this save");
   }
 }
