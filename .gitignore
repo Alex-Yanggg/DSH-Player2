@@ -5,3 +5,6 @@ packages/*/dist/
 packages/*/*.tsbuildinfo
 companion.local.json
 .zcode/
+
+# Local development notes, kept out of the public repository
+AGENTS.md

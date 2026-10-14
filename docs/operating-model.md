@@ -44,7 +44,7 @@ After a release, review player feedback, defects, CI reliability, security alert
 
 ## Agent pre-flight and handoff
 
-- Read `AGENTS.md`, this file, the task contract, the relevant architecture/product gate, and the nearest local instructions.
+- Read this file, the task contract, the relevant architecture/product gate, and the nearest local instructions.
 - Constrain edits and commands to the contract. Keep an evidence note with commands run, results, manual evidence, and remaining risks.
 - Self-review the final diff for scope, player permissions, error and rollback behavior, secrets, licenses, and documentation. Put the same evidence in the PR template.
 - Pause rather than guessing when the task crosses a level gate or makes the current P0 promise ambiguous.
