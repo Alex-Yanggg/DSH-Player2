@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased - P2-0021 B line goal-driven companion
+
+- adds body protocol v0.1 (`<session>/body/`): raw state export, declared raw
+  inputs, write-once input tasks with cancel and status, and in-world speech;
+  C# and TypeScript schemas share one golden fixture;
+- turns the Stardew mod into a pure body adapter for the companion: held
+  directions walk with the engine's collision, `UseTool` / `Action` /
+  `DropItem` / toolbar slots act on the faced tile, a persisted 12-slot body
+  toolbar; no semantic actions in the mod;
+- adds plugin-side navigation (A* over the exported grid, warp-graph routes),
+  a walk helper, a melee reflex script that measures its loop latency, and
+  goal-mode tools for the companion plugin;
+- adds the host goal lane: goals start from the player's own words without a
+  consent dialogue, run across game days, stop on "stay" or a spoken stop,
+  resume after a restart, and end honestly when the anti-runaway budget is
+  spent; `GOAL_STATUS` reaches the chat lane;
+- adds five persona knobs with seeded, logged dice, the spoken per-save cheat
+  switch, and a ledger of goal-lane network requests;
+- makes `full` the default autonomy (`consult` remains an explicit setting).
+
+Acceptance: `npm run accept:0.2.0` (the `accept:0.1.4` baseline plus the
+keyless goal-lane replay and the S10 spike) and `dotnet test`; the real-game
+steps are in `stardew-mod/README.md`.
+
 ## Unreleased - P2-0016 W1 one mind
 
 - adds the Mind Core and Persona Ledger: receipt and chat-nominated episodes,
@@ -23,7 +47,7 @@
   starting a fresh lane at the composition boundary while keeping receipt
   memory continuous; and
 - removes the Player2-only `presetAutonomy` shadow. Autonomy stays a separate
-  host policy and defaults to `consult`.
+  host policy and defaults to `consult` (`full` since P2-0021).
 
 Focused acceptance is the host/companion package tests and type checks plus
 `npm run replay:dual:reflect`; the earlier `npm run accept:0.1.2` gate remains

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { personaKnobsSchema } from "./goal.js";
 
 export const contractVersion = "0.1" as const;
 
@@ -281,6 +282,12 @@ export const socialBridgeTurnSchema = z.object({
    * player speech. Absent means an ordinary player chat turn.
    */
   occasion: z.enum(["day-start"]).nullable().optional(),
+  /**
+   * P2-0021: the companion's persona knobs from the roster, carried so a goal
+   * taken on in this turn rolls its dice with the persona's own tendencies.
+   * Absent on turns written before the B line.
+   */
+  knobs: personaKnobsSchema.nullable().optional(),
 });
 export type SocialBridgeTurn = z.infer<typeof socialBridgeTurnSchema>;
 
@@ -486,3 +493,6 @@ export const saveLedgerStateSchema = z.object({
   receiptWatermark: z.number().int().nonnegative(),
 });
 export type SaveLedgerState = z.infer<typeof saveLedgerStateSchema>;
+
+export * from "./body.js";
+export * from "./goal.js";

@@ -2,7 +2,7 @@
 
 At the beginning of each game day, the mod captures only direct game facts (day, weather, and location). It does not invent a pending task from weather or fixed templates. DSH may use those facts plus receipt-backed history to form a proposal; the mod validates it, asks the player to agree or decline, then records a visible receipt and player-owned outcome.
 
-The world receipt is deliberately limited to one temporary visual marker or one temporary companion presence plus a sound. It does not change crops, inventory, maps, game automation, NPCs, or multiplayer state. The LLM workflow stays in the mounted native DSH plugin rather than inside the Mod.
+The daily world receipt is deliberately limited to one temporary visual marker or one temporary companion presence plus a sound. Since P2-0021 the companion also has a **body** it plays with when the player gives it a goal in chat: the Mod exports raw state and plays raw button sequences on the companion (walk, use the selected tool, act on the faced tile), and DSH decides every button. The Mod has no task semantics of its own (see [B line](#b-line-goal-driven-companion-p2-0021)). The LLM workflow stays in the mounted native DSH plugin rather than inside the Mod.
 
 Press **F2** (configurable via `ChatKey`) while the player is free to open the companion chat window; press **F2** again or **Esc** to close it. It behaves like the multiplayer ChatBox: recent lines stay visible above the input, the mouse wheel and PageUp/PageDown scroll back through history, **Up** recalls your last message, and **Enter** sends while keeping the window open. While DSH is replying, the header shows a waiting state and a second draft remains in the input instead of being discarded. The history is bounded (50 lines) and persists per save. A reply is displayed only after the mounted native DSH plugin returns validated output; a missing, malformed, or timed-out DSH result is an in-game error with a trace id, never a local reply. An explicit movement command in chat ("come here", "follow me", "stay", or the Chinese equivalents) starts moving the moment you press Enter, even while an earlier reply is still pending; the companion's reply to that message arrives independently. Negated, quoted, or questioning phrases never move the companion, and a blocked path is reported as `path-blocked`.
 
@@ -30,7 +30,7 @@ Clearing `CompanionName` brings the choice dialog back on the next day. Immediat
 
 ## Mod settings
 
-When Generic Mod Config Menu is installed, Player2 exposes its chat, retry, and re-customize keys plus **Allow cheat capabilities** in the standard Mod Options screen. The cheat-capability switch defaults off and is only a permission gate for future explicitly advertised cheat capabilities; this build advertises none. Without GMCM, the same values remain editable in `config.json`, and **F7** (configurable via `CustomizeCompanionKey`) reopens the native character customizer.
+When Generic Mod Config Menu is installed, Player2 exposes its chat, retry, and re-customize keys plus **Allow cheat capabilities** in the standard Mod Options screen. The cheat-capability switch defaults off; with it off, cheat-class body inputs are refused unless the player allows cheating in chat for the current save (logged with the player's words). This build's only cheat input is the `NoClip` walking modifier. Without GMCM, the same values remain editable in `config.json`, and **F7** (configurable via `CustomizeCompanionKey`) reopens the native character customizer.
 
 ### Daily prose and fixed text
 
@@ -108,3 +108,21 @@ On this Windows workspace the build package requires the OS property explicitly 
 ```powershell
 dotnet build DSHPlayer2.Stardew.csproj --configuration Release -p:OS=Windows_NT
 ```
+
+## B line: goal-driven companion (P2-0021)
+
+Give the companion a goal in chat ("给我弄 3 根胡萝卜"); it starts at once, plays with its own body, and tells you how it went. Say "停下" (or type the "stay" command) to stop it; a new goal replaces the old one. The body carries its own 12-slot toolbar (starter kit: hoe, watering can, pickaxe, axe, scythe, rusty sword), saved on the farmer. Each persona has five knobs in `config.json` (`CompanionChoices[].Knobs`: `Talkativeness`, `HelpSeeking`, `Risk`, `Obedience`, `Skill`, each 0–1).
+
+Files: `<session>/body/` (declaration, state, world, input, status), `<session>/goal/` (current goal, dice log, cheat grant, stop commands), `<session>/speech/`. Design and protocol: [docs/p2-0021-b-line-goal-driven-companion.md](../docs/p2-0021-b-line-goal-driven-companion.md).
+
+Manual verification on a fresh save:
+
+25. Load a save and open `body/declaration.json` and `body/state.json`: the declaration lists only raw inputs (`MoveUp`… `UseTool`, `Action`, `DropItem`, `Slot1`–`Slot12`, `NoClip` marked cheat), and `state.json` shows the companion's tile, toolbar and the location grid. Note the file size and the SMAPI line `Player2 body state export: N builds, mean X ms` (S12).
+26. With the companion on the farm, write `body/input/task-<n>.json` by hand with `{"version":"0.1","taskId":"<uuid>","seq":<n>,"createdAt":"<now>","steps":[{"hold":["MoveRight"],"ms":1000}]}`: the companion walks right about four tiles, stops at walls, and `body/status/task-<n>.json` ends `done` (S9). Open the chat during a long hold: the body pauses with the world and resumes when the chat closes.
+27. Write a task `[{"press":["Slot1"],"ms":0},{"press":["FaceDown","UseTool"],"ms":400}]` on open farmland: the tile below the companion is tilled; with `Slot2` (watering can) it is watered (S9).
+28. In chat, ask "给我弄 3 根胡萝卜". Confirm `goal/current.json` turns `active`, the companion acts on its own over the following days, and it ends with a line saying which route it took (planted or bought, where, what it cost). Repeat on five fresh saves; at least four should finish.
+29. While a goal runs, type "stay" (or say "停下"): the companion stops at its next step, `goal/current.json` is `stopped` with the reason, and `body/status/` shows the active task `cancelled`.
+30. Ask for something impossible ("给我钓一条传说之鱼" on day 1): the companion reports honestly, and the goal ends `failed` or `budget-exceeded` instead of looping.
+31. With **Allow cheat capabilities** off, ask the companion to walk through a wall: a `NoClip` task is refused. Say "这局随便开挂" and confirm `goal/cheat.json` is `granted` and `development-logs/dsh-player2-host.jsonl` has `DSH_CHEAT_SWITCH` with your words.
+32. In the mines, give a fighting goal and let it use `reflex_melee`; record the reported state-age and input-accept p50/p95 (S11). Record "去矿洞带 30 个骨头回来" as a stretch run without a pass bar.
+33. Check `goal/dice.jsonl` (seed and rolls per turn) and `development-logs/network-requests.jsonl` (one line per web call the goal lane made).

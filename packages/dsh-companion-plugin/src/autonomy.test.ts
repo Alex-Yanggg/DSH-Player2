@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { resolveAutonomy } from "./autonomy.js";
 
 describe("resolveAutonomy", () => {
-  it("defaults to consult when no scope carries a value", () => {
-    expect(resolveAutonomy({})).toBe("consult");
-    expect(resolveAutonomy({ agent: "", preset: "", global: "" })).toBe("consult");
+  it("defaults to full when no scope carries a value (P2-0021: the request is the authorization)", () => {
+    expect(resolveAutonomy({})).toBe("full");
+    expect(resolveAutonomy({ agent: "", preset: "", global: "" })).toBe("full");
   });
 
   it("shadows nearest: agent over preset over global", () => {

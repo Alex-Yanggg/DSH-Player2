@@ -1,11 +1,17 @@
 """Consent: each game day DSH proposes one small action and the player is asked natively. Both answers must be
 honoured and leave a settled receipt: decline -> nothing happens; agree -> the companion appears.
 A same-day F6 retry re-opens a day that was not completed, which lets one run exercise both answers."""
+import os
 import re
 
 import pytest
 
-pytestmark = pytest.mark.consent
+# P2-0021 made `full` the default autonomy: the daily proposal no longer asks. Run this module only against a DSH
+# host mounted with `autonomy: consult` (the explicit opt-in), and say so with E2E_AUTONOMY=consult.
+pytestmark = [
+    pytest.mark.consent,
+    pytest.mark.skipif(os.environ.get("E2E_AUTONOMY") != "consult", reason="host autonomy is full (default since P2-0021)"),
+]
 
 
 def test_proposal_arrives_as_a_native_dialogue(bare_world, art):

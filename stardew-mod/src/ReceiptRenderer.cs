@@ -103,12 +103,18 @@ internal static class ReceiptRenderer
 
     public static void ClearPresence()
     {
+        if (ActiveCompanion is not null) CompanionInventoryStore.Save(ActiveCompanion.Avatar);
         ActiveCompanion?.currentLocation?.characters.Remove(ActiveCompanion);
         ActiveCompanion = null;
     }
 
     // Runtime-only actors never enter vanilla save serialization.
-    public static void DetachForSave() => ActiveCompanion?.currentLocation?.characters.Remove(ActiveCompanion);
+    public static void DetachForSave()
+    {
+        if (ActiveCompanion is null) return;
+        CompanionInventoryStore.Save(ActiveCompanion.Avatar);
+        ActiveCompanion.currentLocation?.characters.Remove(ActiveCompanion);
+    }
     public static void RestoreAfterSave()
     {
         if (ActiveCompanion?.currentLocation is { } location && !location.characters.Contains(ActiveCompanion))

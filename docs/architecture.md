@@ -197,3 +197,12 @@ Every lane now speaks from the same mind. The **Mind Core** ([`mind/`](../packag
 - `node scripts/ledger-export.mjs <bridge> [person] [--stdout]` refreshes the export on demand; deleting `ledger/` forgets everything and the next turn rebuilds episodes from receipts.
 
 The Mod side adds one interaction change: chat lines sent while a reply is pending queue in order ([`ChatInputQueue`](../player2-core/ChatInputQueue.cs), at most three) instead of being refused, and are published one at a time, so the DSH social lane still sees one turn in flight.
+
+## B Line Goal-Driven Companion (P2-0021)
+
+The companion gains a body it plays with. The player's request is the authorization: the fast social lane may hand a goal to a per-save **goal lane** in the DSH host, which runs one DSH agent per goal until it finishes, fails honestly, is stopped by the player, or spends its anti-runaway budget. Design, protocol, spike results and gaps: [p2-0021-b-line-goal-driven-companion.md](p2-0021-b-line-goal-driven-companion.md).
+
+- **Mod = pure adapter.** [`BodyAdapter`](../stardew-mod/src/BodyAdapter.cs) exports raw state ([`BodyStateExporter`](../stardew-mod/src/BodyStateExporter.cs)) and plays raw button sequences on the companion body; it has no "go to" or task semantics. The protocol is a file lane under `<session>/body/` ([`body.ts`](../packages/contracts/src/body.ts), [`BodyBridgeFiles`](../player2-core/BodyBridgeFiles.cs), [`BodyTaskRunner`](../player2-core/BodyTaskRunner.cs)).
+- **Plugin = hands and helpers.** Goal mode of the companion plugin registers world/body/reflex tools ([`goal-tools.ts`](../packages/dsh-companion-plugin/src/body/goal-tools.ts)); navigation, walking and the melee reflex run on the plugin side.
+- **Authority.** Autonomy defaults to `full`; `consult` stays as an explicit option. Cheat inputs need the settings switch or a spoken, per-save grant (`goal/cheat.json`, traced with the player's words). The only hard limit on the goal loop is the engineering budget (turns, tool calls, game days); on exhaustion the companion itself reports where it got to.
+- **Persona knobs.** Five 0–1 knobs per persona travel with every social turn; seeded, logged dice decide only whether a turn considers speaking up, asking for help, taking the bolder option, or following the wording to the letter.

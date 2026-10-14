@@ -30,7 +30,9 @@
     "accept:0.1.0": "npm run typecheck && npm test && npm run replay && npm run replay:decision && npm run replay:decision:stardew && npm run replay:dispatch && npm run replay:decision:presence && npm run replay:decision:autonomy && npm run replay:dual && npm run replay:dual:autonomy && dotnet test player2-core.tests/DSHPlayer2.Core.Tests.csproj --configuration Release",
     "accept:0.1.2": "npm run accept:0.1.0 && npm run replay:decision:reflect && npm run replay:dual:reflect",
     "accept:0.1.4": "npm run accept:0.1.2 && npm run replay:dream",
-    "ledger:export": "node scripts/ledger-export.mjs"
+    "ledger:export": "node scripts/ledger-export.mjs",
+    "replay:goal": "npm run build && node scripts/replay-goal-loop.mjs",
+    "accept:0.2.0": "npm run accept:0.1.4 && npm run replay:goal && node scripts/spikes/s10-runtime-tools.mjs"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.4",

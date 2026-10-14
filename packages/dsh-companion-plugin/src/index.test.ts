@@ -175,7 +175,7 @@ describe("Player DSH companion composition", () => {
 
   it("assembles a decision skill and permits only the ordered decision tool surface", async () => {
     const bridgeDirectory = await createDecisionBridgeRoot();
-    const ctx = await createComposition({ mode: "decision", bridgeDirectory });
+    const ctx = await createComposition({ mode: "decision", autonomy: "consult", bridgeDirectory });
     const prompt = renderPrompt(await ctx.systemPrompt.assemble());
     const skills = await ctx.skills.list();
     const executeShell = vi.fn().mockResolvedValue("should never run");

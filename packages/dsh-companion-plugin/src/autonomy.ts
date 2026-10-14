@@ -1,10 +1,10 @@
 /**
  * The companion autonomy switch (P2-0011).
  *
- * Two tiers only: `consult` keeps the proposal → consent → execute chain,
- * `full` lets the character order grounded executions without per-action
+ * Two tiers only: `full` (the default since P2-0021) lets the character order grounded executions without per-action
  * consent — the Player host still performs every action through the game
- * adapter and writes every receipt afterwards. The tier is chosen where the
+ * adapter and writes every receipt afterwards; `consult` keeps the
+ * proposal → consent → execute chain as an explicit opt-in. The tier is chosen where the
  * plugin is mounted (the DSH composition/preset settings page), never inferred
  * from turn data, and an invalid value must fail the mount loudly instead of
  * silently degrading to another tier.
@@ -56,5 +56,8 @@ export function resolveAutonomy(scopes: AutonomyScopeInput): AutonomyMode {
   const agent = parseMode(scopes.agent, "agent");
   const preset = parseMode(scopes.preset, "preset");
   const global = parseMode(scopes.global, "global");
-  return agent ?? preset ?? global ?? "consult";
+  // P2-0021: the player's request is the authorization ("ask first, then act"
+  // was rejected), so an unconfigured companion acts on its own judgment.
+  // `consult` stays available as an explicit, non-default choice.
+  return agent ?? preset ?? global ?? "full";
 }

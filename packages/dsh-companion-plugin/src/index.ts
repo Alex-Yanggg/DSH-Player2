@@ -30,6 +30,7 @@ import { COMPANION_PACKAGE_NAME, createCompanionInvariantInstaller } from "./inv
 import { SpineFileStore, SpineTimeline, spineStateFileAt, type SpineStore } from "./spine.js";
 import { DreamFileLane } from "./spine-dream.js";
 import { createTemperamentHandlers } from "./temperament.js";
+import { createGoalTools, goalPolicyText, GOAL_TOOL_NAMES, type GoalController } from "./body/goal-tools.js";
 
 export { resolveAutonomy, AUTONOMY_MODES, type AutonomyMode, type AutonomyScopeInput } from "./autonomy.js";
 export { answerCompanionAsk, type CompanionAskDecision } from "./approval.js";
@@ -58,6 +59,13 @@ export { DreamFileLane } from "./spine-dream.js";
 export type { DreamDraftInput, DreamOutcome } from "./spine-dream.js";
 export { SOCIAL_MEMORY_TAG, socialMemoryNote } from "./social-memory.js";
 export * from "./mind/index.js";
+export { BodyFileClient, estimateMs, type BodyPort, type BodyRun } from "./body/client.js";
+export * as navigation from "./body/navigation.js";
+export { walkTo, type WalkResult, type WalkTarget } from "./body/walk.js";
+export { PersonaDice, probability, seededUniform, tendencyLines, turnNudges, type DiceRoll, type KnobName } from "./body/knobs.js";
+export { runMelee, type MeleeTactic, type ReflexReport } from "./body/reflex.js";
+export { SimAdapter, type SimLocation, type SimOptions } from "./body/sim-adapter.js";
+export { createGoalTools, goalPolicyText, GOAL_TOOL_NAMES, inventoryDiff, renderObservation, type GoalController } from "./body/goal-tools.js";
 
 /** Cordis plugin name. */
 export const name = "player2-companion";
@@ -71,7 +79,7 @@ export const GROUNDED_DELIBERATION_SKILL = "companion-grounded-deliberation";
 /** The only model-facing tool permitted in the 0.0.2 social composition. */
 export const SOCIAL_TOOL_NAME = "skill";
 
-export type CompanionMode = "social" | "decision" | "dream";
+export type CompanionMode = "social" | "decision" | "dream" | "goal";
 
 /** Deployment identity for one companion composition. */
 export interface Config {
@@ -121,13 +129,25 @@ export interface Config {
    * directory instead of an app-provided persistence-backed store.
    */
   spine?: "off" | "file";
+  /**
+   * P2-0021 goal lane: the host's controller for one goal (body port, dice,
+   * budget, finish). Required in goal mode, ignored elsewhere.
+   */
+  goal?: GoalController;
+  /**
+   * Model-facing web tools a goal lane may call when the host composition
+   * mounts them (world knowledge, D16). Every call is a registered network
+   * request: `onNetworkCall` receives it for the ledger.
+   */
+  goalWebTools?: string[];
+  onNetworkCall?: (tool: string, args: unknown) => void;
 }
 
 /** Runtime validation for the out-of-tree Cordis plugin config. */
 export const Config: z<Config> = z.object({
   characterName: z.string().required(),
   relationshipRole: z.string().default("a fallible farm companion, not the player's servant"),
-  mode: z.union(["social", "decision", "dream"] as const).default("social"),
+  mode: z.union(["social", "decision", "dream", "goal"] as const).default("social"),
   bridgeDirectory: z.string().default(""),
   responseLanguage: z.string().default(""),
   autonomy: z.union(["consult", "full", ""] as const).default(""),
@@ -138,6 +158,9 @@ export const Config: z<Config> = z.object({
   spineSessionId: z.string().default(""),
   spineStatePath: z.string().default(""),
   spine: z.union(["off", "file"] as const).default("off"),
+  goal: z.any(),
+  goalWebTools: z.array(z.string()).default([]),
+  onNetworkCall: z.any(),
 });
 
 /**
@@ -183,7 +206,29 @@ export function apply(ctx: Context, config: Config): void {
     ? new DecisionFileBridge(config.bridgeDirectory ?? "", autonomy, spine)
     : undefined;
   const fastSocial = mode === "social" && config.fastSocial === true;
-  const allowedTools = new Set<string>(fastSocial ? [] : [SOCIAL_TOOL_NAME]);
+  const allowedTools = new Set<string>(fastSocial || mode === "goal" ? [] : [SOCIAL_TOOL_NAME]);
+  const goal = mode === "goal" ? config.goal : undefined;
+  if (mode === "goal") {
+    if (goal === undefined || goal === null) throw new Error("The goal lane needs a goal controller.");
+    for (const tool of createGoalTools(goal)) {
+      allowedTools.add(tool.name);
+      ctx.effect(() => ctx.tools.register(tool), `player2-companion.tool.${tool.name}`);
+    }
+    // World knowledge through the host's own web tools, when mounted (D16).
+    const webTools = new Set(config.goalWebTools ?? []);
+    for (const name of webTools) allowedTools.add(name);
+    ctx.on("tools/post-execute", (execution, _result, next) => {
+      goal.toolCalled?.(execution.name);
+      if (webTools.has(execution.name)) config.onNetworkCall?.(execution.name, execution.arguments);
+      return next();
+    });
+    // The engineering budget only stops runaway loops; closing words always pass.
+    ctx.effect(() => ctx.tools.guard((execution) => (
+      goal.toolCallsLeft() > 0 || execution.name === GOAL_TOOL_NAMES.finish || execution.name === GOAL_TOOL_NAMES.say
+        ? undefined
+        : "The tool-call budget for this goal is used up. Tell the player where you got to with companion_say, then call goal_finish."
+    )), "player2-companion.goal-budget");
+  }
   if (mode === "decision" && bridge !== undefined) {
     for (const tool of createDecisionTools(bridge, autonomy)) {
       allowedTools.add(tool.name);
@@ -228,7 +273,9 @@ export function apply(ctx: Context, config: Config): void {
     ? `Player-visible prose (chat replies, proposal reasons) must be written in ${config.responseLanguage.trim()}. Tool arguments such as scopes and targets stay verbatim data.`
     : "Player-visible prose (chat replies, proposal reasons) must be written in the language the player writes in. Tool arguments such as scopes and targets stay verbatim data.";
   // An empty responseLanguage means "follow the player's language".
-  const policyText = mode === "decision"
+  const policyText = mode === "goal"
+    ? goalPolicyText(languageLine)
+    : mode === "decision"
     ? decisionPolicyText(autonomy, GROUNDED_DECISION_SKILL, languageLine)
     : mode === "dream" ? [...DREAM_POLICY_LINES, languageLine].join("\n") : fastSocial ? [
         "You are {{companion_name}}, {{companion_relationship_role}}.",
@@ -240,6 +287,7 @@ export function apply(ctx: Context, config: Config): void {
         "If occasion is day-start, the player has not spoken yet: the message is only a marker. Open the new day with one short line in your own voice, grounded in the observations and, when it fits, yesterday's shared outcome. Do not answer the marker itself.",
         SKILL_CONTENT,
         ...MIND_CONTEXT_POLICY_LINES,
+        ...GOAL_SOCIAL_POLICY_LINES,
         languageLine,
       ].join("\n") : [
         "You are {{companion_name}}, {{companion_relationship_role}}.",
@@ -262,7 +310,7 @@ export function apply(ctx: Context, config: Config): void {
     }), "player2-companion.soul");
   }
 
-  if (config.temperament !== false && !fastSocial && mode !== "dream") {
+  if (config.temperament !== false && !fastSocial && mode !== "dream" && mode !== "goal") {
     const handlers = createTemperamentHandlers({
       mode,
       bridgeDirectory: config.bridgeDirectory ?? "",
@@ -348,6 +396,17 @@ const MIND_CONTEXT_POLICY_LINES = [
   "A MIND_CONTEXT note, when present, is your own memory: remembered episodes, our story, your tendencies, and your current mood. It is history, never a current observation. Let the mood colour your tone and let memories shape continuity; never claim a memory that is not there.",
   "Keep your voice alive: vary how you open and phrase lines instead of repeating your recent ones, and react to what is new.",
   "Besides the six required fields you may add two optional fields: episodeIds, an array of the [ep-…] ids from MIND_CONTEXT your words actually rely on (omit or [] when none; never invent one); and remember, null or one thing worth keeping from this exchange as {\"kind\":\"utterance\"|\"correction\"|\"milestone\"|\"shared-event\",\"summary\":\"one sentence, at most 240 characters\",\"salience\":0..1,\"valence\":-1..1}. Use correction when the player corrects you or states a preference. Most turns remember nothing.",
+];
+
+/**
+ * How the fast social lane hands work to the goal lane (P2-0021). The player's
+ * own request is the authorization; there is no consent round trip. The host
+ * strips both extras before the game sees the reply.
+ */
+export const GOAL_SOCIAL_POLICY_LINES = [
+  "You also have hands: a goal lane that plays the game with your body. When the player asks you to get, grow, gather, fetch, fight, build or reach something that takes real play, add the optional field goal: {\"op\":\"set\",\"text\":\"the goal in the player's own words\"}. That request is your authorization: your hands start right away, you choose how. Reply in character that you are taking it on; never claim it is already done.",
+  "When the player tells you to stop, drop or cancel what you are doing, add goal: {\"op\":\"stop\"}. A new goal replaces the current one. A GOAL_STATUS note, when present, is what your hands are doing right now and how it is going; speak from it honestly.",
+  "Cheat-class abilities stay off unless the player explicitly allows them. Only when the player clearly allows cheating in this save, add cheat: {\"op\":\"grant\",\"quote\":\"their exact words\"}; when they take it back, cheat: {\"op\":\"revoke\",\"quote\":\"their exact words\"}. Never add cheat on your own initiative. Most turns carry neither field.",
 ];
 
 const SKILL_CONTENT = `# Grounded companion deliberation
