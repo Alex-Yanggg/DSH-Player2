@@ -52,7 +52,14 @@ public sealed record BodyPlayerState(
 
 public sealed record BodyActorState(
     string Location, int X, int Y, double Px, double Py, string Facing,
-    bool Present, bool Moving, int SelectedSlot, double Stamina, IReadOnlyList<BodyItem> Items, int? ActiveTask);
+    bool Present, bool Moving, int SelectedSlot, double Stamina, IReadOnlyList<BodyItem> Items, int? ActiveTask,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] BodyMenu? Menu = null);
+
+/// <summary>One line of an open shop menu: what it is, what it costs, how many are left.</summary>
+public sealed record BodyMenuItem(int Index, string Id, string Name, string Category, int Price, int? Stock, string? TradeItem);
+
+/// <summary>A menu the body has open (v0: a shop counter), raw: stock, cursor, the wallet it spends from.</summary>
+public sealed record BodyMenu(string Kind, string ShopId, string Title, int Cursor, int Money, IReadOnlyList<BodyMenuItem> Items);
 
 public sealed record BodyMap(string Location, int Width, int Height, IReadOnlyList<string> Rows);
 

@@ -119,6 +119,35 @@ export const bodyWarpSchema = z.object({
 export type BodyWarp = z.infer<typeof bodyWarpSchema>;
 
 /** The raw state stream: the adapter overwrites one file; `revision` only grows. */
+/**
+ * A menu the body has open (v0: a shop counter), exported as the game holds
+ * it: the stock with prices, the cursor, and the wallet it would spend from.
+ * Menu buttons move the cursor and confirm; nothing in the adapter decides
+ * what to buy.
+ */
+export const bodyMenuItemSchema = z.object({
+  index: z.number().int().nonnegative(),
+  id: z.string().max(80),
+  name: z.string().max(80),
+  category: z.string().max(40),
+  price: z.number().int().nonnegative(),
+  /** Units left; null when the shop does not limit it. */
+  stock: z.number().int().nonnegative().nullable(),
+  /** Set when the shop wants an item in trade instead of (or as well as) gold. */
+  tradeItem: z.string().max(80).nullable(),
+});
+
+export const bodyMenuSchema = z.object({
+  kind: z.literal("shop"),
+  shopId: z.string().min(1).max(80),
+  title: z.string().max(80),
+  cursor: z.number().int().nonnegative(),
+  /** Gold the purchase is paid from (the player's wallet; the body has none). */
+  money: z.number().int(),
+  items: z.array(bodyMenuItemSchema).max(200),
+});
+export type BodyMenu = z.infer<typeof bodyMenuSchema>;
+
 export const bodyStateSchema = z.object({
   version: z.literal(bodyProtocolVersion),
   revision: z.number().int().nonnegative(),
@@ -148,6 +177,8 @@ export const bodyStateSchema = z.object({
     stamina: z.number(),
     items: z.array(bodyItemSchema).max(48),
     activeTask: z.number().int().positive().nullable(),
+    /** The menu the body has open, if any. */
+    menu: bodyMenuSchema.nullable().optional(),
   }).nullable(),
   map: z.object({
     location: z.string().min(1),

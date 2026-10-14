@@ -10,18 +10,58 @@
       "file": "state.json",
       "world": "world.json",
       "description": "Raw Stardew Valley state around the companion's body.",
-      "fields": [{ "name": "map", "description": "rows of legend characters" }],
-      "legend": { ".": "walkable", "#": "blocked", "~": "water", "W": "walk warp", "D": "door" }
+      "fields": [
+        {
+          "name": "map",
+          "description": "rows of legend characters"
+        }
+      ],
+      "legend": {
+        ".": "walkable",
+        "#": "blocked",
+        "~": "water",
+        "W": "walk warp",
+        "D": "door"
+      }
     },
     "inputs": [
-      { "id": "MoveRight", "kind": "hold", "description": "Walk right while held." },
-      { "id": "MoveDown", "kind": "hold", "description": "Walk down while held." },
-      { "id": "UseTool", "kind": "press", "description": "Use the selected tool on the faced tile." },
-      { "id": "Slot1", "kind": "press", "description": "Select toolbar slot 1." },
-      { "id": "NoClip", "kind": "modifier", "description": "Cheat: ignore collision.", "cheat": true }
+      {
+        "id": "MoveRight",
+        "kind": "hold",
+        "description": "Walk right while held."
+      },
+      {
+        "id": "MoveDown",
+        "kind": "hold",
+        "description": "Walk down while held."
+      },
+      {
+        "id": "UseTool",
+        "kind": "press",
+        "description": "Use the selected tool on the faced tile."
+      },
+      {
+        "id": "Slot1",
+        "kind": "press",
+        "description": "Select toolbar slot 1."
+      },
+      {
+        "id": "NoClip",
+        "kind": "modifier",
+        "description": "Cheat: ignore collision.",
+        "cheat": true
+      }
     ],
-    "limits": { "maxSteps": 64, "maxStepMs": 10000, "tickMs": 16.666666666666668, "walkPxPerTick": 4, "tilePx": 64 },
-    "cheats": { "settingAllowed": false }
+    "limits": {
+      "maxSteps": 64,
+      "maxStepMs": 10000,
+      "tickMs": 16.666666666666668,
+      "walkPxPerTick": 4,
+      "tilePx": 64
+    },
+    "cheats": {
+      "settingAllowed": false
+    }
   },
   "state": {
     "version": "0.1",
@@ -29,14 +69,134 @@
     "writtenAt": "2026-10-14T06:00:01.000Z",
     "tick": 9000,
     "paused": false,
-    "time": { "day": 1, "season": "spring", "dayOfMonth": 1, "year": 1, "timeOfDay": 610, "weather": "clear" },
-    "player": { "location": "Farm", "x": 64, "y": 15, "px": 4096, "py": 960, "facing": "down", "name": "Alex", "money": 500, "health": 100, "stamina": 270, "items": [{ "slot": 0, "id": "(O)472", "name": "Parsnip Seeds", "stack": 15, "category": "Seed" }] },
-    "body": { "location": "Farm", "x": 62, "y": 15, "px": 3968, "py": 960, "facing": "right", "present": true, "moving": false, "selectedSlot": 0, "stamina": 270, "items": [{ "slot": 0, "id": "(T)Hoe", "name": "Hoe", "stack": 1, "category": "Tool", "extra": { "upgrade": 0 } }], "activeTask": null },
-    "map": { "location": "Farm", "width": 5, "height": 3, "rows": ["#####", "#..~#", "#.W.#"] },
-    "objects": [{ "x": 2, "y": 1, "kind": "object", "name": "Stone", "id": "(O)343", "extra": { "passable": false, "category": 0 } }],
-    "characters": [{ "x": 64, "y": 15, "px": 4096, "py": 960, "name": "Alex", "kind": "farmer", "health": 100 }],
-    "warps": [{ "x": 2, "y": 2, "to": "BusStop", "toX": 0, "toY": 23, "kind": "walk" }],
-    "truncated": { "objects": 0 }
+    "time": {
+      "day": 1,
+      "season": "spring",
+      "dayOfMonth": 1,
+      "year": 1,
+      "timeOfDay": 610,
+      "weather": "clear"
+    },
+    "player": {
+      "location": "Farm",
+      "x": 64,
+      "y": 15,
+      "px": 4096,
+      "py": 960,
+      "facing": "down",
+      "name": "Alex",
+      "money": 500,
+      "health": 100,
+      "stamina": 270,
+      "items": [
+        {
+          "slot": 0,
+          "id": "(O)472",
+          "name": "Parsnip Seeds",
+          "stack": 15,
+          "category": "Seed"
+        }
+      ]
+    },
+    "body": {
+      "location": "Farm",
+      "x": 62,
+      "y": 15,
+      "px": 3968,
+      "py": 960,
+      "facing": "right",
+      "present": true,
+      "moving": false,
+      "selectedSlot": 0,
+      "stamina": 270,
+      "items": [
+        {
+          "slot": 0,
+          "id": "(T)Hoe",
+          "name": "Hoe",
+          "stack": 1,
+          "category": "Tool",
+          "extra": {
+            "upgrade": 0
+          }
+        }
+      ],
+      "activeTask": null,
+      "menu": {
+        "kind": "shop",
+        "shopId": "SeedShop",
+        "title": "SeedShop",
+        "cursor": 1,
+        "money": 500,
+        "items": [
+          {
+            "index": 0,
+            "id": "(O)472",
+            "name": "Parsnip Seeds",
+            "category": "Seed",
+            "price": 20,
+            "stock": null,
+            "tradeItem": null
+          },
+          {
+            "index": 1,
+            "id": "(O)474",
+            "name": "Cauliflower Seeds",
+            "category": "Seed",
+            "price": 80,
+            "stock": 5,
+            "tradeItem": null
+          }
+        ]
+      }
+    },
+    "map": {
+      "location": "Farm",
+      "width": 5,
+      "height": 3,
+      "rows": [
+        "#####",
+        "#..~#",
+        "#.W.#"
+      ]
+    },
+    "objects": [
+      {
+        "x": 2,
+        "y": 1,
+        "kind": "object",
+        "name": "Stone",
+        "id": "(O)343",
+        "extra": {
+          "passable": false,
+          "category": 0
+        }
+      }
+    ],
+    "characters": [
+      {
+        "x": 64,
+        "y": 15,
+        "px": 4096,
+        "py": 960,
+        "name": "Alex",
+        "kind": "farmer",
+        "health": 100
+      }
+    ],
+    "warps": [
+      {
+        "x": 2,
+        "y": 2,
+        "to": "BusStop",
+        "toX": 0,
+        "toY": 23,
+        "kind": "walk"
+      }
+    ],
+    "truncated": {
+      "objects": 0
+    }
   },
   "task": {
     "version": "0.1",
@@ -44,10 +204,23 @@
     "seq": 12,
     "createdAt": "2026-10-14T06:00:02.000Z",
     "steps": [
-      { "hold": ["MoveRight"], "ms": 267 },
-      { "press": ["Slot1", "UseTool"], "ms": 0 }
+      {
+        "hold": [
+          "MoveRight"
+        ],
+        "ms": 267
+      },
+      {
+        "press": [
+          "Slot1",
+          "UseTool"
+        ],
+        "ms": 0
+      }
     ],
-    "until": { "blockedMs": 500 }
+    "until": {
+      "blockedMs": 500
+    }
   },
   "status": {
     "version": "0.1",
@@ -57,5 +230,10 @@
     "step": 2,
     "reason": "completed"
   },
-  "speech": { "version": "0.1", "seq": 3, "text": "I'll till a patch by the pond first.", "at": "2026-10-14T06:00:03.000Z" }
+  "speech": {
+    "version": "0.1",
+    "seq": 3,
+    "text": "I'll till a patch by the pond first.",
+    "at": "2026-10-14T06:00:03.000Z"
+  }
 }

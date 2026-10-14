@@ -32,6 +32,7 @@ export const GOAL_TOOL_NAMES = {
   locations: "world_locations",
   walk: "body_walk_to",
   use: "body_use",
+  shop: "body_shop",
   input: "body_input",
   melee: "reflex_melee",
   say: "companion_say",
@@ -146,8 +147,44 @@ export function createGoalTools(goal: GoalController) {
       },
     }),
     defineTool({
+      name: GOAL_TOOL_NAMES.shop,
+      description: "Shop helper: walk next to a shop counter tile, press Action to open it, and read its stock and prices. With buy, move the cursor to that item and press MenuConfirm count times, then close the menu. Purchases are paid from the player's wallet; what to buy and how much to spend is your call. Shops only open while their shopkeeper is at the counter.",
+      parameters: {
+        x: { type: "integer", required: true, description: "Counter tile x (a tile with a shop action, often between you and the shopkeeper)." },
+        y: { type: "integer", required: true, description: "Counter tile y." },
+        location: { type: "string", description: "Location of the counter (default: where you are)." },
+        buy: { type: "string", description: "Item to buy: its #index or part of its name. Omit to only browse." },
+        count: { type: "integer", description: "How many to buy, 1-99 (default 1)." },
+      },
+      output: textOutput,
+      execute: async (args) => {
+        const lim = await limits();
+        const walk = await walkTo(goal.body, lim, loadWorld, { x: args.x, y: args.y, mode: "adjacent", ...(args.location ? { location: args.location } : {}) }, goal.signal);
+        if (!walk.ok) return `Did not reach the counter at (${args.x},${args.y}): ${walk.reason}.`;
+        const open = await goal.body.run([{ press: ["Action"], ms: 150 }], signalOpt());
+        const menu = open.state?.body?.menu ?? (await goal.body.state()).body?.menu ?? null;
+        if (!menu) return `The counter did not open.${eventsLine(open.events)}`;
+        const stock = `${menu.shopId} shop, wallet ${menu.money}g. ${menuLine(menu)}`;
+        if (args.buy === undefined || args.buy.trim() === "") return `Opened. ${stock} (still open; call again with buy, or walk away to close it)`;
+        const wanted = args.buy.trim().replace(/^#/, "");
+        const target = /^\d+$/.test(wanted)
+          ? menu.items.find((item) => item.index === Number(wanted))
+          : menu.items.find((item) => item.name.toLowerCase().includes(wanted.toLowerCase()));
+        if (target === undefined) return `Opened, but nothing matches "${args.buy}". ${stock}`;
+        const before = await goal.body.state();
+        const n = target.index - menu.cursor;
+        const steps: BodyInputStep[] = [];
+        for (let i = 0; i < Math.abs(n); i++) steps.push({ press: [n > 0 ? "MenuDown" : "MenuUp"], ms: 0 });
+        for (let i = 0; i < Math.min(99, Math.max(1, args.count ?? 1)); i++) steps.push({ press: ["MenuConfirm"], ms: 0 });
+        steps.push({ press: ["MenuClose"], ms: 0 });
+        const run = await goal.body.run(steps.slice(0, 64), signalOpt());
+        const bought = run.events.filter((e) => e.kind === "bought").length;
+        return `Bought ${bought} x ${target.name}. ${describeRun(run, before)}`;
+      },
+    }),
+    defineTool({
       name: GOAL_TOOL_NAMES.input,
-      description: "Raw input: play a sequence of steps on your body. Each step holds buttons (hold) for ms milliseconds and fires press buttons once at its start. Button ids come from the adapter's declaration (MoveUp/Right/Down/Left hold; FaceUp..., UseTool, Action, DropItem, Slot1-12 press; cheat modifiers only while a cheat switch is on). until can stop early: blockedMs, monsterWithin (tiles), warped, arrive {location,x,y,radius}.",
+      description: "Raw input: play a sequence of steps on your body. Each step holds buttons (hold) for ms milliseconds and fires press buttons once at its start. Button ids come from the adapter's declaration (MoveUp/Right/Down/Left hold; FaceUp..., UseTool, Action, DropItem, Slot1-12, MenuUp/MenuDown/MenuConfirm/MenuClose press; cheat modifiers only while a cheat switch is on). until can stop early: blockedMs, monsterWithin (tiles), warped, arrive {location,x,y,radius}.",
       parameters: {
         steps: {
           type: "array", required: true, description: "1-64 steps.",
@@ -293,6 +330,11 @@ function itemsLine(items: readonly BodyItem[]): string {
   }).join("; ");
 }
 
+function menuLine(menu: NonNullable<NonNullable<BodyState["body"]>["menu"]>): string {
+  if (menu.items.length === 0) return "Nothing for sale.";
+  return `For sale: ${menu.items.map((item) => `#${item.index} ${item.name} ${item.price}g${item.stock === null ? "" : ` (${item.stock} left)`}${item.tradeItem ? ` + ${item.tradeItem}` : ""}`).join("; ")}.`;
+}
+
 export function renderObservation(state: BodyState, radius: number): string {
   const t = state.time;
   const clock = `${Math.floor(t.timeOfDay / 100) % 24}:${String(t.timeOfDay % 100).padStart(2, "0")}`;
@@ -300,6 +342,7 @@ export function renderObservation(state: BodyState, radius: number): string {
   const self = state.body;
   if (self === null) lines.push("Your body is not in the world right now.");
   else lines.push(`You: ${self.location} (${self.x},${self.y}) facing ${self.facing}, stamina ${Math.round(self.stamina)}, selected slot ${self.selectedSlot + 1}. Toolbar: ${itemsLine(self.items)}.`);
+  if (self?.menu) lines.push(`Open menu: ${self.menu.shopId} shop, cursor on #${self.menu.cursor}, wallet ${self.menu.money}g. ${menuLine(self.menu)}`);
   const p = state.player;
   lines.push(`Player ${p.name}: ${p.location} (${p.x},${p.y}), gold ${p.money}, health ${Math.round(p.health)}, stamina ${Math.round(p.stamina)}. Inventory: ${itemsLine(p.items)}.`);
   const origin = self ?? p;

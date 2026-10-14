@@ -32,6 +32,8 @@ All files live under the save's session directory (`<bridge>/projects/<person>/s
 | `status/task-<seq>.json` | mod | `accepted / running / done / interrupted / failed / cancelled`, step, events (warped, used, harvested, planted, picked-up, blocked, ...), reason |
 | `../speech/say-<seq>.json` | plugin | one line the companion says in the world; the mod renames it `.shown` |
 
+**Shop counters.** `Action` at a tile whose game action opens a shop (`OpenShop <id>`, or the legacy counter actions) opens that shop's stock for the body instead of a menu on the player's screen, if the shop's owner is at the counter. The stock appears raw in `state.body.menu` (shop id, cursor, wallet, items with index, name, category, price, stock left, trade item). `MenuUp` / `MenuDown` move the cursor, `MenuConfirm` buys one unit of the item under it into the body's toolbar, paid from the player's wallet (the body has none), and `MenuClose` (or walking away) closes it. Every outcome is a status event: `menu-opened`, `shop-refused`, `bought`, `cant-afford`, `sold-out`, `needs-trade`, `inventory-full`. A tile action the adapter cannot operate is reported as `tile-action` with the game's raw text. The plugin's `body_shop` helper walks to a counter, browses, and buys; what to buy and how much to spend is the companion's choice.
+
 Durations count unpaused game ticks: the open chat pauses the world in single player, and a task pauses with it. `until` stops a task early on `arrive`, `warped`, `monsterWithin`, or `blockedMs`. Unknown inputs, a cheat input while cheats are off, too many steps or too long a step fail the task with the reason; nothing is silently dropped.
 
 ## Goal lane
@@ -81,6 +83,6 @@ The goal lane may call DSH's own web tools (host config `goalWebTools`, default 
 
 ## Known gaps
 
-- The body cannot buy from shops (menus are not part of the raw input set); a goal that needs a purchase must find another route or say so.
+- Shops: the body can buy (below) but not sell; trade-item prices are refused and reported.
 - Building interiors reached through doors are exported as action warps; doors that need an event or a key are refused by the game and reported.
 - Harvest through the stand-in farmer is the least certain path of S9; the status events say where items went.

@@ -28,7 +28,7 @@ internal sealed class BodyStateExporter
         new("paused", "True while game time does not pass (menu, chat, cutscene): held input does not advance."),
         new("time", "day (total days since the save began, 1-based), season, dayOfMonth, year, timeOfDay (600 = 6:00, 2600 = 2:00 next morning), weather."),
         new("player", "The human farmer: location, tile x/y, pixel px/py, facing, money (shared farm gold), health, stamina, inventory."),
-        new("body", "The companion's body: location, tile, facing, whether it is moving, selected toolbar slot (0-based), stamina, inventory, running task seq."),
+        new("body", "The companion's body: location, tile, facing, whether it is moving, selected toolbar slot (0-based), stamina, inventory, running task seq, and menu: the menu the body has open (a shop counter: shopId, cursor, the wallet it spends from, and items with index, name, price, stock), when any."),
         new("map", "The body's current location: width, height, and rows of legend characters, row 0 at the top (north); x grows east, y grows south."),
         new("objects", "Things on tiles, nearest first: object (stones, weeds, twigs, artifact spots, machines), forage, dirt (tilled soil; extra.crop, extra.ready, extra.watered), tree, grass, clump (stumps, logs, boulders), bush, item (lying on the ground). extra.passable says whether a body can walk through."),
         new("characters", "NPCs, monsters (with health), farmers, in the body's location."),
@@ -69,7 +69,7 @@ internal sealed class BodyStateExporter
         ActionWarpCache.Clear();
     }
 
-    public BodyState BuildState(NativeCompanion? actor, bool paused, int? activeTask)
+    public BodyState BuildState(NativeCompanion? actor, bool paused, int? activeTask, BodyMenu? menu = null)
     {
         this.buildClock.Restart();
         var player = Game1.player;
@@ -137,7 +137,7 @@ internal sealed class BodyStateExporter
                 Facing(player.FacingDirection), player.Name, player.Money, player.health, player.Stamina, Items(player.Items, 36)),
             actor is null ? null : new BodyActorState(actor.currentLocation?.NameOrUniqueName ?? "", actor.TilePoint.X, actor.TilePoint.Y, actor.Position.X, actor.Position.Y,
                 Facing(actor.FacingDirection), actor.currentLocation is not null, actor.MovementState is "input" or "walking" or "following",
-                actor.Avatar.CurrentToolIndex, actor.Avatar.Stamina, Items(actor.Avatar.Items, 36), activeTask),
+                actor.Avatar.CurrentToolIndex, actor.Avatar.Stamina, Items(actor.Avatar.Items, 36), activeTask, menu),
             new BodyMap(location.NameOrUniqueName, location.Map.Layers[0].LayerWidth, location.Map.Layers[0].LayerHeight, rows),
             ordered.Take(MaxObjects).Select(entry => entry.Value).ToArray(),
             characters,

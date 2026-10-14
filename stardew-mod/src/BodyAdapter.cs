@@ -35,12 +35,16 @@ internal sealed class BodyAdapter
         new("FaceDown", "press", "Tap down: turn to face south without stepping."),
         new("FaceLeft", "press", "Tap left: turn to face west without stepping."),
         new("UseTool", "press", "Use the selected toolbar item on the faced tile, as the farmer's tool button does: hoe tills or digs spots, watering can waters or refills at water, pickaxe breaks stones, axe chops, scythe and weapons swing at the tiles and monsters in front. Uses body stamina."),
-        new("Action", "press", "The action button on the faced tile: harvest a ready crop, plant the selected seed in empty tilled soil, pick up forage, or go through a door."),
+        new("Action", "press", "The action button on the faced tile: harvest a ready crop, plant the selected seed in empty tilled soil, pick up forage, go through a door, or open a shop counter (the shop's stock then appears as body.menu)."),
         new("DropItem", "press", "Drop the whole selected stack on the ground in front (a farmer can pick it up)."),
         new("Slot1", "press", "Select toolbar slot 1."), new("Slot2", "press", "Select toolbar slot 2."), new("Slot3", "press", "Select toolbar slot 3."),
         new("Slot4", "press", "Select toolbar slot 4."), new("Slot5", "press", "Select toolbar slot 5."), new("Slot6", "press", "Select toolbar slot 6."),
         new("Slot7", "press", "Select toolbar slot 7."), new("Slot8", "press", "Select toolbar slot 8."), new("Slot9", "press", "Select toolbar slot 9."),
         new("Slot10", "press", "Select toolbar slot 10."), new("Slot11", "press", "Select toolbar slot 11."), new("Slot12", "press", "Select toolbar slot 12."),
+        new("MenuUp", "press", "In an open menu (body.menu): move the cursor up one line."),
+        new("MenuDown", "press", "In an open menu: move the cursor down one line."),
+        new("MenuConfirm", "press", "In an open shop menu: buy one of the item under the cursor, paid from the player's wallet (the body has none)."),
+        new("MenuClose", "press", "Close the open menu. Walking away from the counter also closes it."),
         new("NoClip", "modifier", "Cheat: while held together with a direction, walking ignores collision.", Cheat: true),
     };
 
@@ -57,6 +61,7 @@ internal sealed class BodyAdapter
     private readonly Action<string> speak;
     private readonly BodyStateExporter exporter;
     private readonly Dictionary<Debris, int> droppedByBody = new();
+    private BodyShop? shop;
     private BodyBridgeFiles? files;
     private BodyTaskRunner? runner;
     private int lastStatusUpdate = -1;
@@ -120,6 +125,7 @@ internal sealed class BodyAdapter
         this.SessionRoot = null;
         this.lastSeq = 0;
         this.droppedByBody.Clear();
+        this.shop = null;
     }
 
     /// <summary>Re-writes the location graph (day start).</summary>
@@ -326,6 +332,13 @@ internal sealed class BodyAdapter
                 case "UseTool": this.UseTool(actor, active); break;
                 case "Action": this.Action(actor, active); break;
                 case "DropItem": this.Drop(actor, active); break;
+                case "MenuUp": this.MoveCursor(-1, active); break;
+                case "MenuDown": this.MoveCursor(1, active); break;
+                case "MenuConfirm": this.Confirm(actor, active); break;
+                case "MenuClose":
+                    active.Note(Game1.ticks, this.shop is null ? "no-menu" : "menu-closed", this.shop?.ShopId ?? "no menu is open");
+                    this.shop = null;
+                    break;
                 default:
                     if (id.StartsWith("Slot", StringComparison.Ordinal) && int.TryParse(id[4..], out var slot))
                     {
@@ -450,7 +463,47 @@ internal sealed class BodyAdapter
             active.Note(Game1.ticks, "warped", $"{from} -> {door.To} {door.ToX},{door.ToY} (door)");
             return;
         }
+        // A shop counter: the property may sit on the faced tile or the one behind it.
+        var behind = new Point(tile.X + (tile.X - actor.TilePoint.X), tile.Y + (tile.Y - actor.TilePoint.Y));
+        foreach (var counter in new[] { tile, behind })
+        {
+            var shopId = BodyShop.ShopIdAt(location, counter, out var raw);
+            if (shopId is not null)
+            {
+                this.shop = BodyShop.TryOpen(location, counter, shopId, out var refusal);
+                active.Note(Game1.ticks, this.shop is null ? "shop-refused" : "menu-opened", this.shop is null ? refusal : $"{shopId}: {this.shop.CursorLine()}");
+                return;
+            }
+            if (raw is not null)
+            {
+                active.Note(Game1.ticks, "tile-action", $"the tile at {counter.X},{counter.Y} has a game action this body cannot operate: {raw}");
+                return;
+            }
+        }
         active.Note(Game1.ticks, "nothing-there", $"no action at {tile.X},{tile.Y}");
+    }
+
+    private void MoveCursor(int delta, BodyTaskRunner active)
+    {
+        if (this.shop is null)
+        {
+            active.Note(Game1.ticks, "no-menu", "no menu is open");
+            return;
+        }
+        this.shop.Move(delta);
+        active.Note(Game1.ticks, "cursor", this.shop.CursorLine());
+    }
+
+    private void Confirm(NativeCompanion actor, BodyTaskRunner active)
+    {
+        if (this.shop is null || !this.shop.StillAt(actor))
+        {
+            this.shop = null;
+            active.Note(Game1.ticks, "no-menu", "no menu is open");
+            return;
+        }
+        var (kind, detail) = this.shop.BuyOne(actor.Avatar);
+        active.Note(Game1.ticks, kind, detail);
     }
 
     private void Drop(NativeCompanion actor, BodyTaskRunner active)
@@ -498,7 +551,8 @@ internal sealed class BodyAdapter
         if (this.files is null) return;
         try
         {
-            var state = this.exporter.BuildState(actor, paused, this.runner is { IsTerminal: false } r ? r.Task.Seq : null);
+            if (this.shop is not null && (actor is null || !this.shop.StillAt(actor))) this.shop = null;
+            var state = this.exporter.BuildState(actor, paused, this.runner is { IsTerminal: false } r ? r.Task.Seq : null, this.shop?.ToWire());
             this.files.WriteState(state);
         }
         catch (Exception ex)

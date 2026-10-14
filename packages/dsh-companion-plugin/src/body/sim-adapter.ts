@@ -36,6 +36,8 @@ export interface SimOptions {
   readonly player?: { location: string; x: number; y: number; items: BodyItem[]; money: number };
   readonly tickMs?: number;
   readonly cheatSetting?: boolean;
+  /** Shop stock by shop id; a `counter` object with `extra.shopId` opens it. */
+  readonly shops?: Record<string, { id: string; name: string; category: string; price: number; stock: number | null }[]>;
 }
 
 const DIRS: Record<string, [number, number]> = { MoveUp: [0, -1], MoveRight: [1, 0], MoveDown: [0, 1], MoveLeft: [-1, 0] };
@@ -58,6 +60,8 @@ export class SimAdapter {
   private task: { task: BodyTask; step: number; stepTick: number; ticks: number[]; events: BodyEvent[]; status: BodyTaskStatus["status"]; reason: string | null; update: number; startLocation: string; still: number } | undefined;
   private writing: Promise<void> = Promise.resolve();
   public readonly inputsSeen: BodyTask[] = [];
+  private readonly shops: NonNullable<SimOptions["shops"]>;
+  private menu: { shopId: string; cursor: number; at: { location: string; x: number; y: number } } | undefined;
 
   public constructor(private readonly session: string, options: SimOptions) {
     this.locations = new Map(options.locations.map((location) => [location.name, location]));
@@ -66,6 +70,7 @@ export class SimAdapter {
     this.body = { location: options.body.location, px: options.body.x * 64, py: options.body.y * 64, facing: "down", slot: 0, items, stamina: 270 };
     this.player = options.player ?? { location: options.body.location, x: options.body.x + 2, y: options.body.y, items: [], money: 500 };
     this.cheatSetting = options.cheatSetting ?? false;
+    this.shops = structuredClone(options.shops ?? {});
   }
 
   public get tile(): { x: number; y: number } {
@@ -80,6 +85,7 @@ export class SimAdapter {
       inputs: [
         ...Object.keys(DIRS).map((id) => ({ id, kind: "hold" as const, description: id })),
         ...Object.keys(FACES).map(press), press("UseTool"), press("Action"), press("DropItem"),
+        press("MenuUp"), press("MenuDown"), press("MenuConfirm"), press("MenuClose"),
         ...Array.from({ length: 12 }, (_, i) => press(`Slot${i + 1}`)),
         { id: "NoClip", kind: "modifier" as const, description: "cheat", cheat: true },
       ],
@@ -194,6 +200,7 @@ export class SimAdapter {
   private press(id: string, task: NonNullable<SimAdapter["task"]>): void {
     const note = (kind: string, detail: string) => { task.events.push({ tick: this.tick, kind, detail }); task.update++; };
     if (id in FACES) { this.body.facing = FACES[id]; return; }
+    if (id.startsWith("Menu")) return this.pressMenu(id, note);
     const slot = /^Slot(\d+)$/.exec(id);
     if (slot) { this.body.slot = Number(slot[1]) - 1; return; }
     const t = this.faced();
@@ -232,6 +239,10 @@ export class SimAdapter {
         if (item.stack <= 0) this.body.items[this.body.slot] = null;
         return note("planted", `${item.name} at ${t.x},${t.y}`);
       }
+      if (at?.kind === "counter" && typeof at.extra?.shopId === "string") {
+        this.menu = { shopId: at.extra.shopId, cursor: 0, at: { location: this.body.location, ...t } };
+        return note("menu-opened", at.extra.shopId);
+      }
       if (at?.kind === "forage") {
         location.objects.splice(location.objects.indexOf(at), 1);
         this.addItem({ id: at.id ?? at.name, name: at.name, category: "Forage" });
@@ -247,6 +258,25 @@ export class SimAdapter {
       if (target) target.stack += item.stack; else p.items.push({ ...item, slot: p.items.length });
       return note("dropped", `${item.stack} x ${item.name}`);
     }
+  }
+
+  private pressMenu(id: string, note: (kind: string, detail: string) => void): void {
+    const menu = this.menu;
+    const stock = menu === undefined ? undefined : this.shops[menu.shopId];
+    if (menu === undefined || stock === undefined) return note("no-menu", "no menu is open");
+    if (id === "MenuClose") { this.menu = undefined; return note("menu-closed", menu.shopId); }
+    if (id === "MenuUp" || id === "MenuDown") {
+      menu.cursor = (menu.cursor + (id === "MenuUp" ? -1 : 1) + stock.length) % Math.max(1, stock.length);
+      return note("cursor", `#${menu.cursor}`);
+    }
+    const entry = stock[menu.cursor];
+    if (entry === undefined) return note("nothing-for-sale", menu.shopId);
+    if (entry.stock === 0) return note("sold-out", entry.name);
+    if (this.player.money < entry.price) return note("cant-afford", entry.name);
+    this.player.money -= entry.price;
+    if (entry.stock !== null) entry.stock--;
+    this.addItem(entry);
+    return note("bought", `1 x ${entry.name} for ${entry.price}g`);
   }
 
   /** Test hook: make every planted crop ready (a sim "night"). */
@@ -303,9 +333,21 @@ export class SimAdapter {
       version: bodyProtocolVersion, revision: ++this.revision, writtenAt: new Date().toISOString(), tick: this.tick, paused: this.paused,
       time: { day: this.day, season: "spring", dayOfMonth: this.day, year: 1, timeOfDay: 600 + this.tick % 1400, weather: "clear" },
       player: { location: this.player.location, x: this.player.x, y: this.player.y, px: this.player.x * 64, py: this.player.y * 64, facing: "down", name: "Tester", money: this.player.money, health: 100, stamina: 270, items: this.player.items },
-      body: { location: this.body.location, x: t.x, y: t.y, px: this.body.px, py: this.body.py, facing: this.body.facing, present: true, moving: false, selectedSlot: this.body.slot, stamina: this.body.stamina, items: this.body.items.filter((i): i is BodyItem => i !== null), activeTask: this.task && this.task.status === "running" ? this.task.task.seq : null },
+      body: { location: this.body.location, x: t.x, y: t.y, px: this.body.px, py: this.body.py, facing: this.body.facing, present: true, moving: false, selectedSlot: this.body.slot, stamina: this.body.stamina, items: this.body.items.filter((i): i is BodyItem => i !== null), activeTask: this.task && this.task.status === "running" ? this.task.task.seq : null, menu: this.menuState() },
       map: { location: location.name, width: location.rows[0].length, height: location.rows.length, rows: location.rows },
       objects: location.objects, characters: location.characters, warps: location.warps, truncated: { objects: 0 },
+    };
+  }
+
+  private menuState(): NonNullable<BodyState["body"]>["menu"] {
+    const menu = this.menu;
+    if (menu === undefined) return null;
+    const t = this.tile;
+    if (menu.at.location !== this.body.location || Math.abs(menu.at.x - t.x) + Math.abs(menu.at.y - t.y) > 2) { this.menu = undefined; return null; }
+    const stock = this.shops[menu.shopId] ?? [];
+    return {
+      kind: "shop", shopId: menu.shopId, title: menu.shopId, cursor: menu.cursor, money: this.player.money,
+      items: stock.map((item, index) => ({ index, id: item.id, name: item.name, category: item.category, price: item.price, stock: item.stock, tradeItem: null })),
     };
   }
 

@@ -64,6 +64,9 @@ public sealed class BodyBridgeTests : IDisposable
         Assert.True(declaration.Inputs.Single(input => input.Id == "NoClip").Cheat);
         Assert.Equal(4, declaration.Limits.WalkPxPerTick);
         Assert.Equal("Farm", state.Body!.Location);
+        Assert.Equal("SeedShop", state.Body.Menu!.ShopId);
+        Assert.Equal(5, state.Body.Menu.Items[1].Stock);
+        Assert.Null(state.Body.Menu.Items[0].Stock);
         Assert.Equal("#.W.#", state.Map.Rows[2]);
         Assert.Equal("walk", state.Warps[0].Kind);
         Assert.Equal(3, speech.Seq);

@@ -38,7 +38,7 @@ const kit: BodyItem[] = [
 
 function world(): SimLocation[] {
   return [
-    { name: "Farm", rows: [...FARM], warps: [{ x: 19, y: 4, to: "Town", toX: 1, toY: 1, kind: "walk" }], objects: [{ x: 15, y: 6, kind: "forage", name: "Daffodil", id: "(O)18" }], characters: [] },
+    { name: "Farm", rows: [...FARM], warps: [{ x: 19, y: 4, to: "Town", toX: 1, toY: 1, kind: "walk" }], objects: [{ x: 15, y: 6, kind: "forage", name: "Daffodil", id: "(O)18" }, { x: 17, y: 1, kind: "counter", name: "Counter", extra: { shopId: "SeedShop", passable: false } }], characters: [] },
     { name: "Town", rows: [...TOWN], warps: [{ x: 0, y: 1, to: "Farm", toX: 18, toY: 4, kind: "walk" }], objects: [], characters: [] },
   ];
 }
@@ -49,7 +49,13 @@ let client: BodyFileClient;
 
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), "dsh-body-"));
-  sim = new SimAdapter(dir, { locations: world(), body: { location: "Farm", x: 2, y: 2, items: kit.map((i) => ({ ...i })) } });
+  sim = new SimAdapter(dir, {
+    locations: world(), body: { location: "Farm", x: 2, y: 2, items: kit.map((i) => ({ ...i })) },
+    shops: { SeedShop: [
+      { id: "(O)472", name: "Parsnip Seeds", category: "Seed", price: 20, stock: null },
+      { id: "(O)475", name: "Potato Seeds", category: "Seed", price: 50, stock: 1 },
+    ] },
+  });
   await sim.start(1);
   client = new BodyFileClient(dir, 5);
 });
@@ -170,6 +176,33 @@ describe("goal tools", () => {
     await tool(goal, GOAL_TOOL_NAMES.finish).execute({ status: "failed", summary: "out of seeds" });
     expect(goal.notes).toEqual(["planting carrots in the garden"]);
     expect(goal.finished).toEqual({ status: "failed", summary: "out of seeds" });
+  });
+});
+
+describe("shop helper", () => {
+  it("opens a counter, reads the stock, and buys from the player's wallet", async () => {
+    const goal = controller();
+    const shop = tool(goal, GOAL_TOOL_NAMES.shop);
+    const browse = await shop.execute({ x: 17, y: 1 });
+    expect(browse).toMatch(/#0 Parsnip Seeds 20g/);
+    expect(browse).toMatch(/Potato Seeds 50g \(1 left\)/);
+    const result = await shop.execute({ x: 17, y: 1, buy: "parsnip", count: 2 });
+    expect(result).toMatch(/Bought 2 x Parsnip Seeds/);
+    expect(sim.body.items.find((i) => i?.name === "Parsnip Seeds")?.stack).toBe(2);
+    expect(sim.player.money).toBe(460);
+    const sold = await shop.execute({ x: 17, y: 1, buy: "#1", count: 2 });
+    expect(sold).toMatch(/Bought 1 x Potato Seeds/);
+    expect(sold).toMatch(/sold-out/);
+    // Only raw buttons reached the adapter.
+    const ids = new Set(sim.inputsSeen.flatMap((t) => t.steps.flatMap((s) => [...(s.hold ?? []), ...(s.press ?? [])])));
+    for (const id of ids) expect(id).toMatch(/^((Move|Face)(Up|Right|Down|Left)|Action|Menu(Up|Down|Confirm|Close))$/);
+  });
+
+  it("reports when the wallet is short", async () => {
+    sim.player.money = 10;
+    const result = await tool(controller(), GOAL_TOOL_NAMES.shop).execute({ x: 17, y: 1, buy: "Parsnip" });
+    expect(result).toMatch(/Bought 0 x Parsnip Seeds/);
+    expect(result).toMatch(/cant-afford/);
   });
 });
 

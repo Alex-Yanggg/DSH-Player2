@@ -8,7 +8,9 @@
 - turns the Stardew mod into a pure body adapter for the companion: held
   directions walk with the engine's collision, `UseTool` / `Action` /
   `DropItem` / toolbar slots act on the faced tile, a persisted 12-slot body
-  toolbar; no semantic actions in the mod;
+  toolbar; shop counters export their stock as a raw menu with cursor and
+  confirm buttons (paid from the player's wallet); no semantic actions in the
+  mod;
 - adds plugin-side navigation (A* over the exported grid, warp-graph routes),
   a walk helper, a melee reflex script that measures its loop latency, and
   goal-mode tools for the companion plugin;
