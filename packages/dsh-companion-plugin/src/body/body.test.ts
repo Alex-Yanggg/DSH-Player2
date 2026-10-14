@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { bodyDeclarationSchema, bodyStateSchema, bodyTaskSchema, bodyTaskStatusSchema, defaultPersonaKnobs, type BodyItem, type PersonaKnobs } from "@dsh-player2/contracts";
 import { BodyFileClient } from "./client.js";
 import { createGoalTools, GOAL_TOOL_NAMES, type GoalController } from "./goal-tools.js";
@@ -10,6 +10,10 @@ import { findPath, locationRoute, pathToSteps, Walkability } from "./navigation.
 import { runMelee } from "./reflex.js";
 import { SimAdapter, type SimLocation } from "./sim-adapter.js";
 import { walkTo } from "./walk.js";
+
+// The sim plays body tasks at a real tick pace; under a full parallel run a
+// round of walks can pass the default 5 s without anything being wrong.
+vi.setConfig({ testTimeout: 30_000 });
 
 const FARM = [
   "####################",
