@@ -72,6 +72,7 @@ internal sealed class BodyAdapter
     private int lastSeq;
     private int inputCountdown;
     private int fastUntilTick = -1;
+    private int lastWorldTick = -1;
     private int stateCountdown;
     private int speechCountdown;
     private bool forceState;
@@ -167,7 +168,11 @@ internal sealed class BodyAdapter
     {
         if (this.files is null) return;
         var actor = this.body();
-        var paused = !(Game1.activeClickableMenu is null && !Game1.eventUp && Game1.shouldTimePass());
+        // The game freezes its world (Game1.ticks stops) when the window loses
+        // focus, while SMAPI keeps ticking this lane: that is a pause too.
+        var worldTicked = Game1.ticks != this.lastWorldTick;
+        this.lastWorldTick = Game1.ticks;
+        var paused = !worldTicked || !(Game1.activeClickableMenu is null && !Game1.eventUp && Game1.shouldTimePass());
         if (actor is not null && !paused && actor.currentLocation is not null && actor.LastUpdateTick != Game1.ticks)
         {
             // Off-screen locations do not tick their characters in single
