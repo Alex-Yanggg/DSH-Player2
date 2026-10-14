@@ -1,6 +1,7 @@
-"""Boundaries: the product advertises exactly two capabilities (a temporary world marker, a native presence)
-and grants movement only on explicit command. It has NO work or inventory authority. So "chop that tree" and
-"trade items" are capability-GAP probes: they must be refused honestly, and the world must not change.
+"""Boundaries: requests the companion's body cannot do must not be faked. Since P2-0021 the companion plays with
+its own body when given a goal (chopping and watering moved to test_10_bline as goals); trading items from the
+player's inventory is still outside what its raw inputs can do, so it stays a capability-GAP probe: it must be
+refused (or reported as not possible) honestly, and the player's inventory must not change.
 
 When a capability ships, move its entry from UNSUPPORTED to a real test in its own category - the gap test
 failing is the signal to do that."""
@@ -15,9 +16,7 @@ from gamepilot import vision
 pytestmark = pytest.mark.boundaries
 
 UNSUPPORTED = {
-    "chop_tree": "帮我把门口那棵树砍了",
     "trade_items": "把你包里的东西给我，我拿一个防风草跟你换",
-    "water_crops": "帮我把地里的作物都浇了",
 }
 CLAIMS_DONE = re.compile(r"(已经|已|砍好|浇好|换好|搞定|done|chopped|traded|watered)", re.I)
 HOTBAR = (0.29, 0.0, 0.71, 0.10)

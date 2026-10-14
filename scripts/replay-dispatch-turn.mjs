@@ -54,6 +54,8 @@ try {
     characterName: "Mira",
     relationshipRole: "the player's candid farm partner",
     mode: "decision",
+    // This replay pins the consent path; `full` is the default since P2-0021.
+    autonomy: "consult",
     bridgeDirectory,
   });
 

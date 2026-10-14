@@ -82,6 +82,8 @@ describe("Player DSH companion composition", () => {
     expect(prompt).toContain("one or two short, natural sentences");
     expect(prompt).toContain("movementCommand");
     expect(prompt).toContain("basedOnObservationIds");
+    // The posture enum is spelled out: a live model answered kind "text" without it.
+    expect(prompt).toContain(`exactly one of "reply", "question", "disagreement", "suggestion", "uncertain"`);
     expect(prompt).not.toContain(`load the ${companionPlugin.GROUNDED_DELIBERATION_SKILL} skill`);
     const execute = vi.fn(async () => "loaded");
     ctx.tools.register(defineTool({ name: "skill", description: "load", parameters: {},
@@ -175,7 +177,7 @@ describe("Player DSH companion composition", () => {
 
   it("assembles a decision skill and permits only the ordered decision tool surface", async () => {
     const bridgeDirectory = await createDecisionBridgeRoot();
-    const ctx = await createComposition({ mode: "decision", bridgeDirectory });
+    const ctx = await createComposition({ mode: "decision", autonomy: "consult", bridgeDirectory });
     const prompt = renderPrompt(await ctx.systemPrompt.assemble());
     const skills = await ctx.skills.list();
     const executeShell = vi.fn().mockResolvedValue("should never run");

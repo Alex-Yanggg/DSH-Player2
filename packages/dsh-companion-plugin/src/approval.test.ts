@@ -42,6 +42,7 @@ describe("companion approval answerer", () => {
     await consult.plugin(companionPlugin, {
       characterName: "Mira",
       mode: "decision",
+      autonomy: "consult",
       bridgeDirectory: root,
     });
     await expect(consult.waterfall("approval/request", { toolName: "game_observe" } as never, fallback))

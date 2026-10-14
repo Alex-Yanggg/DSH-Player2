@@ -68,13 +68,14 @@ internal sealed class ModEntry : Mod
     private string? mouthWarmupRequestedAt;
     private int mouthReadinessCountdown;
     private bool bundleReadyTraced;
+    private BodyAdapter body = null!;
 
     /// <summary>Registers the first semantic game event used by Player2.</summary>
     /// <param name="helper">The SMAPI helper for the loaded mod.</param>
     public override void Entry(IModHelper helper)
     {
         this.config = helper.ReadConfig<ModConfig>();
-        this.Monitor.Log("Player2 native companion movement + fast social bridge with W0 memory, immediate commands, and latency trace (P2-0015).", LogLevel.Info);
+        this.Monitor.Log("Player2 native companion with the B-line body lane: raw state export and raw input (P2-0021).", LogLevel.Info);
         this.config.ValidateRequiredCompanionSouls();
         var configChanged = false;
         // Old config files predate the DSH-owned default.  Migrate them once
@@ -90,6 +91,7 @@ internal sealed class ModEntry : Mod
         }
         this.TryMigrateLegacyBridgeLayout();
         this.TraceLatency("readiness", "bundle", "mod-entry");
+        this.body = new BodyAdapter(this.Monitor, () => ReceiptRenderer.ActiveCompanion, () => this.config.AllowCheatCapabilities, this.OnBodySpeech);
         this.supervisor = new DshProcessSupervisor(this.config, this.Monitor);
         this.supervisor.EnsureStarted();
         helper.Events.GameLoop.DayStarted += this.OnDayStarted;
@@ -477,6 +479,20 @@ internal sealed class ModEntry : Mod
         this.movementTraceId = $"command:{key}";
         this.movementLatencyKey = key;
         this.TraceLatency("command", key, "key-enter", submittedAt, command);
+        // The player's own movement command takes the body back from any running input;
+        // "stay" also stops the goal the companion is pursuing (P2-0021).
+        this.body.CancelActive($"player-command:{command}");
+        if (command == "stay" && this.body.SessionRoot is { } goalSession)
+        {
+            try
+            {
+                new BodyBridgeFiles(goalSession).WriteGoalInterrupt(command, submittedAt);
+            }
+            catch (Exception ex)
+            {
+                this.Monitor.Log($"Player2 could not forward the stop command to the goal lane: {ex.Message}", LogLevel.Warn);
+            }
+        }
         if (!ReceiptRenderer.Command(command, CompanionAppearanceStore.Load(Game1.player, this.Monitor), this.Monitor))
             this.OnMovementReported("failed", "path-blocked");
     }
@@ -600,6 +616,24 @@ internal sealed class ModEntry : Mod
         this.PublishSocialTurn(SocialBridgeHost.DayStartMessage, id, SocialBridgeHost.DayStartOccasion);
     }
 
+    /// <summary>
+    /// A line the companion chose to say while pursuing a goal (P2-0021): spoken
+    /// in the world when it is here, otherwise as a HUD line, and kept in the
+    /// chat transcript either way. The text is DSH-authored; nothing local is added.
+    /// </summary>
+    private void OnBodySpeech(string text)
+    {
+        var name = this.ResolveCompanionName();
+        if (ReceiptRenderer.ActiveCompanion is { } actor && actor.currentLocation == Game1.currentLocation)
+            actor.showTextAboveHead(text);
+        else
+            Game1.addHUDMessage(new HUDMessage($"{name}: {text}"));
+        var transcript = this.transcript ??= CompanionTranscriptStore.Load(this.Helper, this.Monitor);
+        transcript.Append(name, text);
+        CompanionTranscriptStore.Save(this.Helper, transcript, this.Monitor);
+        this.AppendDevelopmentLog("COMPANION_GOAL_SPEECH", text.Length > 200 ? text[..200] : text, "goal");
+    }
+
     /// <summary>Same-clock latency stage (P2-0015 T0.1); diagnostics never break the game flow.</summary>
     private void TraceLatency(string lane, string key, string stage, DateTimeOffset? at = null, string? detail = null)
     {
@@ -681,7 +715,7 @@ internal sealed class ModEntry : Mod
                     self.InventoryTruncated)),
             },
             memory.PriorMemory, memory.LatestReceipt, new NativePlayerMessage($"message-{++this.socialTurnCounter}-{id}", message, now),
-            occasion is null ? CompanionMovement.ParseCommand(message) : null, this.growthAsset, occasion);
+            occasion is null ? CompanionMovement.ParseCommand(message) : null, this.growthAsset, occasion, companion.Knobs.ToWire());
         try
         {
             this.socialBridgeHost = new SocialBridgeHost(sessionRoot, Math.Min(6, this.config.PollIntervalTicks), this.config.EffectiveRequestTimeout());
@@ -783,6 +817,7 @@ internal sealed class ModEntry : Mod
         }
         this.RefreshCompanionGrowth(companion);
         this.RequestMouthWarmup(companion);
+        this.body.Attach(this.SessionBridgeRoot(companion));
         this.pendingGreetingId = Guid.NewGuid().ToString();
         this.pendingGreetingCompanion = companion;
         this.TraceLatency("day-start", this.pendingGreetingId, "day-started");
@@ -1067,6 +1102,7 @@ internal sealed class ModEntry : Mod
             return;
         }
         this.supervisor.PollReadiness();
+        this.body.OnTick();
         this.CompleteAppearanceIfMenuWasClosed();
         this.TryShowPendingCompanionChoice();
         this.TryOpenCompanionCustomization();
@@ -1267,6 +1303,7 @@ internal sealed class ModEntry : Mod
 
     private void OnReturnedToTitle(object? sender, ReturnedToTitleEventArgs e)
     {
+        this.body.Detach("returned-to-title");
         this.ClearBridgeDay();
         this.activeProposal = null;
         this.pendingChoiceSnapshot = null;

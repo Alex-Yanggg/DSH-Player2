@@ -16,7 +16,7 @@ import {
   type GrowthProposal,
   type Proposal,
 } from "@dsh-player2/contracts";
-import { collectReceiptDigest, type ReceiptDigest, type ReceiptDigestEntry } from "./memory/receipt-digest.js";
+import { collectReceiptDigest, type ReceiptDigest } from "./memory/receipt-digest.js";
 import type { SpineTimeline } from "./spine.js";
 
 const MAX_CITED_OBSERVATIONS = 8;

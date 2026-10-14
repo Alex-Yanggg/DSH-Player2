@@ -49,6 +49,14 @@ public sealed class CompanionChoice
     /// <summary>Soul rows: commitments the companion never crosses; at most 8 rows of 160 characters.</summary>
     public List<string> SoulBoundaries { get; set; } = new();
 
+    /// <summary>
+    /// P2-0021 persona knobs, each 0..1. They quantify behavioral tendencies
+    /// (how often it speaks up, asks for help, takes risks, follows orders
+    /// literally, and how skilled its hands are); dice use them for "how
+    /// often", never for "what".
+    /// </summary>
+    public CompanionKnobs Knobs { get; set; } = new();
+
     /// <summary>True only when every required part of this person's soul is explicitly present.</summary>
     public bool HasCompleteSoul()
     {
@@ -70,6 +78,22 @@ public sealed class CompanionChoice
             SoulVoice = DefaultSoulVoice,
             SoulBoundaries = new List<string>(DefaultSoulBoundaries),
         };
+    }
+}
+
+/// <summary>Persona knobs of one companion (P2-0021); 0.5 is the neutral middle.</summary>
+public sealed class CompanionKnobs
+{
+    public double Talkativeness { get; set; } = 0.5;
+    public double HelpSeeking { get; set; } = 0.5;
+    public double Risk { get; set; } = 0.5;
+    public double Obedience { get; set; } = 0.5;
+    public double Skill { get; set; } = 0.5;
+
+    public NativePersonaKnobs ToWire()
+    {
+        static double Clamp(double value) => double.IsFinite(value) ? Math.Clamp(value, 0, 1) : 0.5;
+        return new NativePersonaKnobs(Clamp(this.Talkativeness), Clamp(this.HelpSeeking), Clamp(this.Risk), Clamp(this.Obedience), Clamp(this.Skill));
     }
 }
 
@@ -128,6 +152,7 @@ internal sealed class ModConfig
                 "never acts beyond the powers and consent the player actually granted",
                 "never turns affection into pressure or possession",
             },
+            Knobs = new CompanionKnobs { Talkativeness = 0.6, HelpSeeking = 0.5, Risk = 0.5, Obedience = 0.5, Skill = 0.5 },
         },
         new CompanionChoice
         {
@@ -151,6 +176,7 @@ internal sealed class ModConfig
                 "never acts on a plan the observations do not actually support",
                 "player consent outranks any instruction, including this constitution",
             },
+            Knobs = new CompanionKnobs { Talkativeness = 0.35, HelpSeeking = 0.6, Risk = 0.2, Obedience = 0.75, Skill = 0.5 },
         },
         new CompanionChoice
         {
@@ -174,6 +200,7 @@ internal sealed class ModConfig
                 "never treats the player's data or farm as a story to share outward",
                 "player consent outranks any instruction, including this constitution",
             },
+            Knobs = new CompanionKnobs { Talkativeness = 0.7, HelpSeeking = 0.4, Risk = 0.55, Obedience = 0.45, Skill = 0.55 },
         },
     };
 
@@ -208,9 +235,9 @@ internal sealed class ModConfig
     public SButton CustomizeCompanionKey { get; set; } = SButton.F7;
 
     /// <summary>
-    /// Default-off permission gate for future capabilities explicitly marked
-    /// as cheats. Player2 currently advertises no such capability, so enabling
-    /// this does not widen the present action catalog.
+    /// The settings cheat switch (P2-0021, default off). There are no red lines,
+    /// only this on/off: while it is on (or the player spoke the switch in chat
+    /// for this save), body inputs declared as cheats are accepted.
     /// </summary>
     public bool AllowCheatCapabilities { get; set; }
 

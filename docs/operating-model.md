@@ -2,6 +2,18 @@
 
 This is the product repository's compact operating system for humans and coding agents. It keeps one trustworthy player-facing vertical slice on track; it is not permission to build a general game-automation platform.
 
+## Design principle: intelligent software
+
+Player2 runs on a harness (DeepSeek Harness). The companion thinks for itself; the product gives it perception, hands, and thinking guidance, not a fixed behavior tree. Every change is judged against this.
+
+- **Guide, don't script.** Prefer a policy line, a tendency, or a tool the model composes over code that decides how a goal is done. Fixed logic needs a stated reason why the model or the harness cannot do it.
+- **Allowed constraints** are boundaries, not behavior: the body protocol, the cheat switch, engineering budgets that protect the player's machine, and inspectable limits on harness-authored code (who approves it, how it rolls back, network and save access).
+- **Hands come from the game.** The companion should act as an independent player in its own game instance (co-op farmhand, virtual controller input), so the game's own code paths do the work; the mod exports state and accepts raw input only. Input is layered and interchangeable: the game's native input (a virtual controller inside the companion's instance) when the game allows it, keyboard and mouse simulation when it does not. Per-action adapter code is a cost to delete, not a feature to grow.
+- **Code budget.** Keep diffs small; each PR states its added lines by kind (product, protocol, tests, docs). Deleting fixed logic is progress.
+- **Player-facing words.** The companion speaks as a person in the game: places and things by their in-game names, never tile coordinates, file or field names, budgets, or project terms such as contracts or task cards.
+- **Pause holds.** A paused game (pause menu, focus loss, the player stepping away) suspends a goal; it never ends one.
+- **Memory.** One harness session per save; the harness links memory across sessions; Player2's own ledger stays a thin persona layer.
+
 ## The delivery loop
 
 `evidence → task contract → small design → implementation → verification → integration → observe → learn`

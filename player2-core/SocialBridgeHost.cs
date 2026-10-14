@@ -358,7 +358,11 @@ public sealed class SocialBridgeHost : IDisposable
 public sealed record NativeSocialBridgeTurn(
     string Version, string Id, string CreatedAt, int GameDay, NativeCompanionIdentity Companion,
     NativeAdapterDescriptor Adapter, NativeObservation[] Observations, NativeSharedOutcomeMemory? PriorMemory, BridgeActionReceipt? LatestReceipt,
-    NativePlayerMessage Message, string? MovementCommand = null, BridgeGrowthAsset? Growth = null, string? Occasion = null);
+    NativePlayerMessage Message, string? MovementCommand = null, BridgeGrowthAsset? Growth = null, string? Occasion = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] NativePersonaKnobs? Knobs = null);
+
+/// <summary>P2-0021 persona knobs (0..1 each): dice decide how often, the model decides what.</summary>
+public sealed record NativePersonaKnobs(double Talkativeness, double HelpSeeking, double Risk, double Obedience, double Skill);
 
 /// <summary>The one receipt-backed outcome of the previous game day that a social reply may cite.</summary>
 public sealed record NativeSharedOutcomeMemory(

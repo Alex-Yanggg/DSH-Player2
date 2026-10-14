@@ -9,12 +9,13 @@ They run only on a local Windows machine with a display, the game, and a DSH run
 | Category | Question |
 | --- | --- |
 | boot | The game starts through SMAPI, the mod loads, the test save loads, and the DSH bundle is ready. |
-| consent | The daily proposal appears as native dialogue; decline, same-day F6 retry and agree are all honoured. |
+| consent | The daily proposal appears as native dialogue; decline, same-day F6 retry and agree are all honoured. Runs only with `E2E_AUTONOMY=consult` against a host mounted with `autonomy: consult` (the default is `full` since P2-0021). |
 | presence | The chosen companion is in the player's location and carried into each turn. |
 | conversation | F2 chat reaches DSH and returns a validated reply; a failure carries a trace id and never shows local text. |
 | movement | Explicit commands are issued at Enter (A1), negated phrases never move anyone, follow keeps up, and stay stops. |
-| boundaries | Requests beyond the advertised capabilities (chop a tree, trade, water crops) are refused honestly. |
+| boundaries | Requests the companion's body cannot do (trading from the player's inventory) are not faked. |
 | feel | Enter to publish, DSH round trip, first token, and time to result. |
+| bline | P2-0021: the body lane declares only raw inputs and exports state, a raw input task moves the body, and a goal asked in chat starts, logs its dice, and stops on `/stay`. |
 | w0 | P2-0015: the day's first line, the chat memory envelope, graded readiness, and the joined latency trace. |
 
 The open chat is a game menu, so in single player the world pauses while it is open. This is intended: a movement command is issued at Enter, and the companion walks once the chat closes. The movement tests close the chat after Enter.
@@ -53,6 +54,7 @@ The tests own the keyboard and mouse while they run.
 | `E2E_SOURCE_SAVE` | Template save folder name (required). |
 | `E2E_ATTACH=1` | Drive an already running game, reusing the last run's test save (faster iteration; no console fixture channel). |
 | `E2E_SAVE_ID` | Pin the test save id instead of generating a fresh one. |
+| `E2E_AUTONOMY` | Set to `consult` to run the consent category against a consult-mode host. |
 | `STARDEW_DIR` | Game directory when it is not the default Steam location. |
 
 `budgets.py` holds the responsiveness budgets. Each value is measured, then rounded up. Raise one only with a recorded reason, because every raise loosens the product's feel.
