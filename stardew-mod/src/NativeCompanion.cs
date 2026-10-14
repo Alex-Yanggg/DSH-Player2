@@ -224,9 +224,31 @@ internal sealed class NativeCompanion : NPC
         var box = this.GetBoundingBox();
         box.Offset((int)mx, (int)my);
         this.LastAttemptedBox = box;
-        if (!this.noClip && location.isCollidingPosition(box, Game1.viewport, false, 0, false, this)) return false;
+        if (!this.noClip && this.CollidesAsFarmer(location, box)) return false;
         this.Position += new Vector2(mx, my);
         return true;
+    }
+
+    /// <summary>
+    /// The engine's collision for a farmer's body at <paramref name="box"/>.
+    /// The engine treats any NPC as a villager (NPCBarrier tiles fence the
+    /// farm exits and mine levels), so the check runs as the body's own
+    /// farmer avatar; the companion is passable to it, as one's own body is.
+    /// </summary>
+    public bool CollidesAsFarmer(GameLocation location, Rectangle box)
+    {
+        this.avatar.currentLocation = location;
+        this.avatar.Position = this.Position;
+        var passes = this.farmerPassesThrough;
+        this.farmerPassesThrough = true;
+        try
+        {
+            return location.isCollidingPosition(box, Game1.viewport, true, 0, false, this.avatar);
+        }
+        finally
+        {
+            this.farmerPassesThrough = passes;
+        }
     }
 
     private void Slide(GameLocation location, bool horizontal)

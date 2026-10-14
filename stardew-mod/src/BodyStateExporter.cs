@@ -52,6 +52,8 @@ internal sealed class BodyStateExporter
     private string[] gridRows = Array.Empty<string>();
     private long revision;
     private double buildMsTotal;
+    private double gridMsTotal;
+    private int gridBuilds;
     private int builds;
 
     public BodyStateExporter(IMonitor monitor)
@@ -207,6 +209,7 @@ internal sealed class BodyStateExporter
     {
         var key = location.NameOrUniqueName;
         if (key == this.gridLocation && Game1.ticks - this.gridTick < GridCacheTicks) return this.gridRows;
+        var started = this.buildClock.Elapsed.TotalMilliseconds;
         var width = location.Map.Layers[0].LayerWidth;
         var height = location.Map.Layers[0].LayerHeight;
         var marks = new Dictionary<(int, int), char>();
@@ -223,7 +226,7 @@ internal sealed class BodyStateExporter
             {
                 if (marks.TryGetValue((x, y), out var mark)) builder.Append(mark);
                 else if (location.isWaterTile(x, y)) builder.Append('~');
-                else if (location.isCollidingPosition(new Rectangle(x * 64 + 8, y * 64 + 16, 48, 32), Game1.viewport, false, 0, false, actor)) builder.Append('#');
+                else if (Blocked(location, new Rectangle(x * 64 + 8, y * 64 + 16, 48, 32), actor)) builder.Append('#');
                 else builder.Append('.');
             }
             rows[y] = builder.ToString();
@@ -231,7 +234,17 @@ internal sealed class BodyStateExporter
         this.gridLocation = key;
         this.gridTick = Game1.ticks;
         this.gridRows = rows;
+        this.gridMsTotal += this.buildClock.Elapsed.TotalMilliseconds - started;
+        this.gridBuilds++;
         return rows;
+    }
+
+    /// <summary>The grid uses the same collision the body walks with.</summary>
+    private static bool Blocked(GameLocation location, Rectangle tile, NativeCompanion? actor)
+    {
+        return actor is not null
+            ? actor.CollidesAsFarmer(location, tile)
+            : location.isCollidingPosition(tile, Game1.viewport, true, 0, false, Game1.player);
     }
 
     /// <summary>Forces the next state to rebuild the tile grid (after an action changed the world).</summary>
@@ -311,7 +324,7 @@ internal sealed class BodyStateExporter
         if (++this.builds % 600 == 0)
         {
             // S12 evidence: the cost of exporting raw state, logged in batches.
-            this.monitor.Log($"Player2 body state export: {this.builds} builds, mean {this.buildMsTotal / this.builds:0.00} ms.", LogLevel.Info);
+            this.monitor.Log($"Player2 body state export: {this.builds} builds, mean {this.buildMsTotal / this.builds:0.00} ms; grid rebuilt {this.gridBuilds} times, mean {(this.gridBuilds == 0 ? 0 : this.gridMsTotal / this.gridBuilds):0.00} ms.", LogLevel.Info);
         }
     }
 }
