@@ -42,8 +42,8 @@ export const bodyDeclarationSchema = z.object({
   game: z.string().min(1),
   writtenAt: z.string().datetime(),
   state: z.object({
-    file: z.literal("state.json"),
-    world: z.literal("world.json"),
+    file: z.literal("world_state"),
+    world: z.literal("world_map"),
     description: z.string().min(1).max(800),
     fields: z.array(bodyStateFieldSchema).max(48),
     /** Characters used in `map.rows`, each with its meaning. */

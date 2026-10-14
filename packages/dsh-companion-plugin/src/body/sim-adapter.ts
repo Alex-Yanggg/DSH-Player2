@@ -84,7 +84,7 @@ export class SimAdapter implements BodyPort {
     const press = (id: string) => ({ id, kind: "press" as const, description: id });
     return {
       version: bodyProtocolVersion, adapter: "sim", game: "sim", writtenAt: new Date().toISOString(),
-      state: { file: "state.json", world: "world.json", description: "Simulated body.", fields: [{ name: "map", description: "rows" }], legend: { ".": "walkable", "#": "blocked", "~": "water", W: "walk warp", D: "door" } },
+      state: { file: "world_state", world: "world_map", description: "Simulated body.", fields: [{ name: "map", description: "rows" }], legend: { ".": "walkable", "#": "blocked", "~": "water", W: "walk warp", D: "door" } },
       inputs: [
         ...Object.keys(DIRS).map((id) => ({ id, kind: "hold" as const, description: id })),
         ...Object.keys(FACES).map(press), press("UseTool"), press("Action"), press("DropItem"),

@@ -213,8 +213,11 @@ internal sealed class ModEntry : Mod
         CompanionTranscriptStore.Save(this.Helper, transcript, this.Monitor);
         if (CompanionMovement.ParseCommand(message) is { } command)
         {
-            // The player's own movement command takes the body back, like grabbing the controller.
+            // The player's own movement command takes the body back, like grabbing the controller:
+            // the goal round in flight stops (DSH pauses the goal) and the command is the next turn.
             this.body.CancelActive($"player-command:{command}");
+            this.dsh.Cancel();
+            this.cancelledForPause = false;
             if (!CompanionPresence.Command(command, CompanionAppearanceStore.Load(Game1.player, this.Monitor), this.Monitor))
                 this.OnMovementReported("failed", "path-blocked");
         }
