@@ -44,8 +44,8 @@ export interface BodyPort {
   say(text: string): Promise<number>;
 }
 
-const sleep = (ms: number, signal?: AbortSignal) => new Promise<void>((resolve) => {
-  if (signal?.aborted) return resolve();
+export const sleep = (ms: number, signal?: AbortSignal) => new Promise<void>((resolve) => {
+  if (signal?.aborted || ms <= 0) return resolve();
   const timer = setTimeout(resolve, ms);
   signal?.addEventListener("abort", () => { clearTimeout(timer); resolve(); }, { once: true });
 });

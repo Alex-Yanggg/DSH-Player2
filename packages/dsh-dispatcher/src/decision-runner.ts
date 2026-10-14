@@ -1,6 +1,6 @@
 import { readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
-import { actionRequestSchema, bridgeFileLimit, decisionTurnVersion } from "@dsh-player2/contracts";
+import { actionRequestSchema, bridgeFileLimit } from "@dsh-player2/contracts";
 
 /**
  * The only DSH-facing operation the dispatcher needs: drive one Player decision

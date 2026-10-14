@@ -193,29 +193,28 @@ describe("goal tools", () => {
   });
 });
 
-describe("shop helper", () => {
-  it("opens a counter, reads the stock, and buys from the player's wallet", async () => {
+describe("shop counter", () => {
+  it("opens with Action, shows the stock, and buys with raw menu buttons from the player's wallet", async () => {
     const goal = controller();
-    const shop = tool(goal, GOAL_TOOL_NAMES.shop);
-    const browse = await shop.execute({ x: 17, y: 1 });
-    expect(browse).toMatch(/#0 Parsnip Seeds 20g/);
-    expect(browse).toMatch(/Potato Seeds 50g \(1 left\)/);
-    const result = await shop.execute({ x: 17, y: 1, buy: "parsnip", count: 2 });
-    expect(result).toMatch(/Bought 2 x Parsnip Seeds/);
+    const opened = await tool(goal, GOAL_TOOL_NAMES.use).execute({ button: "Action", x: 17, y: 1 });
+    expect(opened).toMatch(/menu-opened/);
+    const look = await tool(goal, GOAL_TOOL_NAMES.observe).execute({});
+    expect(look).toMatch(/#0 Parsnip Seeds 20g/);
+    expect(look).toMatch(/Potato Seeds 50g \(1 left\)/);
+    const input = tool(goal, GOAL_TOOL_NAMES.input);
+    await input.execute({ steps: [{ press: ["MenuConfirm"], ms: 0 }, { press: ["MenuConfirm"], ms: 0 }] });
     expect(sim.body.items.find((i) => i?.name === "Parsnip Seeds")?.stack).toBe(2);
     expect(sim.player.money).toBe(460);
-    const sold = await shop.execute({ x: 17, y: 1, buy: "#1", count: 2 });
-    expect(sold).toMatch(/Bought 1 x Potato Seeds/);
+    const sold = await input.execute({ steps: [{ press: ["MenuDown"], ms: 0 }, { press: ["MenuConfirm"], ms: 0 }, { press: ["MenuConfirm"], ms: 0 }, { press: ["MenuClose"], ms: 0 }] });
     expect(sold).toMatch(/sold-out/);
-    // Only raw buttons reached the adapter.
-    const ids = new Set(sim.inputsSeen.flatMap((t) => t.steps.flatMap((s) => [...(s.hold ?? []), ...(s.press ?? [])])));
-    for (const id of ids) expect(id).toMatch(/^((Move|Face)(Up|Right|Down|Left)|Action|Menu(Up|Down|Confirm|Close))$/);
+    expect(sim.body.items.find((i) => i?.name === "Potato Seeds")?.stack).toBe(1);
   });
 
   it("reports when the wallet is short", async () => {
     sim.player.money = 10;
-    const result = await tool(controller(), GOAL_TOOL_NAMES.shop).execute({ x: 17, y: 1, buy: "Parsnip" });
-    expect(result).toMatch(/Bought 0 x Parsnip Seeds/);
+    const goal = controller();
+    await tool(goal, GOAL_TOOL_NAMES.use).execute({ button: "Action", x: 17, y: 1 });
+    const result = await tool(goal, GOAL_TOOL_NAMES.input).execute({ steps: [{ press: ["MenuConfirm"], ms: 0 }] });
     expect(result).toMatch(/cant-afford/);
   });
 });
@@ -260,7 +259,7 @@ describe("persona dice", () => {
     const nudges = await turnNudges(dice, 1, true);
     expect(nudges.length).toBeGreaterThanOrEqual(3);
     const lines = (await readFile(log, "utf8")).trim().split("\n").map((l) => JSON.parse(l));
-    expect(lines.length).toBe(dice.history.length);
+    expect(lines.length).toBe(4);
     expect(lines.some((l) => l.knob === "helpSeeking")).toBe(true);
   });
 

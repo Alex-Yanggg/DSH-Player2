@@ -122,7 +122,7 @@ export function pathToSteps(path: readonly Tile[], limits: BodyDeclaration["limi
     const maxTiles = Math.max(1, Math.floor(limits.maxStepMs / (ticksPerTile * limits.tickMs)));
     while (remaining > 0) {
       const tiles = Math.min(remaining, maxTiles);
-      steps.push({ hold: [BUTTONS[direction]], ms: Math.round(tiles * ticksPerTile * limits.tickMs) });
+      steps.push({ hold: [BUTTONS[direction]], ms: walkMs(tiles, limits) });
       remaining -= tiles;
     }
     index += run;

@@ -20,7 +20,6 @@ import { resolveAutonomy, type AutonomyMode } from "./autonomy.js";
 import {
   createDecisionTools,
   decisionPolicyText,
-  DECISION_TOOL_NAMES,
   FULL_DECISION_SKILL_CONTENT,
   GROUNDED_DECISION_SKILL,
   CONSULT_DECISION_SKILL_CONTENT,
@@ -28,7 +27,6 @@ import {
 import { DecisionFileBridge } from "./decision-file-bridge.js";
 import { COMPANION_PACKAGE_NAME, createCompanionInvariantInstaller } from "./invariants.js";
 import { SpineFileStore, SpineTimeline, spineStateFileAt, type SpineStore } from "./spine.js";
-import { DreamFileLane } from "./spine-dream.js";
 import { createTemperamentHandlers } from "./temperament.js";
 import { createGoalTools, goalPolicyText, GOAL_TOOL_NAMES, type GoalController } from "./body/goal-tools.js";
 
@@ -59,13 +57,10 @@ export { DreamFileLane } from "./spine-dream.js";
 export type { DreamDraftInput, DreamOutcome } from "./spine-dream.js";
 export { SOCIAL_MEMORY_TAG, socialMemoryNote } from "./social-memory.js";
 export * from "./mind/index.js";
-export { BodyFileClient, estimateMs, type BodyPort, type BodyRun } from "./body/client.js";
-export * as navigation from "./body/navigation.js";
-export { walkTo, type WalkResult, type WalkTarget } from "./body/walk.js";
-export { PersonaDice, probability, seededUniform, tendencyLines, turnNudges, type DiceRoll, type KnobName } from "./body/knobs.js";
-export { runMelee, type MeleeTactic, type ReflexReport } from "./body/reflex.js";
+export { BodyFileClient, type BodyPort, type BodyRun } from "./body/client.js";
+export { PersonaDice, tendencyLines, turnNudges } from "./body/knobs.js";
 export { SimAdapter, type SimLocation, type SimOptions } from "./body/sim-adapter.js";
-export { createGoalTools, goalPolicyText, GOAL_TOOL_NAMES, inventoryDiff, renderObservation, type GoalController } from "./body/goal-tools.js";
+export { createGoalTools, goalPolicyText, GOAL_TOOL_NAMES, type GoalController } from "./body/goal-tools.js";
 
 /** Cordis plugin name. */
 export const name = "player2-companion";

@@ -23,17 +23,15 @@ internal sealed class BodyShop
 
     private readonly List<Entry> entries;
 
-    private BodyShop(string shopId, string title, string location, Point counter, List<Entry> entries)
+    private BodyShop(string shopId, string location, Point counter, List<Entry> entries)
     {
         this.ShopId = shopId;
-        this.Title = title;
         this.Location = location;
         this.Counter = counter;
         this.entries = entries;
     }
 
     public string ShopId { get; }
-    public string Title { get; }
     public string Location { get; }
     public Point Counter { get; }
     public int Cursor { get; private set; }
@@ -98,7 +96,7 @@ internal sealed class BodyShop
                 info.Stock == int.MaxValue ? null : Math.Max(0, info.Stock),
                 string.IsNullOrEmpty(info.TradeItem) ? null : ItemRegistry.GetDataOrErrorItem(info.TradeItem).DisplayName));
         }
-        return new BodyShop(shopId, shopId, location.NameOrUniqueName, counter, entries);
+        return new BodyShop(shopId, location.NameOrUniqueName, counter, entries);
     }
 
     private static bool OwnerPresent(GameLocation location, Point counter, string? name, string? condition)
@@ -157,7 +155,7 @@ internal sealed class BodyShop
             return new BodyMenuItem(index, Clip(entry.Salable.QualifiedItemId ?? entry.Salable.Name), Clip(entry.Salable.DisplayName),
                 Clip(item?.getCategoryName() ?? ""), entry.Price, entry.Stock, entry.TradeItem is null ? null : Clip(entry.TradeItem));
         }).ToArray();
-        return new BodyMenu("shop", this.ShopId, this.Title, this.Cursor, Game1.player.Money, items);
+        return new BodyMenu("shop", this.ShopId, this.ShopId, this.Cursor, Game1.player.Money, items);
     }
 
     private static string Clip(string value) => value.Length <= 80 ? value : value[..80];

@@ -37,22 +37,17 @@ export function probability(knob: number, floor = 0.05, ceiling = 0.95): number 
 }
 
 export class PersonaDice {
-  private readonly rolls: DiceRoll[] = [];
-
   public constructor(
     private readonly knobs: PersonaKnobs,
     private readonly seed: string,
     private readonly logFile?: string,
   ) {}
 
-  public get history(): readonly DiceRoll[] { return this.rolls; }
-
   /** Rolls one "consider doing it this turn?" question for a knob. */
   public async roll(turn: number, knob: KnobName, question: string, invert = false): Promise<DiceRoll> {
     const p = probability(invert ? 1 - this.knobs[knob] : this.knobs[knob]);
     const roll = seededUniform(this.seed, turn, `${knob}:${question}`);
     const result: DiceRoll = { seed: this.seed, turn, knob, question, p, roll, yes: roll < p };
-    this.rolls.push(result);
     if (this.logFile !== undefined) {
       await mkdir(dirname(this.logFile), { recursive: true });
       await appendFile(this.logFile, `${JSON.stringify({ at: new Date().toISOString(), ...result })}\n`, "utf8");

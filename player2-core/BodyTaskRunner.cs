@@ -25,7 +25,6 @@ public sealed record BodyTickCommand(IReadOnlyCollection<string> Held, IReadOnly
 /// </summary>
 public sealed class BodyTaskRunner
 {
-    public static readonly IReadOnlySet<string> MovementInputs = new HashSet<string>(StringComparer.Ordinal) { "MoveUp", "MoveRight", "MoveDown", "MoveLeft" };
 
     private readonly BodyTask task;
     private readonly int[] stepTicks;

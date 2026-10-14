@@ -40,7 +40,6 @@ export interface GoalLaneOptions {
   readonly createRunner: GoalRunnerFactory;
   readonly trace: (code: string, detail: Record<string, unknown>) => Promise<void>;
   readonly budget?: GoalBudget;
-  readonly body?: BodyPort;
   /** How long to wait while the body is absent or the game is paused (ms). */
   readonly idleMs?: number;
 }
@@ -68,7 +67,7 @@ const MAX_TURN_ERRORS = 3;
 export class GoalLane {
   private record: GoalRecord | undefined;
   private loaded = false;
-  private run: { goalId: string; abort: AbortController; runner: GoalTurnRunner | undefined; loop: Promise<void> } | undefined;
+  private run: { abort: AbortController; runner: GoalTurnRunner | undefined; loop: Promise<void> } | undefined;
   private readonly body: BodyPort;
   private readonly budget: GoalBudget;
   private readonly idleMs: number;
@@ -76,7 +75,7 @@ export class GoalLane {
   private saving: Promise<void> = Promise.resolve();
 
   public constructor(private readonly session: string, private readonly options: GoalLaneOptions) {
-    this.body = options.body ?? new BodyFileClient(session);
+    this.body = new BodyFileClient(session);
     this.budget = options.budget ?? defaultGoalBudget;
     this.idleMs = options.idleMs ?? 1_000;
   }
@@ -102,7 +101,7 @@ export class GoalLane {
       const parsed = goalRecordSchema.safeParse(JSON.parse(raw));
       if (!parsed.success) { await this.options.trace("DSH_GOAL_RECORD_INVALID", { session: this.session }); return; }
       this.record = parsed.data;
-      if (this.record.status === "active" || this.record.status === "stopping") {
+      if (this.record.status === "active") {
         if (knobs !== undefined) this.record = { ...this.record, knobs };
         await this.options.trace("DSH_GOAL_RESUMED", { goalId: this.record.goalId, turns: this.record.turns });
         this.launch(this.record);
@@ -177,14 +176,7 @@ export class GoalLane {
   /** Ends the running goal (if any) and waits for its loop to wind down. */
   public stop(reason: string): Promise<void> { return this.exclusive(() => this.stopLocked(reason)); }
 
-  public async close(): Promise<void> {
-    const run = this.run;
-    this.run = undefined;
-    if (run === undefined) return;
-    run.abort.abort();
-    run.runner?.cancel();
-    await run.loop.catch(() => undefined);
-  }
+  public async close(): Promise<void> { await this.windDown(this.run, false); }
 
   private async stopLocked(reason: string): Promise<void> {
     const run = this.run;
@@ -193,17 +185,21 @@ export class GoalLane {
       await this.update({ status: "stopped", endReason: reason });
       await this.options.trace("DSH_GOAL_STOPPED", { goalId: record.goalId, reason });
     }
+    await this.windDown(run, true);
+  }
+
+  private async windDown(run: GoalLane["run"], cancelBody: boolean): Promise<void> {
     if (run === undefined) return;
-    this.run = undefined;
+    if (this.run === run) this.run = undefined;
     run.abort.abort();
     run.runner?.cancel();
-    await this.body.cancelActive().catch(() => undefined);
+    if (cancelBody) await this.body.cancelActive().catch(() => undefined);
     await run.loop.catch(() => undefined);
   }
 
   private launch(record: GoalRecord): void {
     const abort = new AbortController();
-    const run: NonNullable<GoalLane["run"]> = { goalId: record.goalId, abort, runner: undefined, loop: Promise.resolve() };
+    const run: NonNullable<GoalLane["run"]> = { abort, runner: undefined, loop: Promise.resolve() };
     this.run = run;
     run.loop = this.loop(run).catch(async (error: unknown) => {
       await this.options.trace("DSH_GOAL_LOOP_FAILED", { goalId: record.goalId, message: messageOf(error) });

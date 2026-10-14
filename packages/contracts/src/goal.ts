@@ -39,7 +39,7 @@ export const cheatOpSchema = z.object({
 });
 export type CheatOp = z.infer<typeof cheatOpSchema>;
 
-export const goalStatusValues = ["active", "stopping", "done", "failed", "stopped", "budget-exceeded"] as const;
+export const goalStatusValues = ["active", "done", "failed", "stopped", "budget-exceeded"] as const;
 export const goalTerminalStatuses = new Set(["done", "failed", "stopped", "budget-exceeded"]);
 
 /** Engineering loop budget (anti-runaway, not a limit on choices). */

@@ -424,6 +424,18 @@ export class Player2DshHost {
     return lane;
   }
 
+  /** One persona preset per companion identity, composed once and shared by every lane. */
+  private async presetIdFor(identity: CompanionIdentity): Promise<string> {
+    const person = companionPresetId(identity);
+    let presetTask = this.presetTasks.get(person);
+    if (presetTask === undefined) {
+      presetTask = ensureCompanionPreset(this.ctx, identity);
+      this.presetTasks.set(person, presetTask);
+      void presetTask.catch(() => this.presetTasks.delete(person));
+    }
+    return (await presetTask).id;
+  }
+
   /**
    * One DSH agent per goal (lane `goal`), composed from the same persona
    * preset as the other lanes. Its session id is derived from the goal id, so
@@ -432,14 +444,7 @@ export class Player2DshHost {
   private async goalRunner(session: string, record: GoalRecord, controller: companion.GoalController): Promise<GoalTurnRunner> {
     const identity = this.identities.get(session) ?? await this.warmupIdentity(session);
     if (identity === undefined) throw new Error("no companion identity is known for this save yet");
-    const person = companionPresetId(identity);
-    let presetTask = this.presetTasks.get(person);
-    if (presetTask === undefined) {
-      presetTask = ensureCompanionPreset(this.ctx, identity);
-      this.presetTasks.set(person, presetTask);
-      void presetTask.catch(() => this.presetTasks.delete(person));
-    }
-    const presetId = (await presetTask).id;
+    const presetId = await this.presetIdFor(identity);
     const transcript = new LaneTranscript();
     const { handle } = await this.createAgent(session, "goal", "goal", identity, presetId, transcript, {
       goal: controller,
@@ -543,14 +548,7 @@ export class Player2DshHost {
    * identity is the only source of truth.
    */
   private async laneAgent(session: string, lane: LaneMode, mode: LaneMode, identity: CompanionIdentity): Promise<LaneAgent> {
-    const person = companionPresetId(identity);
-    let presetTask = this.presetTasks.get(person);
-    if (presetTask === undefined) {
-      presetTask = ensureCompanionPreset(this.ctx, identity);
-      this.presetTasks.set(person, presetTask);
-      void presetTask.catch(() => this.presetTasks.delete(person));
-    }
-    const presetId = (await presetTask).id;
+    const presetId = await this.presetIdFor(identity);
     if (this.stopped) throw new Error("Player2 host stopped before agent creation.");
     const key = `${session}:${lane}:${presetId}`;
     const current = this.lanes.get(key);

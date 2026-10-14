@@ -23,7 +23,7 @@
 - makes `full` the default autonomy (`consult` remains an explicit setting).
 
 Acceptance: `npm run accept:0.2.0` (the `accept:0.1.4` baseline plus the
-keyless goal-lane replay and the S10 spike) and `dotnet test`; the real-game
+keyless goal-lane replay) and `dotnet test`; the real-game
 steps are in `stardew-mod/README.md`.
 
 ## Unreleased - P2-0016 W1 one mind

@@ -404,7 +404,7 @@ internal sealed class BodyAdapter
         var stamina = avatar.Stamina;
         if (tool is MeleeWeapon weapon)
         {
-            location.playSound(weapon.isScythe() ? "swordswipe" : "swordswipe");
+            location.playSound("swordswipe");
             var center = actor.GetBoundingBox().Center;
             var reach = new Point(center.X + (tile.X - actor.TilePoint.X) * 64, center.Y + (tile.Y - actor.TilePoint.Y) * 64);
             weapon.DoDamage(location, reach.X, reach.Y, actor.FacingDirection, 1, avatar);

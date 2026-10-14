@@ -10,7 +10,6 @@ export interface WalkResult {
   readonly x: number | null;
   readonly y: number | null;
   readonly legs: number;
-  readonly replans: number;
   readonly ms: number;
   readonly events: readonly BodyEvent[];
 }
@@ -36,12 +35,11 @@ export async function walkTo(body: BodyPort, limits: BodyDeclaration["limits"], 
   const events: BodyEvent[] = [];
   const blocked: Tile[] = [];
   let legs = 0;
-  let replans = 0;
   let world: BodyWorld | undefined;
   let last: BodyState | undefined;
   const result = (ok: boolean, reason: string): WalkResult => ({
     ok, reason, location: last?.body?.location ?? null, x: last?.body?.x ?? null, y: last?.body?.y ?? null,
-    legs, replans, ms: Date.now() - started, events: events.slice(-12),
+    legs, ms: Date.now() - started, events: events.slice(-12),
   });
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     if (signal?.aborted) return result(false, "stopped");
@@ -49,48 +47,38 @@ export async function walkTo(body: BodyPort, limits: BodyDeclaration["limits"], 
     const self = state.body;
     if (self === null) return result(false, "the companion is not in the world");
     const destination = target.location ?? self.location;
+    let leg: ReturnType<typeof planLeg>;
+    let warped = false;
     if (self.location === destination) {
       const goal = { x: target.x, y: target.y };
       if (target.mode === "stand" && self.x === goal.x && self.y === goal.y) return result(true, "arrived");
       if (target.mode === "adjacent" && Math.abs(self.x - goal.x) + Math.abs(self.y - goal.y) === 1) {
         const facing = directionTo(self, goal);
-        if (self.facing === facing) return result(true, "arrived next to the target and facing it");
-        const turn = await body.run([{ press: [faceButton(facing)], ms: 0 }], signal ? { signal } : {});
-        last = turn.state ?? last;
+        if (self.facing !== facing) last = (await body.run([{ press: [faceButton(facing)], ms: 0 }], signal ? { signal } : {})).state ?? last;
         return result(true, "arrived next to the target and facing it");
       }
-      const leg = planLeg(state, limits, { tile: goal, mode: target.mode }, blocked);
+      leg = planLeg(state, limits, { tile: goal, mode: target.mode }, blocked);
       if (leg === undefined) {
         return result(false, target.mode === "stand"
           ? `no walkable path from ${self.location} (${self.x},${self.y}) to (${goal.x},${goal.y}); the tile may be blocked (try mode adjacent) or walled off`
           : `no walkable tile next to (${goal.x},${goal.y}) is reachable from (${self.x},${self.y}) in ${self.location}`);
       }
-      const run = await body.run(leg.steps.slice(0, 64), {
-        // No early "arrive" stop: whole-tile holds keep the body on tile centres.
-        until: { blockedMs: 600 },
-        ...(signal ? { signal } : {}),
-      });
-      legs++;
-      events.push(...run.events);
-      last = run.state ?? last;
-      const outcome = settle(run.status, run.reason, leg.path, last, blocked);
-      if (outcome !== undefined) return result(false, outcome);
-      replans++;
-      continue;
+    } else {
+      world ??= await loadWorld();
+      const route = locationRoute(world, self.location, destination);
+      if (route === undefined) return result(false, `no known route from ${self.location} to ${destination} in the exported location graph`);
+      const hop = route[0];
+      leg = planLeg(state, limits, { tile: { x: hop.warp.x, y: hop.warp.y }, mode: hop.warp.kind === "walk" ? "walk-warp" : "action-warp" }, blocked);
+      if (leg === undefined) return result(false, `no walkable path in ${self.location} from (${self.x},${self.y}) to the exit toward ${hop.warp.to} at (${hop.warp.x},${hop.warp.y})`);
+      warped = true;
     }
-    world ??= await loadWorld();
-    const route = locationRoute(world, self.location, destination);
-    if (route === undefined) return result(false, `no known route from ${self.location} to ${destination} in the exported location graph`);
-    const hop = route[0];
-    const leg = planLeg(state, limits, { tile: { x: hop.warp.x, y: hop.warp.y }, mode: hop.warp.kind === "walk" ? "walk-warp" : "action-warp" }, blocked);
-    if (leg === undefined) return result(false, `no walkable path in ${self.location} from (${self.x},${self.y}) to the exit toward ${hop.warp.to} at (${hop.warp.x},${hop.warp.y})`);
-    const run = await body.run(leg.steps.slice(0, 64), { until: { warped: true, blockedMs: 600 }, ...(signal ? { signal } : {}) });
+    // No early "arrive" stop: whole-tile holds keep the body on tile centres.
+    const run = await body.run(leg.steps.slice(0, 64), { until: warped ? { warped: true, blockedMs: 600 } : { blockedMs: 600 }, ...(signal ? { signal } : {}) });
     legs++;
     events.push(...run.events);
     last = run.state ?? last;
     const outcome = settle(run.status, run.reason, leg.path, last, blocked);
     if (outcome !== undefined) return result(false, outcome);
-    replans++;
   }
   return result(false, `gave up after ${MAX_ATTEMPTS} legs without reaching the target`);
 }

@@ -7,7 +7,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { link, mkdir, open, unlink } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import {
   bridgeFileLimit,
   decisionTurnVersion,
@@ -15,7 +15,6 @@ import {
   dreamRequestSchema,
   growthProposalSchema,
   type DreamRequest,
-  type GrowthProposal,
 } from "@dsh-player2/contracts";
 import type { SpineTimeline } from "./spine.js";
 

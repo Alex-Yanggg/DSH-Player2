@@ -32,7 +32,7 @@ All files live under the save's session directory (`<bridge>/projects/<person>/s
 | `status/task-<seq>.json` | mod | `accepted / running / done / interrupted / failed / cancelled`, step, events (warped, used, harvested, planted, picked-up, blocked, ...), reason |
 | `../speech/say-<seq>.json` | plugin | one line the companion says in the world; the mod renames it `.shown` |
 
-**Shop counters.** `Action` at a tile whose game action opens a shop (`OpenShop <id>`, or the legacy counter actions) opens that shop's stock for the body instead of a menu on the player's screen, if the shop's owner is at the counter. The stock appears raw in `state.body.menu` (shop id, cursor, wallet, items with index, name, category, price, stock left, trade item). `MenuUp` / `MenuDown` move the cursor, `MenuConfirm` buys one unit of the item under it into the body's toolbar, paid from the player's wallet (the body has none), and `MenuClose` (or walking away) closes it. Every outcome is a status event: `menu-opened`, `shop-refused`, `bought`, `cant-afford`, `sold-out`, `needs-trade`, `inventory-full`. A tile action the adapter cannot operate is reported as `tile-action` with the game's raw text. The plugin's `body_shop` helper walks to a counter, browses, and buys; what to buy and how much to spend is the companion's choice.
+**Shop counters.** `Action` at a tile whose game action opens a shop (`OpenShop <id>`, or the legacy counter actions) opens that shop's stock for the body instead of a menu on the player's screen, if the shop's owner is at the counter. The stock appears raw in `state.body.menu` (shop id, cursor, wallet, items with index, name, category, price, stock left, trade item). `MenuUp` / `MenuDown` move the cursor, `MenuConfirm` buys one unit of the item under it into the body's toolbar, paid from the player's wallet (the body has none), and `MenuClose` (or walking away) closes it. Every outcome is a status event: `menu-opened`, `shop-refused`, `bought`, `cant-afford`, `sold-out`, `needs-trade`, `inventory-full`. A tile action the adapter cannot operate is reported as `tile-action` with the game's raw text. There is no shop helper: the companion opens a counter with `body_use` Action, reads the stock in `world_observe`, and buys with the menu buttons; what to buy and how much to spend is its choice.
 
 Durations count unpaused game ticks: the open chat pauses the world in single player, and a task pauses with it. `until` stops a task early on `arrive`, `warped`, `monsterWithin`, or `blockedMs`. Unknown inputs, a cheat input while cheats are off, too many steps or too long a step fail the task with the reason; nothing is silently dropped.
 
@@ -70,19 +70,38 @@ The goal lane may call DSH's own web tools (host config `goalWebTools`, default 
 | Spike | Question | Result |
 | --- | --- | --- |
 | S9 | Can SMAPI inject keyboard/mouse/gamepad input cleanly? | **No, fallback taken.** SMAPI has no input-injection API, and the companion is an NPC body, not a second local player, so OS-level input would drive the player's farmer. Following the plan's fallback, the input layer is in-game method calls behind a raw-button interface: held directions move the body with the engine's own collision; `UseTool` calls the selected tool's `DoFunction` (weapons `DoDamage`) through a stand-in farmer; `Action` acts on the faced tile (harvest, plant, pick up, door warp). Still no semantics: the model and plugin choose every button. Real-game check pending (see the mod README). |
-| S10 | Can DSH register tools at runtime? | **Yes.** [`s10-runtime-tools.mjs`](../scripts/spikes/s10-runtime-tools.mjs): `ctx.tools.register` returns a disposer, the schema list follows adds and removes, and `tools/change` fires. |
-| S11 | End-to-end reflex latency on the plugin side | Keyless: input accept p50 ≈ 8 ms / p95 ≈ 14 ms against the simulated adapter at a 40 ms poll. Real game: the adapter polls input every 6 ticks (100 ms) and `fastState` exports every 6 ticks, so the expected loop is ~100–250 ms; to be measured with `reflex_melee` in the mine. |
-| S12 | Can state be exported raw and cheaply? | Keyless: yes (grid + capped objects). Real game: the exporter logs its build time and size every 600 builds; the grid is cached for 120 ticks. To be measured on a full farm. |
+| S10 | Can DSH register tools at runtime? | **Yes.** The spike (since removed) showed `ctx.tools.register` returns a disposer, the schema list follows adds and removes, and `tools/change` fires. |
+| S11 | End-to-end reflex latency on the plugin side | Real game, 40 swings on the farm: state age at decision p50 73–90 ms / p95 144–156 ms (was 359/406 ms before the fast cadence was kept for 2 s between tasks), input accept p50 60 ms, one swing round trip ≈ 336 ms of which 250 ms is the swing itself. Not yet measured on real monsters (the mines open on day 5). |
+| S12 | Can state be exported raw and cheaply? | Real game: export average 5.85 ms (was 32–40 ms); the full grid is built once per location change (≈104 ms) and one row is refreshed per tick (≈1.3 ms); the farm state is ≈167 KB. Still on the game's main thread, a suspect for animation stutter (owner bug list OB-2). |
 
 ## Verification
 
-- `npm run accept:0.2.0` = `accept:0.1.4` + `replay:goal` (5 carrot runs from different start tiles, an honest budget failure, knob statistics) + the S10 spike.
+- `npm run accept:0.2.0` = `accept:0.1.4` + `replay:goal` (5 carrot runs from different start tiles).
 - Package tests: [`body.test.ts`](../packages/dsh-companion-plugin/src/body/body.test.ts) (navigation, walking across maps, till/plant/water/harvest, cheat refusal, melee, dice determinism and frequency) and [`goal.test.ts`](../packages/dsh-host-plugin/src/goal.test.ts) (done, stop, budget, replace, cheat grant, resume, pause).
 - `dotnet test` covers the C# protocol files and the task runner.
 - Real game: the manual steps in [`stardew-mod/README.md`](../stardew-mod/README.md#b-line-goal-driven-companion-p2-0021) and the e2e suite.
 
 ## Known gaps
 
-- Shops: the body can buy (below) but not sell; trade-item prices are refused and reported.
+- Shops: the body can buy but not sell; trade-item prices are refused and reported.
 - Building interiors reached through doors are exported as action warps; doors that need an event or a key are refused by the game and reported.
 - Harvest through the stand-in farmer is the least certain path of S9; the status events say where items went.
+
+## Phase result (2026-10-14) and what comes next
+
+Development on this line stops here; the slice is merged as it stands.
+
+- **Verified in the real game (screenshots):**
+  - The body walks out of the farm through doors and map edges.
+  - It tills and waters, and buys at Pierre's counter.
+  - It acts in other locations while the player is elsewhere.
+  - Its toolbar survives a reload.
+- **Fixed on the way:** NPC barrier, sprite offset, NPC-only warps, the farmhouse door, harvest spilling into the player's location, focus-loss freeze, a paused game ending a goal, and player-facing words.
+- **Carrot acceptance:** "get N carrots" did not reach 4 of 5. Run 4 took the right route (seed spots, plant, water, harvest on day 4), but a since-fixed bug lost its harvest; the other runs varied in strategy or stopped on a pause.
+- **Lesson:** most defects came from the S9 fallback, an NPC posing as a farmer. Game code assumes the local player, so every interaction needed hand wiring.
+
+**Next, in order:**
+
+1. **B-line close-out (small):** one clean carrot run on the current body, and the owner bug list items OB-1 (cursor flicker) and OB-2 (animation stutter: move state export and its disk write off the game's main thread).
+2. **W2, P2-0022 independent body (pseudo co-op):** spike S13 compares a headless protocol client, a non-rendered second local player inside the same game process (Stardew's split-screen machinery), and a second instance. If one passes, the companion becomes a real farmhand with native input first and keyboard and mouse as the fallback; the NPC-disguise layer (`BodyAdapter` per-action code, `BodyShop`, the stand-in farmer, `CompanionInventoryStore`) is then deleted.
+3. **Later:** harness-side memory across sessions and saves, once single-chat play is solid.

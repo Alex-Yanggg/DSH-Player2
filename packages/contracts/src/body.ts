@@ -118,7 +118,6 @@ export const bodyWarpSchema = z.object({
 });
 export type BodyWarp = z.infer<typeof bodyWarpSchema>;
 
-/** The raw state stream: the adapter overwrites one file; `revision` only grows. */
 /**
  * A menu the body has open (v0: a shop counter), exported as the game holds
  * it: the stock with prices, the cursor, and the wallet it would spend from.

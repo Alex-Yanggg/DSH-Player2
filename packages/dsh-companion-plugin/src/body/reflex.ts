@@ -1,5 +1,5 @@
 import type { BodyCharacter, BodyDeclaration, BodyState } from "@dsh-player2/contracts";
-import type { BodyPort } from "./client.js";
+import { sleep, type BodyPort } from "./client.js";
 import { seededUniform } from "./knobs.js";
 import { directionTo, faceButton, findPath, moveButton, neighbours, pathToSteps, walkMs, Walkability, type Direction } from "./navigation.js";
 
@@ -25,24 +25,16 @@ export interface MeleeHands {
 }
 
 export interface ReflexReport {
-  readonly tactic: "melee";
   readonly endedBy: "time" | "clear" | "kills" | "aborted" | "no-weapon" | "no-body" | "error";
   readonly swings: number;
   readonly steps: number;
   readonly monstersGone: number;
-  readonly decisions: number;
   /** Age of the state each decision was made on (ms), median and p95. */
   readonly stateAgeMs: { readonly p50: number; readonly p95: number };
   /** Write-to-accept round trip of each input (ms), median and p95. */
   readonly acceptMs: { readonly p50: number; readonly p95: number };
   readonly detail: string;
 }
-
-const sleep = (ms: number, signal?: AbortSignal) => new Promise<void>((resolve) => {
-  if (signal?.aborted || ms <= 0) return resolve();
-  const timer = setTimeout(resolve, ms);
-  signal?.addEventListener("abort", () => { clearTimeout(timer); resolve(); }, { once: true });
-});
 
 export async function runMelee(body: BodyPort, limits: BodyDeclaration["limits"], tactic: MeleeTactic, hands: MeleeHands, seed: string, signal?: AbortSignal): Promise<ReflexReport> {
   const started = Date.now();
@@ -52,9 +44,9 @@ export async function runMelee(body: BodyPort, limits: BodyDeclaration["limits"]
   let steps = 0;
   let decisions = 0;
   let gone = 0;
-  let known = new Map<string, BodyCharacter>();
+  let known: readonly BodyCharacter[] = [];
   const finish = (endedBy: ReflexReport["endedBy"], detail: string): ReflexReport => ({
-    tactic: "melee", endedBy, swings, steps, monstersGone: gone, decisions,
+    endedBy, swings, steps, monstersGone: gone,
     stateAgeMs: percentiles(stateAges), acceptMs: percentiles(accepts), detail,
   });
   let state = await body.state();
@@ -69,9 +61,8 @@ export async function runMelee(body: BodyPort, limits: BodyDeclaration["limits"]
     const self = state.body;
     if (self === null) return finish("no-body", "the companion left the world");
     const monsters = state.characters.filter((c) => c.kind === "monster" && (c.health ?? 1) > 0);
-    const current = new Map(monsters.map((m) => [`${m.name}@${Math.round(m.px / 16)},${Math.round(m.py / 16)}`, m]));
     gone += countGone(known, monsters);
-    known = current;
+    known = monsters;
     if (tactic.targetKills > 0 && gone >= tactic.targetKills) return finish("kills", `${gone} monsters gone`);
     const target = nearest(self, monsters, tactic.chaseTiles);
     if (target === undefined) return finish("clear", `no monster within ${tactic.chaseTiles} tiles`);
@@ -117,9 +108,9 @@ function nearest(self: NonNullable<BodyState["body"]>, monsters: readonly BodyCh
 }
 
 /** Monsters that were tracked last tick and have no close match now. */
-function countGone(previous: Map<string, BodyCharacter>, now: readonly BodyCharacter[]): number {
+function countGone(previous: readonly BodyCharacter[], now: readonly BodyCharacter[]): number {
   let gone = 0;
-  for (const old of previous.values()) {
+  for (const old of previous) {
     const survived = now.some((m) => m.name === old.name && Math.hypot(m.px - old.px, m.py - old.py) < 160);
     if (!survived) gone++;
   }

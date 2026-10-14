@@ -28,7 +28,6 @@ public sealed class BodyBridgeFiles
     };
 
     private static readonly Regex TaskName = new(@"^task-(\d+)\.json$", RegexOptions.CultureInvariant | RegexOptions.Compiled);
-    private static readonly Regex CancelName = new(@"^cancel-(\d+)\.json$", RegexOptions.CultureInvariant | RegexOptions.Compiled);
     private static readonly Regex SpeechName = new(@"^say-(\d+)\.json$", RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     private readonly string session;
