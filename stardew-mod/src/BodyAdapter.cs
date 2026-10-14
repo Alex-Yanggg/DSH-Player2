@@ -539,11 +539,14 @@ internal sealed class BodyAdapter
             if (Vector2.Distance(debris.Chunks[0].position.Value, center) > 80) continue;
             var item = debris.item ?? (string.IsNullOrEmpty(debris.itemId.Value) ? null : ItemRegistry.Create(debris.itemId.Value, debris.Chunks.Count, debris.itemQuality));
             if (item is null) continue;
-            var leftover = actor.Avatar.addItemToInventory(item);
-            if (leftover is not null && leftover.Stack == item.Stack) continue;
+            var offered = item.Stack;
+            // The inventory may hand back the same item with a zero stack: that is nothing left over.
+            var leftover = actor.Avatar.addItemToInventory(item) is { Stack: > 0 } rest ? rest : null;
+            var taken = offered - (leftover?.Stack ?? 0);
+            if (taken <= 0) continue;
             location.debris.RemoveAt(i);
             location.playSound("coin");
-            this.runner?.Note(Game1.ticks, "picked-up", $"{item.Stack - (leftover?.Stack ?? 0)} x {item.DisplayName}");
+            this.runner?.Note(Game1.ticks, "picked-up", $"{taken} x {item.DisplayName}");
             if (leftover is not null) Game1.createItemDebris(leftover, center, actor.FacingDirection, location);
         }
     }
