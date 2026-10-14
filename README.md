@@ -85,7 +85,7 @@ npm run accept:0.1.4
 
 That chain type-checks and tests the TypeScript packages, runs social/decision/dispatch/dual-end replays, exercises receipt recall, autonomous execution, reflection, and the dream-event spine. Public CI also runs the documentation verifier and pure C# core tests.
 
-The SMAPI adapter still needs local game assemblies, so GitHub-hosted CI cannot honestly build it. Use the manual path in [stardew-mod/README.md](stardew-mod/README.md) for game-side validation.
+The SMAPI adapter still needs local game assemblies, so GitHub-hosted CI cannot honestly build it. For game-side validation, run the real-game end-to-end suite in [e2e/README.md](e2e/README.md) on a local Windows machine (`cd e2e; python -m pytest`), and use the manual path in [stardew-mod/README.md](stardew-mod/README.md) for the steps that still need a person.
 
 ## Architecture
 
@@ -118,6 +118,7 @@ Read [docs/architecture.md](docs/architecture.md) for the full split between Har
 | [packages/dsh-host-plugin](packages/dsh-host-plugin/src/index.ts) | Live DSH bundle that watches the Player2 bridge inside the active Harness profile. |
 | [player2-core](player2-core/DSHPlayer2.Core.csproj) | Pure C# bridge contracts, layout, rules, growth store, movement, and host logic. |
 | [stardew-mod](stardew-mod/README.md) | SMAPI adapter, native UI, companion rendering, chat, and local game verification. |
+| [e2e](e2e/README.md) | Real-game end-to-end tests that drive Stardew like a player and judge from logs and bridge files. |
 | [fixtures](fixtures) | Keyless social, decision, replay, autonomy, reflect, and dream-cycle evidence. |
 | [docs](docs/architecture.md) | Architecture, CI, development mode, operating model, and task-specific notes. |
 
