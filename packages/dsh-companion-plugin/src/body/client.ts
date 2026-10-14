@@ -95,6 +95,10 @@ export class BodyFileClient implements BodyPort {
     const timeoutMs = options.timeoutMs ?? estimateMs(steps) + 15_000;
     let acceptMs: number | undefined;
     let status: BodyTaskStatus | undefined;
+    // A paused world (a menu, the chat, the player away) holds the task: the
+    // wait is not spent, so a hand never gives up because the game stopped.
+    let deadline = started + timeoutMs;
+    let checked = started;
     try {
       for (;;) {
         if (options.signal?.aborted) {
@@ -104,7 +108,11 @@ export class BodyFileClient implements BodyPort {
         status = await this.readStatus(seq);
         if (status !== undefined && acceptMs === undefined) acceptMs = Date.now() - started;
         if (status !== undefined && bodyTerminalStatuses.has(status.status)) break;
-        if (Date.now() - started > timeoutMs) {
+        if (Date.now() - checked >= 500) {
+          if ((await this.state().catch(() => undefined))?.paused === true) deadline += Date.now() - checked;
+          checked = Date.now();
+        }
+        if (Date.now() > deadline) {
           await this.cancel(seq, task.taskId);
           return { seq, status: "timeout", reason: status === undefined ? "the adapter never answered (is the game running and the save loaded?)" : `still ${status.status} after ${timeoutMs} ms`, events: status?.events ?? [], state: await this.state().catch(() => undefined), acceptMs, totalMs: Date.now() - started };
         }

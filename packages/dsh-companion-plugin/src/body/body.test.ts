@@ -129,6 +129,16 @@ describe("navigation", () => {
   });
 });
 
+describe("pause", () => {
+  it("holds a task through a paused world instead of timing it out", async () => {
+    sim.paused = true;
+    setTimeout(() => { sim.paused = false; }, 2_000);
+    const run = await client.run([{ hold: ["MoveRight"], ms: 200 }], { timeoutMs: 800 });
+    expect(run.status).toBe("done");
+    expect(run.totalMs).toBeGreaterThan(1_500);
+  });
+});
+
 describe("walk helper over raw input", () => {
   it("walks into the walled garden", async () => {
     const result = await walkTo(client, (await client.declaration()).limits, () => client.world(), { x: 7, y: 5, mode: "stand" });
