@@ -102,6 +102,20 @@ public static class CompanionSettlementStore
         state.Remove(PendingGameDayKey);
     }
 
+    /// <summary>
+    /// Settles a game day whose turn failed before any receipt (DSH error,
+    /// startup timeout, rejected request). The day becomes retryable with F6,
+    /// and the reservation is dropped so the retry gets a fresh sequence: the
+    /// host never re-runs a sequence that already has an error file.
+    /// </summary>
+    public static void MarkDayFailed(IKeyValueState state, int gameDay)
+    {
+        state.Remove(SettledSequenceKey);
+        state.Set(SettledGameDayKey, gameDay.ToString(CultureInfo.InvariantCulture));
+        state.Remove(PendingSequenceKey);
+        state.Remove(PendingGameDayKey);
+    }
+
     /// <summary>Clears the settled marker for one game day, enabling an explicit same-day retry.</summary>
     public static void ClearSettlement(IKeyValueState state)
     {

@@ -799,6 +799,7 @@ internal sealed class ModEntry : Mod
         {
             if (this.pendingDayDeadline is { } deadline && DateTimeOffset.UtcNow > deadline)
             {
+                CompanionSettlementStore.MarkDayFailed(new ModDataState(Game1.player.modData), checked(this.pendingDaySnapshot.Day + 1));
                 this.pendingDaySnapshot = null;
                 this.pendingDayCompanion = null;
                 this.pendingDayDeadline = null;
@@ -1060,6 +1061,8 @@ internal sealed class ModEntry : Mod
         if (update.Error is not null)
         {
             this.ReportNativeDshFailure("DSH_DECISION_TURN_FAILED", update.Error.Message, this.activeBridgeTurn is null ? null : $"decision:{this.activeBridgeTurn.Sequence}");
+            // A failed day is settled without a receipt so F6 can retry it with a fresh sequence.
+            CompanionSettlementStore.MarkDayFailed(new ModDataState(Game1.player.modData), this.activeBridgeTurn?.GameDay ?? checked(Game1.Date.TotalDays + 1));
             this.ClearBridgeDay();
             return;
         }
