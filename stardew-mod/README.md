@@ -30,11 +30,11 @@ The mod sends plain prompts into the save's session; the plugin reads the marker
 | When | Prompt |
 | --- | --- |
 | A day starts | `[day-start day=N]` |
-| The player sends a chat line | `[chat day=N] <text>` (sent at once; DSH queues lines that arrive while the companion is busy) |
+| The player sends a chat line | `[chat day=N] <text>` (lines sent while the companion is busy wait their turn in order) |
 | The day ends | `[day-end day=N]` (the companion's dream: it rewrites its story and memory ledger) |
 | The world runs again after a pause | `[resume]` (re-arms a paused goal without a model call) |
 
-A frozen world (a menu, an event, an unfocused window) for about three seconds stops the turn in flight; DSH pauses the goal instead of failing it, and `[resume]` re-arms it once the world runs again. The chat window does not stop a pending reply.
+A paused game (a menu, an event, an unfocused window) never blocks the companion: its hands report "paused" at once, and after about three seconds the turn in flight is stopped; DSH pauses the goal instead of failing it, and `[resume]` re-arms it once the world runs again. The chat window does not stop a pending reply.
 
 What the companion says appears above its head when it is in the player's location, otherwise as a HUD line, and always in the chat history. A DSH failure is an in-game error naming the code; the details are in the SMAPI log and the DSH session log.
 

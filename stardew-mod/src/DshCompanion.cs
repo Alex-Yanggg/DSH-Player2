@@ -6,6 +6,7 @@ using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using DSHPlayer2.Core;
 using StardewModdingAPI;
+using StardewValley;
 
 namespace DSHPlayer2.Stardew;
 
@@ -29,6 +30,7 @@ internal sealed class DshCompanion : IDisposable
     private string? sessionDirectory;
     private volatile bool initialized;
     private int promptsInFlight;
+    private Task prompts = Task.CompletedTask;
 
     public DshCompanion(IMonitor monitor, ModConfig config, JsonObject gameEndpoint)
     {
@@ -81,8 +83,9 @@ internal sealed class DshCompanion : IDisposable
 
     /// <summary>
     /// Sends one marked prompt (<c>[chat day=N] …</c>, <c>[day-start day=N]</c>,
-    /// <c>[day-end day=N]</c>, <c>[resume]</c>). DSH queues prompts that arrive
-    /// while the companion is busy. Returns false when no save session is open.
+    /// <c>[day-end day=N]</c>, <c>[resume]</c>). DSH takes one prompt at a time per
+    /// session, so prompts are chained here in the order sent. Returns false when
+    /// no save session is open.
     /// </summary>
     public bool Send(string text)
     {
@@ -90,7 +93,7 @@ internal sealed class DshCompanion : IDisposable
         var opening = this.opening;
         if (client is null || opening is null || client.HasExited) return false;
         this.promptsInFlight++;
-        _ = Task.Run(async () =>
+        this.prompts = this.prompts.ContinueWith(async _ =>
         {
             try
             {
@@ -102,7 +105,7 @@ internal sealed class DshCompanion : IDisposable
                 // The failure also arrives as a turn-ended event when DSH answered at all.
                 client.Events.Enqueue(new AcpEvent("failed", "", ex.Message));
             }
-        });
+        }, TaskScheduler.Default).Unwrap();
         return true;
     }
 
@@ -145,6 +148,7 @@ internal sealed class DshCompanion : IDisposable
         this.client = null;
         this.identity = null;
         this.opening = null;
+        this.prompts = Task.CompletedTask;
         this.sessionDirectory = null;
         this.initialized = false;
         this.promptsInFlight = 0;
@@ -170,6 +174,8 @@ internal sealed class DshCompanion : IDisposable
                 ["boundaries"] = JsonSerializer.SerializeToNode(companion.SoulBoundaries),
             },
             ["knobs"] = JsonSerializer.SerializeToNode(companion.Knobs.ToWire()),
+            // The day's first line has no player words to take the language from.
+            ["responseLanguage"] = LocalizedContentManager.CurrentLanguageCode == LocalizedContentManager.LanguageCode.zh ? "简体中文" : "English",
             ["gameUrl"] = this.gameEndpoint["url"]!.GetValue<string>(),
             ["gameToken"] = this.gameEndpoint["headers"]![0]!["value"]!.GetValue<string>()["Bearer ".Length..],
         };

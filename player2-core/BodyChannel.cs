@@ -112,12 +112,15 @@ public sealed class BodyChannel
         Tool("body_declaration", "Inputs the body accepts, state fields, grid legend and limits.", Empty(), (_, _) => Task.FromResult(this.Read(ref this.declaration))),
         Tool("world_state", "Raw state around the body (map rows, objects, characters, warps, clock, toolbar).", Empty(), (_, _) => Task.FromResult(this.Read(ref this.state))),
         Tool("world_map", "Every location and its warps.", Empty(), (_, _) => Task.FromResult(this.Read(ref this.world))),
-        Tool("body_run", "Plays one raw input sequence on the body and returns its final status. A paused world holds the wait.",
+        Tool("body_run", "Plays one raw input sequence on the body and returns its final status. A paused game stops the input at once (status cancelled, reason paused).",
             Schema(("steps", "array"), ("until", "object"), ("fastState", "boolean"), ("timeoutMs", "number")), this.RunAsync),
         Tool("body_cancel", "Stops the body's running input sequence.", Empty(), (_, _) => Task.FromResult(this.CancelActive())),
         Tool("cheat_grant", "Records the player's own spoken grant or withdrawal of cheat inputs for this save.",
             Schema(("granted", "boolean"), ("quote", "string")), (args, _) => Task.FromResult(this.Grant(args))),
     };
+
+    private static readonly TimeSpan PausedReturn = TimeSpan.FromSeconds(1);
+    private const string PausedReason = "paused: the player paused the game; keep the goal and end this step, play resumes later";
 
     private async Task<string> RunAsync(JsonObject args, CancellationToken cancel)
     {
@@ -135,12 +138,20 @@ public sealed class BodyChannel
         }
         var budget = TimeSpan.FromMilliseconds(timeoutMs);
         var tick = TimeSpan.FromMilliseconds(250);
+        var heldFor = TimeSpan.Zero;
         while (!completion.Task.IsCompleted)
         {
             await Task.WhenAny(completion.Task, Task.Delay(tick, cancel)).ConfigureAwait(false);
             if (cancel.IsCancellationRequested) break;
             bool holding;
             lock (this.gate) holding = this.paused;
+            heldFor = holding ? heldFor + tick : TimeSpan.Zero;
+            if (heldFor >= PausedReturn)
+            {
+                // A paused game never blocks a turn: the goal is kept and the companion carries on when play resumes.
+                lock (this.gate) this.cancelled.Add(task.Seq);
+                return JsonSerializer.Serialize(new { seq = task.Seq, status = "cancelled", reason = PausedReason, events = Array.Empty<BodyEvent>() }, JsonOptions);
+            }
             if (!holding) budget -= tick;
             if (budget <= TimeSpan.Zero) break;
         }

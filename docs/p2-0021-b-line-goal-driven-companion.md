@@ -33,7 +33,7 @@ The mod serves the body as MCP `tools/call` over HTTP on localhost ([`GameMcpSer
 
 **Shop counters.** `Action` at a tile whose game action opens a shop opens that shop's stock for the body instead of a menu on the player's screen, if the shop's owner is at the counter. The stock appears raw in `state.body.menu` (shop id, cursor, wallet, items with index, name, category, price, stock left, trade item). `MenuUp` / `MenuDown` move the cursor, `MenuConfirm` buys one unit into the body's toolbar, paid from the player's wallet, and `MenuClose` (or walking away) closes it. Every outcome is a status event: `menu-opened`, `shop-refused`, `bought`, `cant-afford`, `sold-out`, `needs-trade`, `inventory-full`. What to buy and how much to spend is the companion's choice.
 
-Durations count unpaused game ticks: the open chat pauses the world in single player, and a task pauses with it. `until` stops a task early on `arrive`, `warped`, `monsterWithin`, or `blockedMs`. Unknown inputs, a cheat input while cheats are off, too many steps or too long a step fail the task with the reason; nothing is silently dropped.
+Durations count unpaused game ticks. A paused game (the open chat pauses the world in single player) ends a running `body_run` within a second as `cancelled` with reason `paused`, so a turn never waits on the player; the goal is kept. `until` stops a task early on `arrive`, `warped`, `monsterWithin`, or `blockedMs`. Unknown inputs, a cheat input while cheats are off, too many steps or too long a step fail the task with the reason; nothing is silently dropped.
 
 ## Goals
 

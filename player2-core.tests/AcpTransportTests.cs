@@ -185,16 +185,27 @@ public sealed class BodyChannelTests
     }
 
     [Fact]
-    public async Task APausedWorldHoldsTheWaitAndTimeoutCancels()
+    public async Task APausedGameEndsTheRunAtOnceAndKeepsNothingRunning()
     {
         var channel = new BodyChannel();
         channel.Attach(Path.GetTempPath());
         channel.WriteState(State(paused: true));
+        var run = Call(channel, "body_run", new JsonObject { ["steps"] = new JsonArray(new JsonObject { ["ms"] = 10 }) });
+        var seq = await WaitPending(channel);
+        var result = JsonNode.Parse(await run.WaitAsync(TimeSpan.FromSeconds(3)))!;
+        Assert.Equal("cancelled", result["status"]!.GetValue<string>());
+        Assert.StartsWith("paused", result["reason"]!.GetValue<string>());
+        Assert.True(channel.IsCancelled(seq, channel.ReadTask(seq).TaskId));
+    }
+
+    [Fact]
+    public async Task UnpausedTimeRunsOutAsATimeout()
+    {
+        var channel = new BodyChannel();
+        channel.Attach(Path.GetTempPath());
+        channel.WriteState(State(paused: false));
         var run = Call(channel, "body_run", new JsonObject { ["steps"] = new JsonArray(new JsonObject { ["ms"] = 10 }), ["timeoutMs"] = 300 });
         var seq = await WaitPending(channel);
-        await Task.Delay(700);
-        Assert.False(run.IsCompleted);
-        channel.WriteState(State(paused: false));
         var result = JsonNode.Parse(await run)!;
         Assert.Equal("timeout", result["status"]!.GetValue<string>());
         Assert.True(channel.IsCancelled(seq, channel.ReadTask(seq).TaskId));
