@@ -40,10 +40,18 @@ internal sealed class BodyShop
 
     private sealed class Entry
     {
-        public required ISalable Salable { get; init; }
-        public required int Price { get; init; }
-        public required int? Stock { get; set; }
-        public required string? TradeItem { get; init; }
+        public Entry(ISalable salable, int price, int? stock, string? tradeItem)
+        {
+            this.Salable = salable;
+            this.Price = price;
+            this.Stock = stock;
+            this.TradeItem = tradeItem;
+        }
+
+        public ISalable Salable { get; }
+        public int Price { get; }
+        public int? Stock { get; set; }
+        public string? TradeItem { get; }
     }
 
     /// <summary>The shop id behind a tile's action property, or null. Unknown actions come back in <paramref name="raw"/>.</summary>
@@ -84,13 +92,11 @@ internal sealed class BodyShop
         foreach (var (salable, info) in ShopBuilder.GetShopStock(shopId))
         {
             if (entries.Count >= MaxItems) break;
-            entries.Add(new Entry
-            {
-                Salable = salable,
-                Price = Math.Max(0, info.Price),
-                Stock = info.Stock == int.MaxValue ? null : Math.Max(0, info.Stock),
-                TradeItem = string.IsNullOrEmpty(info.TradeItem) ? null : ItemRegistry.GetDataOrErrorItem(info.TradeItem).DisplayName,
-            });
+            entries.Add(new Entry(
+                salable,
+                Math.Max(0, info.Price),
+                info.Stock == int.MaxValue ? null : Math.Max(0, info.Stock),
+                string.IsNullOrEmpty(info.TradeItem) ? null : ItemRegistry.GetDataOrErrorItem(info.TradeItem).DisplayName));
         }
         return new BodyShop(shopId, shopId, location.NameOrUniqueName, counter, entries);
     }
