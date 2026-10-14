@@ -11,11 +11,25 @@ export interface Tile { readonly x: number; readonly y: number }
 export type Direction = "up" | "right" | "down" | "left";
 
 const DELTAS: Record<Direction, Tile> = { up: { x: 0, y: -1 }, right: { x: 1, y: 0 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 } };
-const BUTTONS: Record<Direction, string> = { up: "MoveUp", right: "MoveRight", down: "MoveDown", left: "MoveLeft" };
-const FACE: Record<Direction, string> = { up: "FaceUp", right: "FaceRight", down: "FaceDown", left: "FaceLeft" };
 
-export const moveButton = (direction: Direction) => BUTTONS[direction];
-export const faceButton = (direction: Direction) => FACE[direction];
+/** The adapter's buttons this library needs, found by their declared role, and its limits. */
+export interface Controls {
+  readonly limits: BodyDeclaration["limits"];
+  readonly move: Record<Direction, string>;
+  readonly action: string;
+}
+
+export function controlsOf(declaration: BodyDeclaration): Controls {
+  const byRole = (role: string) => {
+    const input = declaration.inputs.find((candidate) => candidate.role === role);
+    if (input === undefined) throw new Error(`the body declares no ${role} button`);
+    return input.id;
+  };
+  return { limits: declaration.limits, move: { up: byRole("up"), right: byRole("right"), down: byRole("down"), left: byRole("left") }, action: byRole("action") };
+}
+
+/** Turning to face a way: one tick of its direction, as a short tap on a stick or pad. */
+export const faceStep = (controls: Controls, direction: Direction): BodyInputStep => ({ hold: [controls.move[direction]], ms: Math.ceil(controls.limits.tickMs) });
 
 /** Characters of `map.rows` a body can stand on. */
 const WALKABLE = new Set([".", "W"]);
@@ -110,7 +124,8 @@ export function neighbours(target: Tile, from: Tile): Tile[] {
  * one hold; a run's duration is exactly the ticks needed to cross its tiles
  * at the declared walking speed. Long runs split at the adapter's step limit.
  */
-export function pathToSteps(path: readonly Tile[], limits: BodyDeclaration["limits"]): BodyInputStep[] {
+export function pathToSteps(path: readonly Tile[], controls: Controls): BodyInputStep[] {
+  const limits = controls.limits;
   const steps: BodyInputStep[] = [];
   const ticksPerTile = Math.round(limits.tilePx / limits.walkPxPerTick);
   let index = 1;
@@ -122,7 +137,7 @@ export function pathToSteps(path: readonly Tile[], limits: BodyDeclaration["limi
     const maxTiles = Math.max(1, Math.floor(limits.maxStepMs / (ticksPerTile * limits.tickMs)));
     while (remaining > 0) {
       const tiles = Math.min(remaining, maxTiles);
-      steps.push({ hold: [BUTTONS[direction]], ms: walkMs(tiles, limits) });
+      steps.push({ hold: [controls.move[direction]], ms: walkMs(tiles, limits) });
       remaining -= tiles;
     }
     index += run;
@@ -171,9 +186,9 @@ export function locationRoute(world: BodyWorld, from: string, to: string): Route
  * Plans the input for one leg of a walk inside the body's current location.
  * A walk warp past the map edge is reached by walking to the edge tile and
  * holding the outward direction; an action warp (door) by walking next to it,
- * facing it and pressing Action. Returns undefined when no path exists.
+ * facing it and pressing the action button. Returns undefined when no path exists.
  */
-export function planLeg(state: BodyState, limits: BodyDeclaration["limits"], target: { tile: Tile; mode: "stand" | "adjacent" | "walk-warp" | "action-warp" }, extraBlocked: readonly Tile[] = []): { steps: BodyInputStep[]; path: Tile[] } | undefined {
+export function planLeg(state: BodyState, controls: Controls, target: { tile: Tile; mode: "stand" | "adjacent" | "walk-warp" | "action-warp" }, extraBlocked: readonly Tile[] = []): { steps: BodyInputStep[]; path: Tile[] } | undefined {
   const body = state.body;
   if (body === null) return undefined;
   const start = { x: body.x, y: body.y };
@@ -181,25 +196,25 @@ export function planLeg(state: BodyState, limits: BodyDeclaration["limits"], tar
   const t = target.tile;
   if (target.mode === "stand") {
     const path = findPath(walk, start, [t]);
-    return path === undefined ? undefined : { steps: pathToSteps(path, limits), path };
+    return path === undefined ? undefined : { steps: pathToSteps(path, controls), path };
   }
   if (target.mode === "adjacent" || target.mode === "action-warp") {
     const path = findPath(walk, start, neighbours(t, start));
     if (path === undefined) return undefined;
     const end = path[path.length - 1];
-    const steps = pathToSteps(path, limits);
-    steps.push({ press: [FACE[directionTo(end, t)]], ms: 0 });
-    if (target.mode === "action-warp") steps.push({ press: ["Action"], ms: 0 });
+    const steps = pathToSteps(path, controls);
+    steps.push(faceStep(controls, directionTo(end, t)));
+    if (target.mode === "action-warp") steps.push({ press: [controls.action], ms: 0 });
     return { steps, path };
   }
   // walk-warp: inside the map, stand on it; outside, walk to the edge and keep going.
   if (walk.inBounds(t.x, t.y)) {
     const path = findPath(walk, start, [t]);
     if (path === undefined) return undefined;
-    const steps = pathToSteps(path, limits);
+    const steps = pathToSteps(path, controls);
     // Stepping onto the tile may not intersect the warp yet; nudge on in the same direction.
     const last = path.length > 1 ? directionTo(path[path.length - 2], path[path.length - 1]) : "down";
-    steps.push({ hold: [BUTTONS[last]], ms: walkMs(1, limits) });
+    steps.push({ hold: [controls.move[last]], ms: walkMs(1, controls.limits) });
     return { steps, path };
   }
   const edge = { x: Math.min(Math.max(t.x, 0), walk.width - 1), y: Math.min(Math.max(t.y, 0), walk.height - 1) };
@@ -207,8 +222,8 @@ export function planLeg(state: BodyState, limits: BodyDeclaration["limits"], tar
   const candidates = [edge, ...alongEdge(edge, outward, 3)];
   const path = findPath(walk, start, candidates);
   if (path === undefined) return undefined;
-  const steps = pathToSteps(path, limits);
-  steps.push({ hold: [BUTTONS[outward]], ms: walkMs(2, limits) });
+  const steps = pathToSteps(path, controls);
+  steps.push({ hold: [controls.move[outward]], ms: walkMs(2, controls.limits) });
   return { steps, path };
 }
 

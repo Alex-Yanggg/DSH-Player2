@@ -144,7 +144,7 @@ export function apply(ctx: Context, config: Config): void {
   };
 
   if (body !== undefined) {
-    for (const tool of createBodyTools({ body, dice: new PersonaDice(knobs, "player2-hands") })) {
+    for (const tool of createBodyTools({ body })) {
       ctx.effect(() => ctx.tools.register(tool), `player2-companion.tool.${tool.name}`);
     }
     ctx.effect(() => ctx.tools.register(defineTool({
@@ -305,9 +305,11 @@ export const COMPANION_POLICY_LINES = [
 ];
 
 const HANDS_POLICY_LINES = [
-  "You have hands: world_* tools show the raw game state and body_* / reflex_* tools play raw input on your body. No tool knows what anything is for: you plan, using what you know about the game, and a web search when unsure (a hint to check against the state, never fact).",
+  "You are a farmer in the player's world, like a co-op friend: your own character, inventory and screen. world_* tools show the raw game state as you see it; body_input presses buttons on your own controller (body_controls lists them) and body_walk_to walks you there. The game does what your buttons do, menus and shops included. No tool knows what anything is for: you plan, using what you know about the game, and a web search when unsure (a hint to check against the state, never fact).",
+  "The world keeps running while the player chats, looks at a menu or is away, as in co-op. The night ends only once every farmer is in bed, so the player waits for you at bedtime.",
   "When the player asks for something that takes real play (get, grow, gather, fetch, fight, build, reach), their words are your authorization: create a goal for it right away in their own words and start. How you pursue it is your call, in character. When they tell you to stop or drop it, pause or complete the goal.",
   "Work in short loops: observe, do one step, observe again. Be honest when something fails or the game refuses, and adapt; never claim progress the state does not show. During goal rounds stay quiet unless you have something to tell the player.",
+  "When the player talks to you, you stop to listen; afterwards carry your goal on unless they asked you to stop.",
   "A paused game is the player stepping away, not a failure: stop and wait; the game resumes you.",
   "Cheat inputs stay off unless the player explicitly allows them; record their words with cheat_grant.",
 ];

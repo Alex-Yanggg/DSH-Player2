@@ -11,10 +11,11 @@ namespace DSHPlayer2.Stardew;
 
 /// <summary>
 /// The SMAPI adapter. The companion's mind is a DSH session (<see cref="DshCompanion"/>);
-/// its hands are the game's MCP endpoint (<see cref="GameMcpServer"/> over
-/// <see cref="BodyAdapter"/>). This class only wires game events to prompts,
-/// shows what the companion says, and keeps the vanilla-facing flows:
-/// companion choice, native appearance customization, chat and movement commands.
+/// its body is a hidden co-op farmer (<see cref="CompanionSeat"/>) played through
+/// the game's MCP endpoint (<see cref="GameMcpServer"/> over <see cref="BodyAdapter"/>).
+/// This class only wires game events to prompts, shows what the companion says,
+/// and keeps the vanilla-facing flows: companion choice, native appearance
+/// customization and chat.
 /// </summary>
 internal sealed class ModEntry : Mod
 {
@@ -26,6 +27,7 @@ internal sealed class ModEntry : Mod
 
     private ModConfig config = new();
     private BodyAdapter body = null!;
+    private CompanionSeat seat = null!;
     private GameMcpServer mcp = null!;
     private DshCompanion dsh = null!;
     private ChatTranscript? transcript;
@@ -47,6 +49,7 @@ internal sealed class ModEntry : Mod
     private int pausedTicks;
     private int runningTicks;
     private bool cancelledForPause;
+    private bool noCabinShown;
 
     public override void Entry(IModHelper helper)
     {
@@ -60,30 +63,17 @@ internal sealed class ModEntry : Mod
         this.mcp = new GameMcpServer(channel.Tools());
         this.mcp.Start();
         this.dsh = new DshCompanion(this.Monitor, this.config, this.mcp.McpServerEntry());
-        this.body = new BodyAdapter(this.Monitor, channel, () => CompanionPresence.ActiveCompanion, () => this.config.AllowCheatCapabilities);
+        this.body = new BodyAdapter(this.Monitor, helper.Input, channel, () => this.config.AllowCheatCapabilities);
+        this.seat = new CompanionSeat(this.Monitor, helper.Reflection);
+        CompanionSeat.Patch(this.ModManifest.UniqueID);
         this.Monitor.Log($"Player2 companion: DSH acp profile for the mind, game endpoint on port {this.mcp.Port} for the hands.", LogLevel.Info);
         helper.Events.GameLoop.DayStarted += this.OnDayStarted;
         helper.Events.GameLoop.DayEnding += this.OnDayEnding;
         helper.Events.GameLoop.GameLaunched += this.OnGameLaunched;
+        helper.Events.GameLoop.UpdateTicking += this.OnUpdateTicking;
         helper.Events.GameLoop.UpdateTicked += this.OnUpdateTicked;
         helper.Events.GameLoop.ReturnedToTitle += this.OnReturnedToTitle;
         helper.Events.Input.ButtonPressed += this.OnButtonPressed;
-        CompanionPresence.ResolveName = this.ResolveCompanionName;
-        CompanionPresence.MovementReport = this.OnMovementReported;
-        helper.Events.GameLoop.Saving += (_, _) => CompanionPresence.DetachForSave();
-        helper.Events.GameLoop.Saved += (_, _) => CompanionPresence.RestoreAfterSave();
-        helper.Events.Player.Warped += (_, e) =>
-        {
-            if (!e.IsLocalPlayer) return;
-            if (CompanionPresence.ActiveCompanion?.Following == true)
-            {
-                if (!CompanionPresence.ActiveCompanion.Command("follow")) this.OnMovementReported("failed", "path-blocked");
-            }
-            else if (CompanionPresence.ActiveCompanion is null && CompanionAppearanceStore.Load(Game1.player, this.Monitor) is { } appearance)
-            {
-                this.EnsureCompanionPresent(appearance, "player warp retry");
-            }
-        };
         AppDomain.CurrentDomain.ProcessExit += (_, _) =>
         {
             this.dsh.Dispose();
@@ -95,6 +85,7 @@ internal sealed class ModEntry : Mod
 
     private void OnButtonPressed(object? sender, ButtonPressedEventArgs e)
     {
+        if (CompanionSeat.IsSeatScreen) return;
         if (Context.IsWorldReady && e.Button == this.config.CustomizeCompanionKey)
         {
             this.Helper.Input.Suppress(e.Button);
@@ -175,7 +166,7 @@ internal sealed class ModEntry : Mod
             this.dayPending = true;
             return;
         }
-        this.EnsureCompanionPresent(appearance, "day start");
+        this.seat.SetAppearance(appearance);
         this.StartCompanionDay();
     }
 
@@ -195,6 +186,12 @@ internal sealed class ModEntry : Mod
             this.ReportFailure("DSH_START_FAILED", ex.Message);
             return;
         }
+        this.seat.Name = companion.Name;
+        if (this.seat.TryOpen() is "no-cabin" && !this.noCabinShown)
+        {
+            this.noCabinShown = true;
+            Game1.addHUDMessage(new HUDMessage(this.T("seat.no-cabin", new { name = companion.Name })));
+        }
         this.dayOpen = true;
         this.cancelledForPause = false;
         this.chatHintPending = true;
@@ -211,15 +208,12 @@ internal sealed class ModEntry : Mod
         var transcript = this.transcript ??= new ChatTranscript();
         transcript.Append(Game1.player.Name, message);
         CompanionTranscriptStore.Save(this.Helper, transcript, this.Monitor);
-        if (CompanionMovement.ParseCommand(message) is { } command)
+        if (!this.dsh.IsReplying)
         {
-            // The player's own movement command takes the body back, like grabbing the controller:
-            // the goal round in flight stops (DSH pauses the goal) and the command is the next turn.
-            this.body.CancelActive($"player-command:{command}");
+            // Being talked to stops what the companion was doing, as a person stops to listen:
+            // the goal round in flight ends (DSH pauses the goal) and the companion answers first.
             this.dsh.Cancel();
             this.cancelledForPause = false;
-            if (!CompanionPresence.Command(command, CompanionAppearanceStore.Load(Game1.player, this.Monitor), this.Monitor))
-                this.OnMovementReported("failed", "path-blocked");
         }
         if (!this.dayOpen) this.StartCompanionDay();
         this.Send($"[chat day={GameDay}] {message}");
@@ -248,13 +242,14 @@ internal sealed class ModEntry : Mod
     }
 
     /// <summary>
-    /// A frozen world (menu, event, unfocused window) stops the turn in flight;
-    /// DSH pauses the goal instead of failing it, and the game resumes it once
-    /// the world runs again.
+    /// A frozen world stops the turn in flight; DSH pauses the goal instead of
+    /// failing it, and the game resumes it once the world runs again. With the
+    /// companion seated the game is co-op, where the world freezes only when
+    /// every farmer pauses, never for one player's menu or an unfocused window.
     /// </summary>
     private void TrackPause()
     {
-        var paused = Game1.ticks == this.lastWorldTick || !(Game1.activeClickableMenu is null && !Game1.eventUp && Game1.shouldTimePass());
+        var paused = Game1.ticks == this.lastWorldTick || !Game1.shouldTimePass();
         this.lastWorldTick = Game1.ticks;
         if (paused)
         {
@@ -308,8 +303,8 @@ internal sealed class ModEntry : Mod
         transcript.Append(name, text);
         CompanionTranscriptStore.Save(this.Helper, transcript, this.Monitor);
         if (Game1.activeClickableMenu is CompanionChatMenu) return;
-        if (CompanionPresence.ActiveCompanion is { } actor && actor.currentLocation == Game1.currentLocation)
-            actor.showTextAboveHead(text.Length > 120 ? text[..117] + "..." : text, duration: 4000);
+        if (CompanionSeat.FarmerOnHost() is { } farmer && farmer.currentLocation == Game1.currentLocation)
+            farmer.showTextAboveHead(text.Length > 120 ? text[..117] + "..." : text, duration: 4000);
         else
             Game1.addHUDMessage(new HUDMessage($"{name}: {text}"));
     }
@@ -320,10 +315,17 @@ internal sealed class ModEntry : Mod
         Game1.addHUDMessage(new HUDMessage(this.T("error.native-dsh", new { code, detail })));
     }
 
+    /// <summary>The companion's seat ticks before its game reads input, so its controller is set for this tick.</summary>
+    private void OnUpdateTicking(object? sender, UpdateTickingEventArgs e)
+    {
+        if (!CompanionSeat.IsSeatScreen) return;
+        this.seat.TickSeat();
+        this.body.OnTick();
+    }
+
     private void OnUpdateTicked(object? sender, UpdateTickedEventArgs e)
     {
-        if (!Context.IsWorldReady || !Context.IsMainPlayer) return;
-        this.body.OnTick();
+        if (CompanionSeat.IsSeatScreen || !Context.IsWorldReady || !Context.IsMainPlayer) return;
         if (this.activeAppearanceMenu is not null && !ReferenceEquals(Game1.activeClickableMenu, this.activeAppearanceMenu))
             this.CompleteCompanionCustomization();
         if (this.choicePending && Context.IsPlayerFree && Game1.activeClickableMenu is null) this.ShowCompanionChoice();
@@ -339,9 +341,11 @@ internal sealed class ModEntry : Mod
 
     private void OnReturnedToTitle(object? sender, ReturnedToTitleEventArgs e)
     {
+        if (CompanionSeat.IsSeatScreen) return;
         this.body.Detach("returned-to-title");
+        this.seat.Close();
         this.dsh.Stop();
-        CompanionPresence.ClearPresence();
+        this.noCabinShown = false;
         if (this.activeAppearanceMenu is not null)
         {
             this.RestorePlayerAfterCustomization();
@@ -429,7 +433,7 @@ internal sealed class ModEntry : Mod
         this.RestorePlayerAfterCustomization();
         this.activeAppearanceMenu = null;
         CompanionAppearanceStore.Save(Game1.player, customized);
-        this.EnsureCompanionPresent(customized, "appearance customization");
+        this.seat.SetAppearance(customized);
         Game1.addHUDMessage(new HUDMessage(this.T("appearance.saved", new { name = this.ResolveCompanionName() })));
         if (this.dayPending) this.StartCompanionDay();
     }
@@ -455,18 +459,5 @@ internal sealed class ModEntry : Mod
         this.playerNameBeforeCustomization = null;
         this.playerDisplayNameBeforeCustomization = null;
         this.playerFavoriteThingBeforeCustomization = null;
-    }
-
-    private void EnsureCompanionPresent(CompanionAppearance appearance, string context)
-    {
-        if (!CompanionPresence.EnsurePresent(appearance, this.Monitor, out _))
-            this.Monitor.Log($"Player2 could not place the companion on a walkable tile during {context}; it retries after a warp or a movement command.", LogLevel.Warn);
-    }
-
-    private void OnMovementReported(string status, string detail)
-    {
-        this.Monitor.Log($"Player2 companion movement {status}: {detail}.", status == "failed" ? LogLevel.Warn : LogLevel.Trace);
-        if (status != "started")
-            Game1.addHUDMessage(new HUDMessage(this.T("movement." + detail, new { name = this.ResolveCompanionName() })));
     }
 }

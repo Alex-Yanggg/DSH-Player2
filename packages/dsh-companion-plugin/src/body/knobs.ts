@@ -46,12 +46,6 @@ export class PersonaDice {
     const roll = seededUniform(this.seed, turn, `${knob}:${question}`);
     return { seed: this.seed, turn, knob, question, p, roll, yes: roll < p };
   }
-
-  /** Reaction delay and aim error for reflex scripts, from the skill knob. */
-  public hands(): { reactionMs: number; aimError: number } {
-    const skill = Math.min(1, Math.max(0, this.knobs.skill));
-    return { reactionMs: Math.round(450 - 390 * skill), aimError: 0.3 - 0.28 * skill };
-  }
 }
 
 /** The persona's standing tendencies, as words in the system prompt. */

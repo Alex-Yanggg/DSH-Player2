@@ -7,6 +7,7 @@
     <Nullable>enable</Nullable>
     <ModFolderName>DSHPlayer2</ModFolderName>
     <EnableModZip>false</EnableModZip>
+    <EnableHarmony>true</EnableHarmony>
   </PropertyGroup>
 
   <ItemGroup>

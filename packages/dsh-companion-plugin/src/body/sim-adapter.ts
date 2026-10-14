@@ -41,8 +41,8 @@ export interface SimOptions {
   readonly shops?: Record<string, { id: string; name: string; category: string; price: number; stock: number | null }[]>;
 }
 
-const DIRS: Record<string, [number, number]> = { MoveUp: [0, -1], MoveRight: [1, 0], MoveDown: [0, 1], MoveLeft: [-1, 0] };
-const FACES: Record<string, BodyState["body"] extends infer B ? B extends { facing: infer F } ? F : never : never> = { FaceUp: "up", FaceRight: "right", FaceDown: "down", FaceLeft: "left" };
+type Facing = NonNullable<BodyState["body"]>["facing"];
+const DIRS: Record<string, [number, number, Facing]> = { DPadUp: [0, -1, "up"], DPadRight: [1, 0, "right"], DPadDown: [0, 1, "down"], DPadLeft: [-1, 0, "left"] };
 const TICK_MS = 1000 / 60;
 const SPEED = 4;
 
@@ -86,10 +86,8 @@ export class SimAdapter implements BodyPort {
       version: bodyProtocolVersion, adapter: "sim", game: "sim", writtenAt: new Date().toISOString(),
       state: { file: "world_state", world: "world_map", description: "Simulated body.", fields: [{ name: "map", description: "rows" }], legend: { ".": "walkable", "#": "blocked", "~": "water", W: "walk warp", D: "door" } },
       inputs: [
-        ...Object.keys(DIRS).map((id) => ({ id, kind: "hold" as const, description: id })),
-        ...Object.keys(FACES).map(press), press("UseTool"), press("Action"), press("DropItem"),
-        press("MenuUp"), press("MenuDown"), press("MenuConfirm"), press("MenuClose"),
-        ...Array.from({ length: 12 }, (_, i) => press(`Slot${i + 1}`)),
+        ...Object.entries(DIRS).map(([id, [, , role]]) => ({ id, kind: "hold" as const, description: id, role })),
+        { ...press("ControllerA"), role: "action" as const }, press("ControllerX"), press("ControllerB"), press("LeftShoulder"), press("RightShoulder"),
         { id: "NoClip", kind: "modifier" as const, description: "cheat", cheat: true },
       ],
       limits: { maxSteps: 64, maxStepMs: 10_000, tickMs: TICK_MS, walkPxPerTick: SPEED, tilePx: 64 },
@@ -149,15 +147,21 @@ export class SimAdapter implements BodyPort {
       if (task.step >= task.ticks.length) return this.finish(task, "done", "completed");
     }
     const step = task.task.steps[task.step];
-    if (task.stepTick === 0) for (const press of step.press ?? []) this.press(press, task);
-    task.stepTick++;
     const held = step.hold ?? [];
+    if (task.stepTick === 0) for (const press of step.press ?? []) this.press(press, task);
+    if (this.menu !== undefined && held.some((id) => id in DIRS)) {
+      // In a menu the pad moves the cursor once per push instead of walking.
+      if (task.stepTick === 0) this.moveCursor(held.includes("DPadUp") ? -1 : 1);
+      task.stepTick++;
+      return;
+    }
+    task.stepTick++;
     const noClip = held.includes("NoClip");
     let moved = false;
     for (const id of held) {
       const d = DIRS[id];
       if (d === undefined) continue;
-      this.body.facing = id === "MoveUp" ? "up" : id === "MoveRight" ? "right" : id === "MoveDown" ? "down" : "left";
+      this.body.facing = d[2];
       const nx = this.body.px + d[0] * SPEED;
       const ny = this.body.py + d[1] * SPEED;
       const tx = Math.floor((nx + 32 + d[0] * 24) / 64);
@@ -182,15 +186,13 @@ export class SimAdapter implements BodyPort {
 
   private press(id: string, task: NonNullable<SimAdapter["task"]>): void {
     const note = (kind: string, detail: string) => { task.events.push({ tick: this.tick, kind, detail }); task.update++; };
-    if (id in FACES) { this.body.facing = FACES[id]; return; }
-    if (id.startsWith("Menu")) return this.pressMenu(id, note);
-    const slot = /^Slot(\d+)$/.exec(id);
-    if (slot) { this.body.slot = Number(slot[1]) - 1; return; }
+    if (this.menu !== undefined && (id === "ControllerA" || id === "ControllerB")) return this.pressMenu(id, note);
+    if (id === "LeftShoulder" || id === "RightShoulder") { this.body.slot = (this.body.slot + (id === "LeftShoulder" ? 11 : 1)) % 12; return; }
     const t = this.faced();
     const location = this.location();
     const at = location.objects.find((o) => o.x === t.x && o.y === t.y);
     const item = this.body.items[this.body.slot];
-    if (id === "UseTool") {
+    if (id === "ControllerX") {
       if (item?.id === "(T)Hoe" && at === undefined && this.walkable(t.x, t.y)) {
         location.objects.push({ x: t.x, y: t.y, kind: "dirt", name: "Tilled Soil", extra: { passable: true, watered: false } });
         this.body.stamina -= 2;
@@ -207,7 +209,7 @@ export class SimAdapter implements BodyPort {
       }
       return note("used", `${item?.name ?? "nothing"} at ${t.x},${t.y}`);
     }
-    if (id === "Action") {
+    if (id === "ControllerA") {
       if (at?.kind === "dirt" && at.extra?.ready === true) {
         const crop = String(at.extra.crop);
         at.extra = { passable: true, watered: false };
@@ -233,25 +235,18 @@ export class SimAdapter implements BodyPort {
       }
       return note("nothing-there", `no action at ${t.x},${t.y}`);
     }
-    if (id === "DropItem") {
-      if (item === null || item === undefined) return note("nothing-to-drop", "empty");
-      this.body.items[this.body.slot] = null;
-      const p = this.player;
-      const target = p.items.find((i) => i.id === item.id);
-      if (target) target.stack += item.stack; else p.items.push({ ...item, slot: p.items.length });
-      return note("dropped", `${item.stack} x ${item.name}`);
-    }
+  }
+
+  private moveCursor(delta: number): void {
+    const menu = this.menu;
+    const stock = menu === undefined ? [] : this.shops[menu.shopId] ?? [];
+    if (menu !== undefined) menu.cursor = (menu.cursor + delta + stock.length) % Math.max(1, stock.length);
   }
 
   private pressMenu(id: string, note: (kind: string, detail: string) => void): void {
-    const menu = this.menu;
-    const stock = menu === undefined ? undefined : this.shops[menu.shopId];
-    if (menu === undefined || stock === undefined) return note("no-menu", "no menu is open");
-    if (id === "MenuClose") { this.menu = undefined; return note("menu-closed", menu.shopId); }
-    if (id === "MenuUp" || id === "MenuDown") {
-      menu.cursor = (menu.cursor + (id === "MenuUp" ? -1 : 1) + stock.length) % Math.max(1, stock.length);
-      return note("cursor", `#${menu.cursor}`);
-    }
+    const menu = this.menu!;
+    const stock = this.shops[menu.shopId] ?? [];
+    if (id === "ControllerB") { this.menu = undefined; return note("menu-closed", menu.shopId); }
     const entry = stock[menu.cursor];
     if (entry === undefined) return note("nothing-for-sale", menu.shopId);
     if (entry.stock === 0) return note("sold-out", entry.name);
@@ -318,8 +313,8 @@ export class SimAdapter implements BodyPort {
     if (menu.at.location !== this.body.location || Math.abs(menu.at.x - t.x) + Math.abs(menu.at.y - t.y) > 2) { this.menu = undefined; return null; }
     const stock = this.shops[menu.shopId] ?? [];
     return {
-      kind: "shop", shopId: menu.shopId, title: menu.shopId, cursor: menu.cursor, money: this.player.money,
-      items: stock.map((item, index) => ({ index, id: item.id, name: item.name, category: item.category, price: item.price, stock: item.stock, tradeItem: null })),
+      kind: "ShopMenu", focus: stock[menu.cursor] === undefined ? null : `#${menu.cursor} ${stock[menu.cursor].name}`, options: stock.map((item) => item.name), money: this.player.money,
+      stock: stock.map((item, index) => ({ index, id: item.id, name: item.name, price: item.price, stock: item.stock })),
     };
   }
 

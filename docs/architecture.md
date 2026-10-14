@@ -8,9 +8,10 @@ Stardew Valley + SMAPI                         dsh --profile acp (child process,
 ModEntry: day start/end, chat, pause  -- ACP -->  session/prompt "[day-start day=N]" | "[chat day=N] …" |
 DshCompanion + AcpClient (stdio)                  "[day-end day=N]" | "[resume]";  session/cancel on pause
   shows agent messages as speech     <-- ACP --  agent_message_chunk, stopReason
-GameMcpServer (localhost, token)     <-- HTTP --  Player2 plugin body tools (world_*, body_*, reflex_melee)
+GameMcpServer (localhost, token)     <-- HTTP --  Player2 plugin body tools (world_*, body_*)
   BodyChannel + BodyTaskRunner                    DSH goals (create_goal / update_goal / get_goal)
   BodyAdapter, BodyStateExporter                  Player2 plugin: persona prompt, remember, dream_commit
+CompanionSeat: hidden co-op farmer (same process)
 ```
 
 ## The mod
@@ -18,6 +19,7 @@ GameMcpServer (localhost, token)     <-- HTTP --  Player2 plugin body tools (wor
 - [`DshCompanion`](../stardew-mod/src/DshCompanion.cs) writes `<bridge>/player2.patch.yml` (an overlay on DSH's acp profile: mount the Player2 plugin with the chosen persona and the game endpoint, set the persona prefix, disable coding tools such as shell, file system and subagents) and starts `dsh --profile acp --patch <file>`. The persona is bound per process, so a different companion restarts DSH. The session directory is `<bridge>/projects/<person>/sessions/<saveId>/`; the session id is kept there and resumed with `session/resume`.
 - [`AcpClient`](../player2-core/AcpClient.cs) is a minimal ACP client: initialize, new/load session, prompt, cancel; agent message chunks are joined into one spoken line per message; a permission request is answered "allow once" (the player's request is the authorization).
 - [`ModEntry`](../stardew-mod/src/ModEntry.cs) sends the prompts, shows what the companion says (above its head, else HUD, always in the chat history), and turns a failed turn or a DSH exit into an in-game error. A frozen world for about three seconds sends `session/cancel`: DSH pauses the active goal instead of failing it, and `[resume]` re-arms it when the world runs again.
+- [`CompanionSeat`](../stardew-mod/src/CompanionSeat.cs) seats the companion as a real farmhand: a second local co-op game instance in the same process joins the host over the game's own network code, takes the companion's farmhand (a cabin is needed, as for any co-op friend) and is never drawn; the host keeps the whole window. [`BodyAdapter`](../stardew-mod/src/BodyAdapter.cs) plays the plugin's button sequences on that farmer's virtual controller (SMAPI input overrides) and [`BodyStateExporter`](../stardew-mod/src/BodyStateExporter.cs) builds state from the seat's view only when the plugin asks. See [p2-0022-independent-body.md](p2-0022-independent-body.md).
 - The mod keeps no logs of its own; DSH's session logs are the record.
 
 ## The plugin
@@ -26,7 +28,7 @@ GameMcpServer (localhost, token)     <-- HTTP --  Player2 plugin body tools (wor
 
 - **Persona.** System-prompt sections: the soul as a constitution, the companion policy (speak plainly, never internal terms or tile coordinates, act on a request at once by creating a goal), the five knobs as tendencies, the response language.
 - **Turn markers.** `agent/pre-step` reads the marker of the incoming prompt: chat and day-start get the memory note; day-end becomes the dream (ledger digest plus `dream_commit` instructions); `[resume]` resumes the paused DSH goal through the host goal service and makes no model request; goal rounds (no marker) get this turn's knob dice nudges.
-- **Hands.** With a game endpoint configured, the body tools call the mod's MCP endpoint ([`port.ts`](../packages/dsh-companion-plugin/src/body/port.ts)): read state and the location graph, walk with A* over the exported grid ([`navigation.ts`](../packages/dsh-companion-plugin/src/body/navigation.ts), [`walk.ts`](../packages/dsh-companion-plugin/src/body/walk.ts)), press raw buttons, and a closed-loop melee reflex ([`reflex.ts`](../packages/dsh-companion-plugin/src/body/reflex.ts)). Body protocol and goals: [p2-0021-b-line-goal-driven-companion.md](p2-0021-b-line-goal-driven-companion.md).
+- **Hands.** With a game endpoint configured, the body tools call the mod's MCP endpoint ([`port.ts`](../packages/dsh-companion-plugin/src/body/port.ts)): read state and the location graph, walk with A* over the exported grid ([`navigation.ts`](../packages/dsh-companion-plugin/src/body/navigation.ts), [`walk.ts`](../packages/dsh-companion-plugin/src/body/walk.ts)), list the controller (`body_controls`) and press its buttons (`body_input`). Body protocol and goals: [p2-0021-b-line-goal-driven-companion.md](p2-0021-b-line-goal-driven-companion.md).
 - **Memory.** The Persona Ledger below; `remember` lets the companion keep one episode, `dream_commit` closes the day's dream.
 
 ## Persona Ledger (P2-0016)

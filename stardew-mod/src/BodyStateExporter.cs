@@ -7,6 +7,7 @@ using DSHPlayer2.Core;
 using Microsoft.Xna.Framework;
 using StardewModdingAPI;
 using StardewValley;
+using StardewValley.Menus;
 using StardewValley.Monsters;
 using StardewValley.TerrainFeatures;
 using StardewValley.Tools;
@@ -14,8 +15,9 @@ using StardewValley.Tools;
 namespace DSHPlayer2.Stardew;
 
 /// <summary>
-/// Exports Stardew state as the game holds it (P2-0021 T21.1, S12). It
-/// projects; it never infers a task, a plan, or what anything is "for".
+/// Exports Stardew state as the game holds it (P2-0021 T21.1, S12), as seen
+/// from the companion's own seat (P2-0022). It projects; it never infers a
+/// task, a plan, or what anything is "for".
 /// </summary>
 internal sealed class BodyStateExporter
 {
@@ -26,8 +28,8 @@ internal sealed class BodyStateExporter
         new("revision", "Grows with every write; a task status names the state revision it was written after."),
         new("paused", "True while game time does not pass (menu, chat, cutscene): held input does not advance."),
         new("time", "day (total days since the save began, 1-based), season, dayOfMonth, year, timeOfDay (600 = 6:00, 2600 = 2:00 next morning), weather."),
-        new("player", "The human farmer: location, tile x/y, pixel px/py, facing, money (shared farm gold), health, stamina, inventory."),
-        new("body", "The companion's body: location, tile, facing, whether it is moving, selected toolbar slot (0-based), stamina, inventory, running task seq, and menu: the menu the body has open (a shop counter: shopId, cursor, the wallet it spends from, and items with index, name, price, stock), when any."),
+        new("player", "The human farmer (the host): location, tile x/y, pixel px/py, facing, money, health, stamina, inventory."),
+        new("body", "Your own farmer: location, tile, facing, whether it is moving, selected toolbar slot (0-based), stamina, inventory, running task seq, and menu: the menu open on your screen (kind, focus = what the controller cursor is on, options = its buttons, money, and a shop's stock with index, name, price, stock), when any."),
         new("map", "The body's current location: width, height, and rows of legend characters, row 0 at the top (north); x grows east, y grows south."),
         new("objects", "Things on tiles, nearest first: object (stones, weeds, twigs, artifact spots, machines), forage, dirt (tilled soil; extra.crop, extra.ready, extra.watered), tree, grass, clump (stumps, logs, boulders), bush, item (lying on the ground). extra.passable says whether a body can walk through."),
         new("characters", "NPCs, monsters (with health), farmers, in the body's location."),
@@ -40,7 +42,7 @@ internal sealed class BodyStateExporter
         ["#"] = "blocked (wall, building, object, cliff, character)",
         ["~"] = "water (blocked; a watering can refills facing it)",
         ["W"] = "walk warp tile inside the map",
-        ["D"] = "door or other action warp (blocked; face it and press Action)",
+        ["D"] = "door or other action warp (blocked; face it and press the action button)",
     };
 
     private static readonly Dictionary<string, List<BodyWarp>> ActionWarpCache = new();
@@ -71,12 +73,13 @@ internal sealed class BodyStateExporter
         ActionWarpCache.Clear();
     }
 
-    public BodyState BuildState(NativeCompanion? actor, bool paused, int? activeTask, BodyMenu? menu = null)
+    /// <summary>Seat screen: the companion's farmer is Game1.player there, the human is the host.</summary>
+    public BodyState BuildState(Farmer actor, bool paused, int? activeTask, bool moving)
     {
         this.buildClock.Restart();
-        var player = Game1.player;
-        var location = actor?.currentLocation ?? Game1.currentLocation;
-        var origin = actor?.Tile ?? player.Tile;
+        var player = Game1.MasterPlayer;
+        var location = actor.currentLocation;
+        var origin = actor.Tile;
         var rows = this.Grid(location, actor);
         var objects = new List<(float Distance, BodyObject Value)>();
         foreach (var pair in location.objects.Pairs)
@@ -119,12 +122,12 @@ internal sealed class BodyStateExporter
         var characters = new List<BodyCharacter>();
         foreach (var npc in location.characters)
         {
-            if (ReferenceEquals(npc, actor)) continue;
             characters.Add(new BodyCharacter(npc.TilePoint.X, npc.TilePoint.Y, npc.Position.X, npc.Position.Y, Clip(npc.displayName ?? npc.Name),
                 npc is Monster ? "monster" : "npc", npc is Monster monster ? monster.Health : null));
         }
         foreach (var farmer in location.farmers)
         {
+            if (ReferenceEquals(farmer, actor)) continue;
             characters.Add(new BodyCharacter(farmer.TilePoint.X, farmer.TilePoint.Y, farmer.Position.X, farmer.Position.Y, Clip(farmer.Name), "farmer", farmer.health));
         }
         var state = new BodyState(
@@ -137,9 +140,8 @@ internal sealed class BodyStateExporter
                 Game1.isRaining ? "rain" : Game1.isSnowing ? "snow" : Game1.isLightning ? "storm" : Game1.isDebrisWeather ? "wind" : "clear"),
             new BodyPlayerState(player.currentLocation?.NameOrUniqueName ?? "", player.TilePoint.X, player.TilePoint.Y, player.Position.X, player.Position.Y,
                 Facing(player.FacingDirection), player.Name, player.Money, player.health, player.Stamina, Items(player.Items, 36)),
-            actor is null ? null : new BodyActorState(actor.currentLocation?.NameOrUniqueName ?? "", actor.TilePoint.X, actor.TilePoint.Y, actor.Position.X, actor.Position.Y,
-                Facing(actor.FacingDirection), actor.currentLocation is not null, actor.MovementState is "input" or "walking" or "following",
-                actor.Avatar.CurrentToolIndex, actor.Avatar.Stamina, Items(actor.Avatar.Items, 36), activeTask, menu),
+            new BodyActorState(location.NameOrUniqueName, actor.TilePoint.X, actor.TilePoint.Y, actor.Position.X, actor.Position.Y,
+                Facing(actor.FacingDirection), true, moving, actor.CurrentToolIndex, actor.Stamina, Items(actor.Items, 36), activeTask, Menu(Game1.activeClickableMenu, actor)),
             new BodyMap(location.NameOrUniqueName, location.Map.Layers[0].LayerWidth, location.Map.Layers[0].LayerHeight, rows),
             ordered.Take(MaxObjects).Select(entry => entry.Value).ToArray(),
             characters,
@@ -233,7 +235,7 @@ internal sealed class BodyStateExporter
     /// re-checks one row per tick and <see cref="InvalidateAround"/> re-checks
     /// the tiles a button press touched at once.
     /// </summary>
-    private string[] Grid(GameLocation location, NativeCompanion? actor)
+    private string[] Grid(GameLocation location, Farmer actor)
     {
         if (location.NameOrUniqueName != this.gridLocation)
         {
@@ -260,9 +262,9 @@ internal sealed class BodyStateExporter
     }
 
     /// <summary>Re-checks one row of the cached grid (called every unpaused tick).</summary>
-    public void RefreshRow(NativeCompanion? actor)
+    public void RefreshRow(Farmer actor)
     {
-        var location = actor?.currentLocation;
+        var location = actor.currentLocation;
         if (location is null || location.NameOrUniqueName != this.gridLocation || this.grid.Length == 0) return;
         var started = Stopwatch.GetTimestamp();
         var y = this.gridCursor++ % this.grid.Length;
@@ -271,40 +273,18 @@ internal sealed class BodyStateExporter
         this.rowRefreshes++;
     }
 
-    /// <summary>Re-checks the 3x3 tiles around one tile now (after a button acted on the world).</summary>
-    public void InvalidateAround(NativeCompanion actor, Point tile)
-    {
-        var location = actor.currentLocation;
-        if (location is null || location.NameOrUniqueName != this.gridLocation) return;
-        for (var y = tile.Y - 1; y <= tile.Y + 1; y++)
-        {
-            if (y < 0 || y >= this.grid.Length) continue;
-            for (var x = tile.X - 1; x <= tile.X + 1; x++)
-            {
-                if (x >= 0 && x < this.grid[y].Length) this.grid[y][x] = this.Cell(location, x, y, actor);
-            }
-        }
-    }
-
-    private char Cell(GameLocation location, int x, int y, NativeCompanion? actor)
+    /// <summary>The grid uses the same collision the farmer walks with.</summary>
+    private char Cell(GameLocation location, int x, int y, Farmer actor)
     {
         if (this.gridMarks.TryGetValue((x, y), out var mark)) return mark;
         if (location.isWaterTile(x, y)) return '~';
-        return Blocked(location, new Rectangle(x * 64 + 8, y * 64 + 16, 48, 32), actor) ? '#' : '.';
-    }
-
-    /// <summary>The grid uses the same collision the body walks with.</summary>
-    private static bool Blocked(GameLocation location, Rectangle tile, NativeCompanion? actor)
-    {
-        return actor is not null
-            ? actor.CollidesAsFarmer(location, tile)
-            : location.isCollidingPosition(tile, Game1.viewport, true, 0, false, Game1.player);
+        return location.isCollidingPosition(new Rectangle(x * 64 + 8, y * 64 + 16, 48, 32), Game1.viewport, true, 0, false, actor) ? '#' : '.';
     }
 
     /// <summary>Forces a full grid build on the next state (new day, new save).</summary>
     public void InvalidateGrid() => this.gridLocation = null;
 
-    private static BodyObject Feature(int x, int y, TerrainFeature feature, NativeCompanion? actor)
+    private static BodyObject Feature(int x, int y, TerrainFeature feature, Farmer actor)
     {
         var extra = new Dictionary<string, object?> { ["passable"] = feature.isPassable(actor) };
         switch (feature)
@@ -354,6 +334,28 @@ internal sealed class BodyStateExporter
         }
         return result;
     }
+
+    /// <summary>The menu on the seat's screen as the game holds it; a shop also lists its stock.</summary>
+    private static BodyMenu? Menu(IClickableMenu? menu, Farmer actor)
+    {
+        if (menu is null) return null;
+        var focus = menu.currentlySnappedComponent;
+        var options = (menu.allClickableComponents ?? new List<ClickableComponent>())
+            .Where(c => c.visible).Select(Label).Where(label => label != "?").Distinct().Take(60).ToList();
+        List<BodyMenuItem>? stock = null;
+        string? focused = focus is null ? null : Label(focus);
+        if (menu is ShopMenu shop)
+        {
+            stock = shop.forSale.Take(200).Select((item, index) => new BodyMenuItem(index, item.QualifiedItemId ?? "", Clip(item.DisplayName),
+                shop.itemPriceAndStock.TryGetValue(item, out var info) ? info.Price : 0,
+                shop.itemPriceAndStock.TryGetValue(item, out var left) && left.Stock != int.MaxValue ? left.Stock : null)).ToList();
+            var row = focus is null ? -1 : shop.forSaleButtons.IndexOf(focus);
+            if (row >= 0 && shop.currentItemIndex + row < shop.forSale.Count) focused = $"#{shop.currentItemIndex + row} {Clip(shop.forSale[shop.currentItemIndex + row].DisplayName)}";
+        }
+        return new BodyMenu(menu.GetType().Name, focused, options, actor.Money, stock);
+    }
+
+    private static string Label(ClickableComponent component) => Clip(string.IsNullOrWhiteSpace(component.label) ? component.name : component.label);
 
     private static string Facing(int direction) => direction switch { 0 => "up", 1 => "right", 2 => "down", _ => "left" };
 

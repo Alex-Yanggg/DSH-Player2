@@ -1,6 +1,6 @@
-import type { BodyDeclaration, BodyEvent, BodyState, BodyWorld } from "@dsh-player2/contracts";
+import type { BodyEvent, BodyState, BodyWorld } from "@dsh-player2/contracts";
 import type { BodyPort } from "./port.js";
-import { directionTo, faceButton, locationRoute, planLeg, type Tile } from "./navigation.js";
+import { directionTo, faceStep, locationRoute, planLeg, type Controls, type Tile } from "./navigation.js";
 
 /** The outcome of one helper-driven walk, in plain facts. */
 export interface WalkResult {
@@ -30,7 +30,7 @@ const MAX_ATTEMPTS = 14;
  * exported warp graph. Blocked steps mark the tile and re-plan around it; it
  * gives up honestly with the reason instead of looping.
  */
-export async function walkTo(body: BodyPort, limits: BodyDeclaration["limits"], loadWorld: () => Promise<BodyWorld>, target: WalkTarget, signal?: AbortSignal): Promise<WalkResult> {
+export async function walkTo(body: BodyPort, controls: Controls, loadWorld: () => Promise<BodyWorld>, target: WalkTarget, signal?: AbortSignal): Promise<WalkResult> {
   const started = Date.now();
   const events: BodyEvent[] = [];
   const blocked: Tile[] = [];
@@ -54,10 +54,10 @@ export async function walkTo(body: BodyPort, limits: BodyDeclaration["limits"], 
       if (target.mode === "stand" && self.x === goal.x && self.y === goal.y) return result(true, "arrived");
       if (target.mode === "adjacent" && Math.abs(self.x - goal.x) + Math.abs(self.y - goal.y) === 1) {
         const facing = directionTo(self, goal);
-        if (self.facing !== facing) last = (await body.run([{ press: [faceButton(facing)], ms: 0 }], signal ? { signal } : {})).state ?? last;
+        if (self.facing !== facing) last = (await body.run([faceStep(controls, facing)], signal ? { signal } : {})).state ?? last;
         return result(true, "arrived next to the target and facing it");
       }
-      leg = planLeg(state, limits, { tile: goal, mode: target.mode }, blocked);
+      leg = planLeg(state, controls, { tile: goal, mode: target.mode }, blocked);
       if (leg === undefined) {
         return result(false, target.mode === "stand"
           ? `no walkable path from ${self.location} (${self.x},${self.y}) to (${goal.x},${goal.y}); the tile may be blocked (try mode adjacent) or walled off`
@@ -68,7 +68,7 @@ export async function walkTo(body: BodyPort, limits: BodyDeclaration["limits"], 
       const route = locationRoute(world, self.location, destination);
       if (route === undefined) return result(false, `no known route from ${self.location} to ${destination} in the exported location graph`);
       const hop = route[0];
-      leg = planLeg(state, limits, { tile: { x: hop.warp.x, y: hop.warp.y }, mode: hop.warp.kind === "walk" ? "walk-warp" : "action-warp" }, blocked);
+      leg = planLeg(state, controls, { tile: { x: hop.warp.x, y: hop.warp.y }, mode: hop.warp.kind === "walk" ? "walk-warp" : "action-warp" }, blocked);
       if (leg === undefined) return result(false, `no walkable path in ${self.location} from (${self.x},${self.y}) to the exit toward ${hop.warp.to} at (${hop.warp.x},${hop.warp.y})`);
       warped = true;
     }

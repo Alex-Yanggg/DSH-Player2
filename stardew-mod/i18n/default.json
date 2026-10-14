@@ -3,7 +3,7 @@
   "chat.empty": "Player2: Please type a message first.",
   "chat.hint": "Press {{key}} to open Player2 chat; it won't stay on screen.",
   "chat.waiting-short": "Replying…",
-  "chat.input-placeholder": "Message, or: /come /follow /stay",
+  "chat.input-placeholder": "Message",
   "chat.host-only": "Player2 chat belongs to the host farmer; farmhands cannot open it.",
   "companion.choice.title": "Who should be your companion? This choice is remembered on this farmer.",
   "companion.chosen": "{{name}} will be your companion from today onward.",
@@ -21,7 +21,5 @@
   "config.customize-key.name": "Re-customize companion",
   "config.customize-key.tooltip": "Press this key in the world to open Stardew Valley's native character customization for your companion.",
   "error.native-dsh": "Player2: {{code}}: {{detail}}. Details are in the SMAPI log and the DSH session log.",
-  "movement.arrived": "{{name}} reached you.",
-  "movement.stopped": "{{name}} stopped.",
-  "movement.path-blocked": "The companion cannot reach you. Move to an open area and try again."
+  "seat.no-cabin": "{{name}} needs a cabin on the farm to move in, like any co-op farmer. Robin builds them."
 }

@@ -5,5 +5,3 @@ Both ends of each interval are stamped on the test's own clock (Enter pressed, S
 BOOT_TO_TITLE_S = 120          # SMAPI + mods + game on the reference laptop (Intel UHD 600): ~55 s
 ENTER_TO_PUBLISH_MS = 750      # Enter pressed -> `Player2 sent: [chat ...]` seen; the mod sends at once
 ENTER_TO_RESULT_MS = 45000     # Enter pressed -> `Player2 turn ended:` seen (LLM-bound; soft)
-NEGATIVE_COMMAND_WATCH_S = 3   # "不要来我面前" etc.: watch this long and require no movement at all
-MOVEMENT_ARRIVAL_S = 25        # /come issued -> arrived (same location)

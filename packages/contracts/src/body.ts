@@ -1,16 +1,17 @@
 import { z } from "zod";
 
 /**
- * Body protocol (P2-0021, B line). The game adapter is a pure adapter: it
- * exports state as raw as it can and accepts raw input, nothing else. It never
- * learns "walk to" or "chop the tree"; navigation, goals, tactics and choices
- * live on the DSH plugin side. Transport is the session file lane
- * `<session>/body/` until W2 moves the same frames onto the Wire.
+ * Body protocol (P2-0021, B line; 0.2 for P2-0022). The game adapter is a pure
+ * adapter: it exports state as raw as it can and accepts raw input, nothing
+ * else. Inputs are the game's own controller (or keys), declared with what the
+ * game binds them to; the adapter never learns "walk to" or "chop the tree".
+ * Navigation, goals, tactics and choices live on the DSH plugin side. The
+ * frames travel as the game's MCP tools.
  *
  * Every frame carries `version`; task ids deduplicate, sequences are
  * monotonic, and every task can be cancelled.
  */
-export const bodyProtocolVersion = "0.1" as const;
+export const bodyProtocolVersion = "0.2" as const;
 
 /** Upper bound of one task, cancel, status, speech or declaration frame. */
 export const bodyFrameLimit = 64 * 1024;
@@ -26,6 +27,8 @@ export const bodyInputSchema = z.object({
   description: z.string().min(1).max(400),
   /** A cheat-class input; usable only while a cheat switch is on. */
   cheat: z.boolean().optional(),
+  /** What helper libraries may use it for: walking one way (a short tap faces), or the action button for doors. */
+  role: z.enum(["up", "right", "down", "left", "action"]).optional(),
 });
 export type BodyInput = z.infer<typeof bodyInputSchema>;
 
@@ -118,32 +121,32 @@ export const bodyWarpSchema = z.object({
 });
 export type BodyWarp = z.infer<typeof bodyWarpSchema>;
 
-/**
- * A menu the body has open (v0: a shop counter), exported as the game holds
- * it: the stock with prices, the cursor, and the wallet it would spend from.
- * Menu buttons move the cursor and confirm; nothing in the adapter decides
- * what to buy.
- */
+/** One line of a shop's stock. */
 export const bodyMenuItemSchema = z.object({
   index: z.number().int().nonnegative(),
   id: z.string().max(80),
   name: z.string().max(80),
-  category: z.string().max(40),
   price: z.number().int().nonnegative(),
   /** Units left; null when the shop does not limit it. */
   stock: z.number().int().nonnegative().nullable(),
-  /** Set when the shop wants an item in trade instead of (or as well as) gold. */
-  tradeItem: z.string().max(80).nullable(),
 });
 
+/**
+ * The menu open on the body's own screen, exported as the game holds it. The
+ * same controller buttons move its cursor and select; nothing in the adapter
+ * decides what to pick.
+ */
 export const bodyMenuSchema = z.object({
-  kind: z.literal("shop"),
-  shopId: z.string().min(1).max(80),
-  title: z.string().max(80),
-  cursor: z.number().int().nonnegative(),
-  /** Gold the purchase is paid from (the player's wallet; the body has none). */
+  /** The game's own menu type. */
+  kind: z.string().min(1).max(80),
+  /** What the controller cursor is on. */
+  focus: z.string().max(120).nullable(),
+  /** The menu's visible buttons. */
+  options: z.array(z.string().max(80)).max(60),
+  /** The body's gold. */
   money: z.number().int(),
-  items: z.array(bodyMenuItemSchema).max(200),
+  /** A shop's stock, when the menu is a shop. */
+  stock: z.array(bodyMenuItemSchema).max(200).optional(),
 });
 export type BodyMenu = z.infer<typeof bodyMenuSchema>;
 

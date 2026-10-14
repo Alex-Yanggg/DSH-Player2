@@ -71,7 +71,7 @@ describe("Player2 companion inside the ACP profile", () => {
     const sim = new SimAdapter({ locations: [{ name: "Farm", rows: ["..."], warps: [], objects: [], characters: [] }], body: { location: "Farm", x: 0, y: 0, items: [] } });
     const withBody = await createComposition({ body: sim });
     const names = withBody.tools.schemas().map((tool) => tool.name);
-    expect(names).toEqual(expect.arrayContaining(["world_observe", "body_walk_to", "reflex_melee", "cheat_grant", "remember"]));
+    expect(names).toEqual(expect.arrayContaining(["world_observe", "body_walk_to", "body_input", "cheat_grant", "remember"]));
     expect(renderPrompt(await withBody.systemPrompt.assemble())).toContain("create a goal for it right away");
   });
 

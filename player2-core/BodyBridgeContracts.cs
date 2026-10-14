@@ -11,7 +11,8 @@ public sealed record BodyInputDescriptor(
     string Id,
     string Kind,
     string Description,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? Cheat = null);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? Cheat = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Role = null);
 
 public sealed record BodyStateField(string Name, string Description);
 
@@ -56,10 +57,15 @@ public sealed record BodyActorState(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] BodyMenu? Menu = null);
 
 /// <summary>One line of an open shop menu: what it is, what it costs, how many are left.</summary>
-public sealed record BodyMenuItem(int Index, string Id, string Name, string Category, int Price, int? Stock, string? TradeItem);
+public sealed record BodyMenuItem(int Index, string Id, string Name, int Price, int? Stock);
 
-/// <summary>A menu the body has open (v0: a shop counter), raw: stock, cursor, the wallet it spends from.</summary>
-public sealed record BodyMenu(string Kind, string ShopId, string Title, int Cursor, int Money, IReadOnlyList<BodyMenuItem> Items);
+/// <summary>The menu open on the body's own screen, as the game holds it: its type, what the controller cursor is on, its buttons, and a shop's stock.</summary>
+public sealed record BodyMenu(
+    string Kind,
+    string? Focus,
+    IReadOnlyList<string> Options,
+    int Money,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<BodyMenuItem>? Stock = null);
 
 public sealed record BodyMap(string Location, int Width, int Height, IReadOnlyList<string> Rows);
 
