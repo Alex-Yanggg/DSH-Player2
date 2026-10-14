@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using DSHPlayer2.Core;
 using Xunit;
@@ -285,7 +286,20 @@ public sealed class SocialBridgeHostTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(this.root)) Directory.Delete(this.root, true);
+        // Host.Dispose cancels but never waits for an in-flight publish (it must
+        // not block the game thread), so a test that ends right after Start can
+        // race the background write. Retry until that write has let go.
+        for (var attempt = 0; Directory.Exists(this.root); attempt++)
+        {
+            try
+            {
+                Directory.Delete(this.root, true);
+            }
+            catch (IOException) when (attempt < 20)
+            {
+                Thread.Sleep(50);
+            }
+        }
     }
 
     private SocialBridgeHost CreateHost()
