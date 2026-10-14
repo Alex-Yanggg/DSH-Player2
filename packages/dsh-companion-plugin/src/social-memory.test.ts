@@ -53,6 +53,18 @@ describe("social memory note (P2-0015 T0.3)", () => {
       ...turn,
       latestReceipt: { ...turn.latestReceipt!, proposalId: "proposal-day-12", status: "declined", detail: "The player said no." },
     });
-    expect(note).toContain("latest receipt: declined visual-receipt, The player said no.");
+    expect(note).toContain("latest receipt: declined visual-receipt, The player said no. [not citable; do not remember]");
+  });
+
+  it("says nothing is citable when a declined receipt is the only history", () => {
+    const turn = golden();
+    const note = socialMemoryNote({
+      priorMemory: null,
+      growth: null,
+      latestReceipt: { ...turn.latestReceipt!, proposalId: "turn-1:proposal", status: "declined", detail: "The player declined this proposal." },
+    });
+    expect(note.split("\n")[0]).toContain("nothing here is citable, so basedOnMemoryId must be null");
+    expect(note).toContain("[not citable; do not remember]");
+    expect(note).not.toContain("turn-1:proposal");
   });
 });

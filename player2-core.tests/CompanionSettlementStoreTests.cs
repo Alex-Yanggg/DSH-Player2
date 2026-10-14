@@ -64,6 +64,21 @@ public sealed class CompanionSettlementStoreTests
         Assert.False(CompanionSettlementStore.IsGameDaySettled(state, 3));
         Assert.False(this.state.ContainsKey(CompanionSettlementStore.SettledSequenceKey));
     }
+
+    [Fact]
+    public void AFailedDayIsSettledAndItsRetryGetsAFreshSequence()
+    {
+        var state = new DictionaryKeyValueState(this.state);
+        var failed = CompanionSettlementStore.ResolveSequence(state, 3, () => 42);
+
+        CompanionSettlementStore.MarkDayFailed(state, 3);
+
+        Assert.True(CompanionSettlementStore.IsGameDaySettled(state, 3));
+        Assert.False(CompanionSettlementStore.IsGameDaySettled(state, 4));
+        CompanionSettlementStore.ClearSettlement(state);
+        Assert.False(CompanionSettlementStore.IsGameDaySettled(state, 3));
+        Assert.NotEqual(failed, CompanionSettlementStore.ResolveSequence(state, 3, () => 43));
+    }
 }
 
 public sealed class DevelopmentLogWriterTests : IDisposable

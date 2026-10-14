@@ -303,11 +303,15 @@ export class Player2DshHost {
     const traceId = `dsh:social:${id}:${randomUUID()}`;
     const startedAt = Date.now();
     let lane: "social" | "day-start" = "social";
-    await this.latency(lane, id, "host-picked");
+    // The lane is only known once the envelope is read; stamp the pickup time
+    // now and write it under the turn's own lane so the report can join it.
+    let picked: number | undefined = startedAt;
     try {
       const turn = socialBridgeTurnSchema.parse(await this.readJson(join(session, "social-inbox", `turn-${id}.json`), `social ${id}`));
       if (turn.id !== id) throw new Error("social file name and payload id differ");
       if (turn.occasion === "day-start") lane = "day-start";
+      await this.latencyAt(lane, id, "host-picked", picked);
+      picked = undefined;
       const mind = await this.prepareMind(session, lane, id, (core) => core.prepareSocial(turn, new Date()));
       const agent = await this.socialAgent(session, turn);
       await this.latency(lane, id, "agent-ready", agent.mode);
@@ -337,6 +341,7 @@ export class Player2DshHost {
       await this.writeOnce(join(session, "social-outbox", `result-${id}.json`), socialBridgeResultSchema.parse({
         version: "0.0.9", id, status: "error", source: "dsh", traceId, code: "DSH_SOCIAL_TURN_FAILED", message: message.slice(0, 800),
       }));
+      await this.latencyAt(lane, id, "host-picked", picked);
       await this.latency(lane, id, "failed");
       await this.trace("DSH_SOCIAL_TURN_FAILED", { traceId, id, session: sessionRootOf(this.root, session), message });
     }
