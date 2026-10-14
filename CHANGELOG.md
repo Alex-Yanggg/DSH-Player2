@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased - slimming toward DSH-native transport
+
+- removes the unused `@dsh-player2/dsh-dispatcher` package and the
+  `replay:dispatch` script; production already dispatched inside the DSH host
+  plugin, and the keyless dual-end replays now play the DSH role directly.
+
 ## Unreleased - P2-0021 B line goal-driven companion
 
 - adds body protocol v0.1 (`<session>/body/`): raw state export, declared raw
