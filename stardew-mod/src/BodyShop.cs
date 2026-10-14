@@ -5,7 +5,6 @@ using DSHPlayer2.Core;
 using Microsoft.Xna.Framework;
 using StardewValley;
 using StardewValley.Internal;
-using StardewValley.Menus;
 
 namespace DSHPlayer2.Stardew;
 
@@ -99,17 +98,6 @@ internal sealed class BodyShop
                 info.Stock == int.MaxValue ? null : Math.Max(0, info.Stock),
                 string.IsNullOrEmpty(info.TradeItem) ? null : ItemRegistry.GetDataOrErrorItem(info.TradeItem).DisplayName));
         }
-        return new BodyShop(shopId, shopId, location.NameOrUniqueName, counter, entries);
-    }
-
-    /// <summary>A shop menu the game itself opened for the body (a machine or an object's own shop).</summary>
-    public static BodyShop FromStock(GameLocation location, Point counter, string shopId, IDictionary<ISalable, ItemStockInformation> stock)
-    {
-        var entries = stock.Take(MaxItems).Select(pair => new Entry(
-            pair.Key,
-            Math.Max(0, pair.Value.Price),
-            pair.Value.Stock == int.MaxValue ? null : Math.Max(0, pair.Value.Stock),
-            string.IsNullOrEmpty(pair.Value.TradeItem) ? null : ItemRegistry.GetDataOrErrorItem(pair.Value.TradeItem).DisplayName)).ToList();
         return new BodyShop(shopId, shopId, location.NameOrUniqueName, counter, entries);
     }
 

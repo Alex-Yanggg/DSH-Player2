@@ -35,7 +35,7 @@ internal sealed class BodyAdapter
         new("FaceDown", "press", "Tap down: turn to face south without stepping."),
         new("FaceLeft", "press", "Tap left: turn to face west without stepping."),
         new("UseTool", "press", "Use the selected toolbar item on the faced tile, as the farmer's tool button does: hoe tills or digs spots, watering can waters or refills at water, pickaxe breaks stones, axe chops, scythe and weapons swing at the tiles and monsters in front. Uses body stamina."),
-        new("Action", "press", "The action button on the faced tile: harvest a ready crop, plant the selected seed in empty tilled soil, pick up forage, go through a door, open a shop counter (the shop's stock then appears as body.menu), or whatever the game itself does when a farmer presses action on the object or plant there (load or empty a machine with the selected item, open a chest, shake a tree); any text or menu the game shows is reported in the task's events."),
+        new("Action", "press", "The action button on the faced tile: harvest a ready crop, plant the selected seed in empty tilled soil, pick up forage, go through a door, or open a shop counter (the shop's stock then appears as body.menu)."),
         new("DropItem", "press", "Drop the whole selected stack on the ground in front (a farmer can pick it up)."),
         new("Slot1", "press", "Select toolbar slot 1."), new("Slot2", "press", "Select toolbar slot 2."), new("Slot3", "press", "Select toolbar slot 3."),
         new("Slot4", "press", "Select toolbar slot 4."), new("Slot5", "press", "Select toolbar slot 5."), new("Slot6", "press", "Select toolbar slot 6."),
@@ -482,7 +482,6 @@ internal sealed class BodyAdapter
             }
             return;
         }
-        if (this.NativeInteract(actor, active, location, tile)) return;
         if (BodyStateExporter.ActionWarpAt(location, tile.X, tile.Y) is { } door && Game1.getLocationFromName(door.To) is not null)
         {
             var from = location.NameOrUniqueName;
@@ -508,95 +507,6 @@ internal sealed class BodyAdapter
             }
         }
         active.Note(Game1.ticks, "nothing-there", $"no action at {tile.X},{tile.Y}");
-    }
-
-    /// <summary>
-    /// Anything else on the faced tile gets the game's own interaction, as the
-    /// action button would give a farmer: an object's drop-in and its
-    /// <see cref="StardewValley.Object.checkForAction"/> (machines, chests,
-    /// placed items), then a terrain feature's use action (shaking a tree or a
-    /// bush). Nothing here knows what the thing is. A menu the game opens is
-    /// read into the body's notes (a shop's stock becomes body.menu) and closed,
-    /// so it never stays on the player's screen; produce the game drops where
-    /// the player stands is moved to where the body stands.
-    /// </summary>
-    private bool NativeInteract(NativeCompanion actor, BodyTaskRunner active, GameLocation location, Point tile)
-    {
-        var vector = new Vector2(tile.X, tile.Y);
-        var avatar = actor.Avatar;
-        var hasObject = location.objects.TryGetValue(vector, out var obj);
-        var hasFeature = location.terrainFeatures.TryGetValue(vector, out var feature);
-        if (!hasObject && !hasFeature) return false;
-        var menuBefore = Game1.activeClickableMenu;
-        var spill = Game1.currentLocation;
-        var spillBefore = spill?.debris.Count ?? 0;
-        var playerAt = (Game1.player.currentLocation, Game1.player.TilePoint);
-        string kind;
-        string detail;
-        if (hasObject)
-        {
-            var name = obj!.DisplayName;
-            var held = avatar.CurrentItem;
-            var heldStack = held?.Stack ?? 0;
-            if (held is not null && obj.performObjectDropInAction(held, false, avatar))
-            {
-                // Some machines take their input from the stack themselves; for the
-                // rest the caller takes one, as the farmer's action button does.
-                if (held.Stack == heldStack) avatar.reduceActiveItemByOne();
-                else if (held.Stack <= 0) avatar.Items[avatar.CurrentToolIndex] = null;
-                (kind, detail) = ("dropped-in", $"{held.DisplayName} into {name} at {tile.X},{tile.Y}");
-            }
-            else if (obj.checkForAction(avatar))
-            {
-                (kind, detail) = ("interacted", $"{name} at {tile.X},{tile.Y}");
-            }
-            else
-            {
-                (kind, detail) = ("no-response", $"{name} at {tile.X},{tile.Y} did nothing");
-            }
-        }
-        else if (feature!.performUseAction(vector))
-        {
-            (kind, detail) = ("interacted", $"{feature.GetType().Name} at {tile.X},{tile.Y}");
-        }
-        else
-        {
-            return false;
-        }
-        if (spill is not null && !ReferenceEquals(spill, location))
-        {
-            for (var i = spillBefore; i < spill.debris.Count; i++) location.debris.Add(spill.debris[i]);
-            while (spill.debris.Count > spillBefore) spill.debris.RemoveAt(spill.debris.Count - 1);
-        }
-        active.Note(Game1.ticks, kind, detail);
-        this.CaptureMenu(actor, active, location, tile, menuBefore);
-        if (!ReferenceEquals(Game1.player.currentLocation, playerAt.currentLocation) || Game1.player.TilePoint != playerAt.TilePoint || Game1.locationRequest is not null)
-        {
-            active.Note(Game1.ticks, "player-affected", "the game's interaction moved or warped the player, not the body");
-        }
-        return true;
-    }
-
-    /// <summary>A menu the game opened for the body's interaction: read it, then close it.</summary>
-    private void CaptureMenu(NativeCompanion actor, BodyTaskRunner active, GameLocation location, Point tile, StardewValley.Menus.IClickableMenu? before)
-    {
-        var menu = Game1.activeClickableMenu;
-        if (menu is null || ReferenceEquals(menu, before)) return;
-        switch (menu)
-        {
-            case StardewValley.Menus.ShopMenu shopMenu:
-                this.shop = BodyShop.FromStock(location, tile, shopMenu.ShopId ?? "shop", shopMenu.itemPriceAndStock);
-                active.Note(Game1.ticks, "menu-opened", $"{this.shop.ShopId}: {this.shop.CursorLine()}");
-                break;
-            case StardewValley.Menus.DialogueBox box:
-                var text = box.getCurrentString() ?? "";
-                active.Note(Game1.ticks, "dialogue", text.Length <= 300 ? text : text[..300]);
-                break;
-            default:
-                active.Note(Game1.ticks, "menu-closed", $"the game opened a {menu.GetType().Name}, which this body cannot operate");
-                break;
-        }
-        Game1.activeClickableMenu = before;
     }
 
     private void MoveCursor(int delta, BodyTaskRunner active)
