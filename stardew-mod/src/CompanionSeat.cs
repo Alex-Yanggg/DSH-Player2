@@ -60,7 +60,8 @@ internal sealed class CompanionSeat
         var harmony = new Harmony(id);
         harmony.Patch(AccessTools.Method(typeof(Game1), nameof(Game1.SetWindowSize)),
             prefix: new HarmonyMethod(typeof(CompanionSeat), nameof(LayoutAlone)), finalizer: new HarmonyMethod(typeof(CompanionSeat), nameof(LayoutRestore)));
-        harmony.Patch(AccessTools.Method(typeof(Game1), nameof(Game1.DrawSplitScreenWindow)), prefix: new HarmonyMethod(typeof(CompanionSeat), nameof(NotTheSeat)));
+        harmony.Patch(AccessTools.Method(typeof(Game1), nameof(Game1.DrawSplitScreenWindow)),
+            prefix: new HarmonyMethod(typeof(CompanionSeat), nameof(NotTheSeat)), finalizer: new HarmonyMethod(typeof(CompanionSeat), nameof(BlitRestore)));
         harmony.Patch(AccessTools.Method(typeof(Game1), "Draw", new[] { typeof(GameTime) }), prefix: new HarmonyMethod(typeof(CompanionSeat), nameof(SeatDraws)));
     }
 
@@ -159,7 +160,16 @@ internal sealed class CompanionSeat
         if (__state is not null) GameRunner.instance.gameInstances = __state;
     }
 
-    private static bool NotTheSeat() => !IsSeatScreen;
+    /// <summary>The runner blits every screen without switching instances (the seat stays current), so each blit runs as its own instance.</summary>
+    private static bool NotTheSeat(Game1 __instance, ref Game1? __state)
+    {
+        __state = Game1.game1;
+        if (ReferenceEquals(__instance, seat)) return false;
+        Game1.game1 = __instance;
+        return true;
+    }
+
+    private static void BlitRestore(Game1? __state) => Game1.game1 = __state!;
 
     /// <summary>The seat draws only while joining (its join menu connects after its first draw), never while it plays.</summary>
     private static bool SeatDraws() => !IsSeatScreen || Game1.gameMode != Game1.playingGameMode;
