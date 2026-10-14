@@ -15,7 +15,7 @@ BodyAdapter + BodyTaskRunner             speech = the agent's own messages, show
 ```
 
 - **The mod has no semantics.** It declares which inputs it accepts (`MoveUp/Right/Down/Left` held; `Face*`, `UseTool`, `Action`, `DropItem`, `Slot1..12` pressed; `NoClip` as a cheat modifier) and exports the world as it is: a walkability grid, objects and terrain features with their raw names and fields, characters, warps, the clock, the body's toolbar. Nothing in [`BodyAdapter`](../stardew-mod/src/BodyAdapter.cs) knows "go to", "chop", or "farm".
-- **Navigation and reflexes live in the plugin.** [`navigation.ts`](../packages/dsh-companion-plugin/src/body/navigation.ts) runs A* on the exported grid and turns a path into held-direction steps of exact tick length; [`walk.ts`](../packages/dsh-companion-plugin/src/body/walk.ts) plays one leg, looks again, and re-plans, crossing locations over the exported warp graph. [`reflex.ts`](../packages/dsh-companion-plugin/src/body/reflex.ts) is a melee loop the model parameterises (time, chase range, kill target); it measures its own loop latency.
+- **Navigation and reflexes live in the plugin.** [`navigation.ts`](../packages/dsh-companion-plugin/src/body/navigation.ts) runs A* on the exported grid and turns a path into held-direction steps of exact tick length; [`walk.ts`](../packages/dsh-companion-plugin/src/body/walk.ts) plays one leg, looks again, and re-plans, crossing locations over the exported warp graph. A scripted melee loop (`reflex.ts`) existed in this phase and was removed with P2-0022.
 - **Think and act are separate.** One model step per plan step; travel and fights run at game pace in helpers without a model call per tick.
 
 ## Body protocol v0.1
