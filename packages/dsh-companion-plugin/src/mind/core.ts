@@ -13,7 +13,7 @@ import { writeLedgerExport } from "./export.js";
 import { PersonaLedger, type WhyRecord } from "./ledger.js";
 import { citableEpisodeIds, isWhyQuestion, mindContextNote } from "./mind-context.js";
 import { describeMood, type MoodEvent } from "./mood.js";
-import { retrieveEpisodes, type RetrievedEpisode } from "./retrieval.js";
+import { retrieveEpisodes, type EpisodeSelector, type RetrievedEpisode } from "./retrieval.js";
 import type { SocialTurnExtras } from "./turn-extras.js";
 
 /** What a lane turn was given, kept until the turn commits. */
@@ -41,7 +41,11 @@ export class MindCore {
   public readonly ledger: PersonaLedger;
   public readonly save: string;
 
-  public constructor(private readonly session: string) {
+  /**
+   * @param select the episode selector; the default is Player2's thin
+   * flavor-cue pick, replaceable by a DSH-side recall.
+   */
+  public constructor(private readonly session: string, private readonly select: EpisodeSelector = retrieveEpisodes) {
     const located = PersonaLedger.forSession(session);
     this.ledger = located.ledger;
     this.save = located.save;
@@ -55,7 +59,7 @@ export class MindCore {
     const { episodes } = await this.ledger.episodes(this.save);
     const asksWhy = turn.occasion !== "day-start" && isWhyQuestion(turn.message.content);
     const query = [turn.occasion === "day-start" ? "" : turn.message.content, observationText(turn.observations)].join(" ");
-    const retrieved = retrieveEpisodes(episodes.filter((episode) => episode.game === game), { text: query, gameDay: turn.gameDay, now });
+    const retrieved = this.select(episodes.filter((episode) => episode.game === game), { text: query, gameDay: turn.gameDay, now });
     let why: { record: WhyRecord; episodes: Episode[] } | null = null;
     if (asksWhy) {
       const record = await this.ledger.lastWhy(this.save);
@@ -102,7 +106,7 @@ export class MindCore {
     const game = turn.adapter.gameId;
     const ingest = await this.catchUp(game, turn.gameDay, now);
     const { episodes } = await this.ledger.episodes(this.save);
-    const retrieved = retrieveEpisodes(episodes.filter((episode) => episode.game === game), { text: observationText(turn.observations), gameDay: turn.gameDay, now, limit: 3 });
+    const retrieved = this.select(episodes.filter((episode) => episode.game === game), { text: observationText(turn.observations), gameDay: turn.gameDay, now, limit: 2 });
     const [mood, story, person] = await Promise.all([this.ledger.mood(this.save, now), this.ledger.story(this.save), this.ledger.person()]);
     const note = mindContextNote({ game, mood, story, traits: person.traits, retrieved, omitTraitTexts: (turn.growth?.insights ?? []).map((insight) => insight.text) });
     return { note, citable: new Set(), retrieved, mood: describeMood(mood), skippedReceipts: ingest };

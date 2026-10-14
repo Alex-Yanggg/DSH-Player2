@@ -1,35 +1,28 @@
 /**
- * Episode retrieval for the Mind Core (P2-0016). The first version is
- * deliberately vector-free: BM25 over episode summaries, weighted by
- * recency and salience. Chinese text has no spaces, so CJK runs contribute
- * single characters and bigrams; Latin runs contribute lowercase words.
+ * Flavor cues for the Mind Core (P2-0016). This is deliberately thin: real
+ * memory search belongs to DSH, so Player2 only picks a handful of recent,
+ * salient episodes and nudges the ones that share words with the turn. It is
+ * one replaceable function ({@link EpisodeSelector}); a DSH-provided recall
+ * can take its place without touching the ledger or the lanes.
  *
  * @module @dsh-player2/dsh-companion-plugin/mind/retrieval
  */
 import type { Episode } from "@dsh-player2/contracts";
 
 const CJK = /[㐀-鿿豈-﫿]/u;
-const K1 = 1.2;
-const B = 0.75;
-/** Relevance floor so a salient, recent episode can still surface without a keyword hit. */
-const RELEVANCE_FLOOR = 0.15;
 /** Recency half-life, in game days (or wall-clock days when no game day is known). */
 const RECENCY_HALF_LIFE_DAYS = 14;
 
-/** Splits text into retrieval terms: Latin words, CJK unigrams and bigrams. */
+/** Splits text into overlap terms: Latin words, CJK unigrams and bigrams. */
 export function tokenize(text: string): string[] {
   const terms: string[] = [];
   for (const run of text.toLowerCase().normalize("NFKC").split(/[^\p{L}\p{N}]+/u)) {
-    if (run === "") continue;
     let latin = "";
     let previousCjk = "";
-    const flushLatin = (): void => {
-      if (latin.length >= 2) terms.push(latin);
-      latin = "";
-    };
     for (const character of run) {
       if (CJK.test(character)) {
-        flushLatin();
+        if (latin.length >= 2) terms.push(latin);
+        latin = "";
         terms.push(character);
         if (previousCjk !== "") terms.push(previousCjk + character);
         previousCjk = character;
@@ -38,12 +31,12 @@ export function tokenize(text: string): string[] {
         latin += character;
       }
     }
-    flushLatin();
+    if (latin.length >= 2) terms.push(latin);
   }
   return terms;
 }
 
-/** One retrieved episode with the parts of its score, for "why did you say that". */
+/** One picked episode and how much it overlapped the turn, for "why did you say that". */
 export interface RetrievedEpisode {
   readonly episode: Episode;
   readonly score: number;
@@ -58,44 +51,26 @@ export interface RetrievalQuery {
   readonly limit?: number;
 }
 
+/** The seam a richer (DSH-side) recall can replace. */
+export type EpisodeSelector = (episodes: readonly Episode[], query: RetrievalQuery) => RetrievedEpisode[];
+
 /**
- * Rank episodes for one turn: `(floor + bm25) × (0.5 + salience) × recency`,
- * with BM25 normalised to the best hit of this query. Ties keep the newer
+ * Default selector: `salience × recency × (1 + overlap)`, where overlap is
+ * the share of the turn's terms found in the summary. Ties keep the newer
  * episode first, so results are deterministic for a fixed ledger.
  */
-export function retrieveEpisodes(episodes: readonly Episode[], query: RetrievalQuery): RetrievedEpisode[] {
-  const limit = query.limit ?? 5;
+export const retrieveEpisodes: EpisodeSelector = (episodes, query) => {
+  const limit = query.limit ?? 3;
   if (episodes.length === 0 || limit <= 0) return [];
-  const documents = episodes.map((episode) => tokenize(episode.summary));
-  const averageLength = documents.reduce((sum, terms) => sum + terms.length, 0) / documents.length || 1;
-  const documentFrequency = new Map<string, number>();
-  for (const terms of documents) {
-    for (const term of new Set(terms)) documentFrequency.set(term, (documentFrequency.get(term) ?? 0) + 1);
-  }
   const queryTerms = [...new Set(tokenize(query.text))];
-  const raw = documents.map((terms) => {
-    if (queryTerms.length === 0) return 0;
-    const frequency = new Map<string, number>();
-    for (const term of terms) frequency.set(term, (frequency.get(term) ?? 0) + 1);
-    let score = 0;
-    for (const term of queryTerms) {
-      const tf = frequency.get(term) ?? 0;
-      if (tf === 0) continue;
-      const df = documentFrequency.get(term) ?? 0;
-      const idf = Math.log(1 + (documents.length - df + 0.5) / (df + 0.5));
-      score += idf * (tf * (K1 + 1)) / (tf + K1 * (1 - B + B * (terms.length / averageLength)));
-    }
-    return score;
-  });
-  const best = Math.max(...raw);
-  const ranked = episodes.map((episode, index) => {
-    const relevance = best > 0 ? raw[index] / best : 0;
-    const score = (RELEVANCE_FLOOR + relevance) * (0.5 + episode.salience) * recencyOf(episode, query);
-    return { episode, score, relevance };
+  const ranked = episodes.map((episode) => {
+    const terms = new Set(tokenize(episode.summary));
+    const relevance = queryTerms.length === 0 ? 0 : queryTerms.filter((term) => terms.has(term)).length / queryTerms.length;
+    return { episode, relevance, score: (0.2 + episode.salience) * recencyOf(episode, query) * (1 + 2 * relevance) };
   });
   ranked.sort((left, right) => right.score - left.score || right.episode.at.localeCompare(left.episode.at));
   return ranked.slice(0, limit);
-}
+};
 
 function recencyOf(episode: Episode, query: RetrievalQuery): number {
   const ageDays = episode.gameDay !== null && query.gameDay !== null

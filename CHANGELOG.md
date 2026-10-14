@@ -3,7 +3,7 @@
 ## Unreleased - P2-0016 W1 one mind
 
 - adds the Mind Core and Persona Ledger: receipt and chat-nominated episodes,
-  BM25 retrieval, a decaying four-scalar mood, "our story", and evidence-backed
+  a thin replaceable flavor-cue episode pick, a decaying four-scalar mood, "our story", and evidence-backed
   traits, stored as local files beside each companion's bridge project;
 - injects one bounded MindContext note into the chat, day-start, and decision
   lanes, and validates any episode a reply cites;

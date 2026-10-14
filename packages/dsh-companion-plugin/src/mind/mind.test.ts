@@ -39,12 +39,12 @@ async function receipt(dir: string, sequence: number, status: string, detail: st
   }));
 }
 
-describe("retrieval (P2-0016)", () => {
+describe("flavor-cue selection (P2-0016)", () => {
   it("tokenizes Chinese into unigrams and bigrams and Latin into words", () => {
     expect(tokenize("钓鱼 Fishing!")).toEqual(["钓", "鱼", "钓鱼", "fishing"]);
   });
 
-  it("ranks the relevant episode first and respects the limit", () => {
+  it("puts the overlapping episode first and respects the limit", () => {
     const episodes = [
       episode("ep-000000000001", "我们一起在河边钓鱼，钓到了一条大鲶鱼"),
       episode("ep-000000000002", "the player planted parsnips near the farmhouse"),
@@ -53,7 +53,7 @@ describe("retrieval (P2-0016)", () => {
     const ranked = retrieveEpisodes(episodes, { text: "今天去钓鱼吗", gameDay: 12, now: NOW, limit: 2 });
     expect(ranked).toHaveLength(2);
     expect(ranked[0].episode.id).toBe("ep-000000000001");
-    expect(ranked[0].relevance).toBe(1);
+    expect(ranked[0].relevance).toBeGreaterThan(0);
   });
 
   it("lets a salient recent episode surface without a keyword hit", () => {
