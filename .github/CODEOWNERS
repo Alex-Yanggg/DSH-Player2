@@ -1,4 +1,3 @@
 # Enable required CODEOWNERS review only when a second regular contributor merges work.
 /.github/ @Alex-Yanggg
-/AGENTS.md @Alex-Yanggg
 /docs/operating-model.md @Alex-Yanggg

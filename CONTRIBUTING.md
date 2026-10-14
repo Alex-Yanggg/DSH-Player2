@@ -4,7 +4,7 @@ Thank you for helping build a reliable game companion.
 
 ## Before opening a change
 
-- Read [AGENTS.md](AGENTS.md) and keep the work inside this repository.
+- Keep the work inside this repository.
 - Open an issue or discussion first for a new game integration, agent permission, networked service, or cross-project contract.
 - Keep pull requests focused. Explain the player-visible behavior, permission boundary, failure mode, and how you verified it.
 

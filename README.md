@@ -124,7 +124,7 @@ Read [docs/architecture.md](docs/architecture.md) for the full split between Har
 
 ## Development Rules
 
-Read [AGENTS.md](AGENTS.md) and [docs/operating-model.md](docs/operating-model.md) before non-trivial changes. The short version:
+Read [docs/operating-model.md](docs/operating-model.md) before non-trivial changes. The short version:
 
 - keep every capability bounded by explicit game facts, advertised capabilities, consent, receipts, or a configured autonomy tier;
 - preserve the DSH boundary and use public Harness contracts only;
