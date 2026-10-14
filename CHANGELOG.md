@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased - P2-0016 W1 one mind
+
+- adds the Mind Core and Persona Ledger: receipt and chat-nominated episodes,
+  a thin replaceable flavor-cue episode pick, a decaying four-scalar mood, "our story", and evidence-backed
+  traits, stored as local files beside each companion's bridge project;
+- injects one bounded MindContext note into the chat, day-start, and decision
+  lanes, and validates any episode a reply cites;
+- upgrades the day-end dream to rewrite the story and add, strengthen, weaken,
+  or retire traits with episode evidence, then refreshes `ledger/remember.md`;
+- answers "why did you say that" from the episodes the previous reply was given,
+  and migrates the growth asset into traits;
+- queues chat lines sent while a reply is pending instead of refusing them.
+
 ## Unreleased - P2-0013 native persona runtime
 
 - adopts the official `@deepseek-ai/dsh-agent-presets` and

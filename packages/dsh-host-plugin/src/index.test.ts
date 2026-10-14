@@ -73,7 +73,7 @@ describe("Player2 DSH host bundle", () => {
     try {
       await internals.runSocial(session, fixture.id);
       const lines = (await readFile(join(root, "development-logs", "latency-host.jsonl"), "utf8")).trim().split("\n").map((line) => JSON.parse(line) as { lane: string; stage: string });
-      expect(lines.map(({ lane, stage }) => `${lane}/${stage}`)).toEqual(["day-start/host-picked", "day-start/failed"]);
+      expect(lines.map(({ lane, stage }) => `${lane}/${stage}`)).toEqual(["day-start/host-picked", "day-start/mind-ready", "day-start/failed"]);
     } finally {
       await rm(root, { recursive: true, force: true });
     }
