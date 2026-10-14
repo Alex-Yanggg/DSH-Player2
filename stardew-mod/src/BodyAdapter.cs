@@ -53,6 +53,10 @@ internal sealed class BodyAdapter
     private const int InputPollTicks = 6;
     private const int StateTicks = 30;
     private const int FastStateTicks = 6;
+    // A reflex loop reads state and sends its next input between tasks, so the
+    // fast cadence (state every 6 ticks, input every tick) lasts this long after
+    // a fast-state task ends.
+    private const int FastGraceTicks = 120;
     private const int SpeechPollTicks = 15;
 
     private readonly IMonitor monitor;
@@ -67,6 +71,7 @@ internal sealed class BodyAdapter
     private int lastStatusUpdate = -1;
     private int lastSeq;
     private int inputCountdown;
+    private int fastUntilTick = -1;
     private int stateCountdown;
     private int speechCountdown;
     private bool forceState;
@@ -169,7 +174,10 @@ internal sealed class BodyAdapter
             // player; the body keeps walking there the way a farmer would.
             actor.update(Game1.currentGameTime, actor.currentLocation);
         }
-        if (--this.inputCountdown <= 0)
+        if (this.runner is { IsTerminal: false, Task.FastState: true }) this.fastUntilTick = Game1.ticks + FastGraceTicks;
+        var fast = Game1.ticks <= this.fastUntilTick;
+        if (fast) this.stateCountdown = Math.Min(this.stateCountdown, FastStateTicks);
+        if (--this.inputCountdown <= 0 || fast)
         {
             this.inputCountdown = InputPollTicks;
             this.PollInput(actor);
@@ -197,7 +205,7 @@ internal sealed class BodyAdapter
         if (!paused) this.exporter.RefreshRow(actor);
         if (--this.stateCountdown <= 0 || this.forceState)
         {
-            this.stateCountdown = this.runner is { IsTerminal: false, Task.FastState: true } ? FastStateTicks : StateTicks;
+            this.stateCountdown = fast ? FastStateTicks : StateTicks;
             this.WriteState(actor, paused);
         }
         if (this.runner is not null && this.runner.Update != this.lastStatusUpdate) this.WriteStatus();
