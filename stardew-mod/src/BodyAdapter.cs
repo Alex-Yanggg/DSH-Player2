@@ -311,7 +311,8 @@ internal sealed class BodyAdapter
     private void CheckWalkWarp(NativeCompanion actor, BodyTaskRunner active)
     {
         if (actor.LastAttemptedBox is not { } box) return;
-        var warp = actor.currentLocation.isCollidingWithWarp(box, actor);
+        // Asked as the farmer avatar: villager-only warps are not a farmer's exits.
+        var warp = actor.currentLocation.isCollidingWithWarp(box, actor.Avatar);
         if (warp is null || Game1.getLocationFromName(warp.TargetName) is null) return;
         actor.LastAttemptedBox = null;
         var from = actor.currentLocation.NameOrUniqueName;

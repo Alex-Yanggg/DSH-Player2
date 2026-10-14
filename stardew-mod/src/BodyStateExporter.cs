@@ -164,13 +164,32 @@ internal sealed class BodyStateExporter
     /// <summary>The door or other action warp on one tile, if any.</summary>
     public static BodyWarp? ActionWarpAt(GameLocation location, int x, int y)
     {
-        return ActionWarps(location).FirstOrDefault(warp => warp.X == x && warp.Y == y);
+        return ActionWarps(location).FirstOrDefault(warp => warp.X == x && warp.Y == y)
+            ?? location.buildings.Select(BuildingDoor).FirstOrDefault(door => door is not null && door.X == x && door.Y == y);
+    }
+
+    /// <summary>
+    /// A finished building's human door (the farmhouse, sheds, cabins), where
+    /// the action button takes a farmer to the interior's first warp, one tile in.
+    /// </summary>
+    private static BodyWarp? BuildingDoor(StardewValley.Buildings.Building building)
+    {
+        if (building.daysOfConstructionLeft.Value > 0 || building.humanDoor.X < 0) return null;
+        // The engine's door gate (OnUseHumanDoor), without its dialogue on the player's screen.
+        if (building is StardewValley.Buildings.GreenhouseBuilding && !Game1.MasterPlayer.mailReceived.Contains("ccPantry")) return null;
+        if (building.GetIndoors() is not { } indoors || indoors.warps.Count == 0) return null;
+        return new BodyWarp(building.tileX.Value + building.humanDoor.X, building.tileY.Value + building.humanDoor.Y,
+            indoors.NameOrUniqueName, indoors.warps[0].X, indoors.warps[0].Y - 1, "action");
     }
 
     private static List<BodyWarp> Warps(GameLocation location)
     {
-        var warps = location.warps.Select(w => new BodyWarp(w.X, w.Y, w.TargetName, w.TargetX, w.TargetY, "walk")).ToList();
+        var warps = location.warps.Where(w => !w.npcOnly.Value).Select(w => new BodyWarp(w.X, w.Y, w.TargetName, w.TargetX, w.TargetY, "walk")).ToList();
         warps.AddRange(ActionWarps(location));
+        foreach (var building in location.buildings)
+        {
+            if (BuildingDoor(building) is { } door) warps.Add(door);
+        }
         return warps;
     }
 
