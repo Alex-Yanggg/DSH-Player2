@@ -61,7 +61,7 @@ Five knobs per companion, each 0–1, configured per persona in the mod (`Compan
 
 ## Network requests (D4, D16)
 
-The goal lane may call the DSH composition's web tools (host config `goalWebTools`, default `web_search`, `web_fetch`) for world knowledge; results are hints to check against the state, never facts. Every call is appended to `development-logs/network-requests.jsonl` (`at`, `lane`, `goalId`, `session`, `tool`, `args`). No other lane gains network access.
+The goal lane may call DSH's own web tools (host config `goalWebTools`, default `web_search`, `web_fetch`) for world knowledge; results are hints to check against the state, never facts. Search and its logging belong to DSH: every call is recorded in the goal agent's DSH session log, so Player2 keeps no separate request ledger (owner ruling, 2026-10-14). No other lane gains network access.
 
 ## Spikes S9–S12
 

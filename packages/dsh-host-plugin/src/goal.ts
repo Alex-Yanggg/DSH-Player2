@@ -303,6 +303,8 @@ export class GoalLane {
   /** Budget spent: one last turn for the companion to tell the player honestly, in its own words. */
   private async finalTurn(run: NonNullable<GoalLane["run"]>, record: GoalRecord, over: string): Promise<void> {
     await this.options.trace("DSH_GOAL_BUDGET_EXCEEDED", { goalId: record.goalId, over });
+    // Recorded before the last turn, so a goal_finish in that turn keeps the reason.
+    await this.updateIf(record.goalId, { endReason: `engineering budget spent (${over})` });
     try {
       await run.runner!.turn([
         `GOAL_BUDGET_SPENT: this goal has used its engineering budget (${over}). This is the last turn for it.`,
@@ -314,9 +316,7 @@ export class GoalLane {
     }
     const current = this.mine(record);
     if (current !== undefined && !goalTerminalStatuses.has(current.status)) {
-      await this.updateIf(record.goalId, { status: "budget-exceeded", endReason: `engineering budget spent (${over})` });
-    } else if (current !== undefined && current.status === "failed") {
-      await this.updateIf(record.goalId, { endReason: `engineering budget spent (${over})` });
+      await this.updateIf(record.goalId, { status: "budget-exceeded" });
     }
   }
 

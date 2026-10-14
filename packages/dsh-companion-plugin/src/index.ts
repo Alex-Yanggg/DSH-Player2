@@ -136,11 +136,10 @@ export interface Config {
   goal?: GoalController;
   /**
    * Model-facing web tools a goal lane may call when the host composition
-   * mounts them (world knowledge, D16). Every call is a registered network
-   * request: `onNetworkCall` receives it for the ledger.
+   * mounts them (world knowledge, D16). DSH owns these tools and records
+   * their calls in its own session logs.
    */
   goalWebTools?: string[];
-  onNetworkCall?: (tool: string, args: unknown) => void;
 }
 
 /** Runtime validation for the out-of-tree Cordis plugin config. */
@@ -160,7 +159,6 @@ export const Config: z<Config> = z.object({
   spine: z.union(["off", "file"] as const).default("off"),
   goal: z.any(),
   goalWebTools: z.array(z.string()).default([]),
-  onNetworkCall: z.any(),
 });
 
 /**
@@ -214,12 +212,11 @@ export function apply(ctx: Context, config: Config): void {
       allowedTools.add(tool.name);
       ctx.effect(() => ctx.tools.register(tool), `player2-companion.tool.${tool.name}`);
     }
-    // World knowledge through the host's own web tools, when mounted (D16).
+    // World knowledge through DSH's own web tools, when mounted (D16).
     const webTools = new Set(config.goalWebTools ?? []);
     for (const name of webTools) allowedTools.add(name);
     ctx.on("tools/post-execute", (execution, _result, next) => {
       goal.toolCalled?.(execution.name);
-      if (webTools.has(execution.name)) config.onNetworkCall?.(execution.name, execution.arguments);
       return next();
     });
     // The engineering budget only stops runaway loops; closing words always pass.

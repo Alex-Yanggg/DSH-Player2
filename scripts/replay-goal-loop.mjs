@@ -69,7 +69,7 @@ async function withSim(start, body) {
   const session = await mkdtemp(join(tmpdir(), "player2-goal-replay-"));
   const sim = new SimAdapter(session, { locations: [{ name: "Farm", rows: [...FARM], warps: [], objects: [], characters: [] }], body: { location: "Farm", x: start.x, y: start.y, items: kit() } });
   await sim.start(1);
-  try { return await body(session, sim); } finally { await sim.stop(); await rm(session, { recursive: true, force: true }); }
+  try { return await body(session, sim); } finally { await sim.stop(); await rm(session, { recursive: true, force: true, maxRetries: 5 }); }
 }
 
 async function waitTerminal(lane, ms = 60_000) {
@@ -93,6 +93,7 @@ for (const start of starts) {
     const lane = new GoalLane(session, { trace, idleMs: 20, createRunner: carrotFarmer(sim, 3) });
     await lane.apply({ op: "set", text: "给我弄 3 根胡萝卜" }, defaultPersonaKnobs);
     const result = await waitTerminal(lane);
+    await lane.close();
     const speech = JSON.parse(await readFile(join(session, "speech", (await import("node:fs")).readdirSync(join(session, "speech")).find((n) => n.startsWith("say-"))), "utf8"));
     assert.match(speech.text, /carrots/);
     return result;
@@ -120,7 +121,9 @@ const failed = await withSim({ x: 2, y: 2 }, async (session) => {
     },
   });
   await lane.apply({ op: "set", text: "catch the legend fish" }, defaultPersonaKnobs);
-  return waitTerminal(lane);
+  const result = await waitTerminal(lane);
+  await lane.close();
+  return result;
 });
 assert.equal(failed.status, "failed");
 assert.match(failed.endReason ?? "", /budget/);

@@ -125,4 +125,4 @@ Manual verification on a fresh save:
 30. Ask for something impossible ("给我钓一条传说之鱼" on day 1): the companion reports honestly, and the goal ends `failed` or `budget-exceeded` instead of looping.
 31. With **Allow cheat capabilities** off, ask the companion to walk through a wall: a `NoClip` task is refused. Say "这局随便开挂" and confirm `goal/cheat.json` is `granted` and `development-logs/dsh-player2-host.jsonl` has `DSH_CHEAT_SWITCH` with your words.
 32. In the mines, give a fighting goal and let it use `reflex_melee`; record the reported state-age and input-accept p50/p95 (S11). Record "去矿洞带 30 个骨头回来" as a stretch run without a pass bar.
-33. Check `goal/dice.jsonl` (seed and rolls per turn) and `development-logs/network-requests.jsonl` (one line per web call the goal lane made).
+33. Check `goal/dice.jsonl` (seed and rolls per turn) and, in the goal agent's DSH session log, any web search it made.

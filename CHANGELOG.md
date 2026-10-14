@@ -17,7 +17,7 @@
   resume after a restart, and end honestly when the anti-runaway budget is
   spent; `GOAL_STATUS` reaches the chat lane;
 - adds five persona knobs with seeded, logged dice, the spoken per-save cheat
-  switch, and a ledger of goal-lane network requests;
+  switch, and lets the goal lane use DSH's own web tools (logged by DSH);
 - makes `full` the default autonomy (`consult` remains an explicit setting).
 
 Acceptance: `npm run accept:0.2.0` (the `accept:0.1.4` baseline plus the

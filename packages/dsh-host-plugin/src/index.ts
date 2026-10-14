@@ -6,7 +6,7 @@
  * publishes immutable game envelopes and consumes DSH-authored result files.
  */
 import { createHash, randomUUID } from "node:crypto";
-import { appendFile, link, mkdir, open, readdir, readFile, rename, unlink, utimes } from "node:fs/promises";
+import { link, mkdir, open, readdir, readFile, rename, unlink, utimes } from "node:fs/promises";
 import { basename, dirname, join, resolve, sep } from "node:path";
 import type { Context } from "@deepseek-ai/cordis";
 import { installModelSelection, type AgentSetup } from "@deepseek-ai/dsh-agent";
@@ -54,7 +54,7 @@ export const Config: z<Config> = z.object({
   autonomy: z.union(["consult", "full", ""] as const).default(""),
   socialReasoningEffort: z.string().default("off"),
   // Web tools the goal lane may call when this DSH composition mounts them
-  // (world knowledge, D16). Each call is logged as a registered network request.
+  // (world knowledge, D16). DSH owns these tools and their logs.
   goalWebTools: z.array(z.string()).default(["web_search", "web_fetch"]),
 });
 
@@ -165,7 +165,6 @@ export class Player2DshHost {
   private readonly spineStore: PersistenceSpineStore;
   private readonly goals = new Map<string, GoalLane>();
   private readonly identities = new Map<string, CompanionIdentity>();
-  private readonly networkFile: string;
 
   public constructor(private readonly ctx: Context, private readonly config: Config) {
     if (config.bridgeDirectory.trim() === "") throw new Error("Player2 DSH host requires bridgeDirectory.");
@@ -177,7 +176,6 @@ export class Player2DshHost {
     this.traceFile = join(this.root, "development-logs", "dsh-player2-host.jsonl");
     this.latencyFile = join(this.root, "development-logs", "latency-host.jsonl");
     this.readyFile = join(this.root, "runtime", `ready-${process.pid}-${this.instanceId}.json`);
-    this.networkFile = join(this.root, "development-logs", "network-requests.jsonl");
     this.spineStore = persistenceSpineStore(ctx);
   }
 
@@ -446,9 +444,6 @@ export class Player2DshHost {
     const { handle } = await this.createAgent(session, "goal", "goal", identity, presetId, transcript, {
       goal: controller,
       goalWebTools: this.config.goalWebTools ?? [],
-      onNetworkCall: (tool: string, args: unknown) => {
-        void appendFile(this.networkFile, `${JSON.stringify({ at: new Date().toISOString(), lane: "goal", goalId: record.goalId, session: sessionRootOf(this.root, session), tool, args })}\n`, "utf8").catch(() => undefined);
-      },
     }, record.goalId);
     return {
       turn: async (prompt) => {
