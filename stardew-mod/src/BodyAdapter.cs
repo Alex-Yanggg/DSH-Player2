@@ -134,6 +134,7 @@ internal sealed class BodyAdapter
         if (this.files is null) return;
         try
         {
+            this.exporter.InvalidateGrid();
             this.files.WriteDeclaration(this.Declaration());
             var bytes = this.files.WriteWorld(this.exporter.BuildWorld());
             this.monitor.Log($"Player2 body lane declared {Inputs.Length} inputs; world graph {bytes} bytes.", LogLevel.Trace);
@@ -193,6 +194,7 @@ internal sealed class BodyAdapter
             }
         }
         if (actor is not null && !paused && Game1.ticks % 4 == 0) this.PickUpNearby(actor);
+        if (!paused) this.exporter.RefreshRow(actor);
         if (--this.stateCountdown <= 0 || this.forceState)
         {
             this.stateCountdown = this.runner is { IsTerminal: false, Task.FastState: true } ? FastStateTicks : StateTicks;
@@ -355,7 +357,7 @@ internal sealed class BodyAdapter
             active.Note(Game1.ticks, "error", $"{id}: {ex.GetType().Name}: {ex.Message}");
             this.monitor.Log($"Player2 body input {id} threw: {ex}", LogLevel.Warn);
         }
-        this.exporter.InvalidateGrid();
+        this.exporter.InvalidateAround(actor, FacedTile(actor));
         this.forceState = true;
     }
 

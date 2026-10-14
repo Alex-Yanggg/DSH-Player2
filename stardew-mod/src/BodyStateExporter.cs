@@ -20,7 +20,6 @@ namespace DSHPlayer2.Stardew;
 internal sealed class BodyStateExporter
 {
     public const int MaxObjects = 1500;
-    private const int GridCacheTicks = 120;
 
     public static readonly BodyStateField[] Fields =
     {
@@ -48,8 +47,11 @@ internal sealed class BodyStateExporter
     private readonly IMonitor monitor;
     private readonly Stopwatch buildClock = new();
     private string? gridLocation;
-    private int gridTick = -GridCacheTicks;
-    private string[] gridRows = Array.Empty<string>();
+    private char[][] grid = Array.Empty<char[]>();
+    private Dictionary<(int, int), char> gridMarks = new();
+    private int gridCursor;
+    private double rowMsTotal;
+    private long rowRefreshes;
     private long revision;
     private double buildMsTotal;
     private double gridMsTotal;
@@ -205,38 +207,71 @@ internal sealed class BodyStateExporter
         return null;
     }
 
+    /// <summary>
+    /// The body's location as legend rows. A full build (every tile through
+    /// the engine's collision) costs ~10 µs a tile, over 100 ms for Town, so
+    /// it runs only when the location changes; afterwards <see cref="RefreshRow"/>
+    /// re-checks one row per tick and <see cref="InvalidateAround"/> re-checks
+    /// the tiles a button press touched at once.
+    /// </summary>
     private string[] Grid(GameLocation location, NativeCompanion? actor)
     {
-        var key = location.NameOrUniqueName;
-        if (key == this.gridLocation && Game1.ticks - this.gridTick < GridCacheTicks) return this.gridRows;
-        var started = this.buildClock.Elapsed.TotalMilliseconds;
-        var width = location.Map.Layers[0].LayerWidth;
-        var height = location.Map.Layers[0].LayerHeight;
-        var marks = new Dictionary<(int, int), char>();
-        foreach (var warp in Warps(location))
+        if (location.NameOrUniqueName != this.gridLocation)
         {
-            if (warp.X >= 0 && warp.Y >= 0 && warp.X < width && warp.Y < height) marks[(warp.X, warp.Y)] = warp.Kind == "walk" ? 'W' : 'D';
-        }
-        var rows = new string[height];
-        var builder = new StringBuilder(width);
-        for (var y = 0; y < height; y++)
-        {
-            builder.Clear();
-            for (var x = 0; x < width; x++)
+            var started = this.buildClock.Elapsed.TotalMilliseconds;
+            var width = location.Map.Layers[0].LayerWidth;
+            var height = location.Map.Layers[0].LayerHeight;
+            this.gridMarks = new Dictionary<(int, int), char>();
+            foreach (var warp in Warps(location))
             {
-                if (marks.TryGetValue((x, y), out var mark)) builder.Append(mark);
-                else if (location.isWaterTile(x, y)) builder.Append('~');
-                else if (Blocked(location, new Rectangle(x * 64 + 8, y * 64 + 16, 48, 32), actor)) builder.Append('#');
-                else builder.Append('.');
+                if (warp.X >= 0 && warp.Y >= 0 && warp.X < width && warp.Y < height) this.gridMarks[(warp.X, warp.Y)] = warp.Kind == "walk" ? 'W' : 'D';
             }
-            rows[y] = builder.ToString();
+            this.grid = new char[height][];
+            for (var y = 0; y < height; y++)
+            {
+                this.grid[y] = new char[width];
+                for (var x = 0; x < width; x++) this.grid[y][x] = this.Cell(location, x, y, actor);
+            }
+            this.gridLocation = location.NameOrUniqueName;
+            this.gridCursor = 0;
+            this.gridMsTotal += this.buildClock.Elapsed.TotalMilliseconds - started;
+            this.gridBuilds++;
         }
-        this.gridLocation = key;
-        this.gridTick = Game1.ticks;
-        this.gridRows = rows;
-        this.gridMsTotal += this.buildClock.Elapsed.TotalMilliseconds - started;
-        this.gridBuilds++;
-        return rows;
+        return this.grid.Select(row => new string(row)).ToArray();
+    }
+
+    /// <summary>Re-checks one row of the cached grid (called every unpaused tick).</summary>
+    public void RefreshRow(NativeCompanion? actor)
+    {
+        var location = actor?.currentLocation;
+        if (location is null || location.NameOrUniqueName != this.gridLocation || this.grid.Length == 0) return;
+        var started = Stopwatch.GetTimestamp();
+        var y = this.gridCursor++ % this.grid.Length;
+        for (var x = 0; x < this.grid[y].Length; x++) this.grid[y][x] = this.Cell(location, x, y, actor);
+        this.rowMsTotal += (Stopwatch.GetTimestamp() - started) * 1000d / Stopwatch.Frequency;
+        this.rowRefreshes++;
+    }
+
+    /// <summary>Re-checks the 3x3 tiles around one tile now (after a button acted on the world).</summary>
+    public void InvalidateAround(NativeCompanion actor, Point tile)
+    {
+        var location = actor.currentLocation;
+        if (location is null || location.NameOrUniqueName != this.gridLocation) return;
+        for (var y = tile.Y - 1; y <= tile.Y + 1; y++)
+        {
+            if (y < 0 || y >= this.grid.Length) continue;
+            for (var x = tile.X - 1; x <= tile.X + 1; x++)
+            {
+                if (x >= 0 && x < this.grid[y].Length) this.grid[y][x] = this.Cell(location, x, y, actor);
+            }
+        }
+    }
+
+    private char Cell(GameLocation location, int x, int y, NativeCompanion? actor)
+    {
+        if (this.gridMarks.TryGetValue((x, y), out var mark)) return mark;
+        if (location.isWaterTile(x, y)) return '~';
+        return Blocked(location, new Rectangle(x * 64 + 8, y * 64 + 16, 48, 32), actor) ? '#' : '.';
     }
 
     /// <summary>The grid uses the same collision the body walks with.</summary>
@@ -247,8 +282,8 @@ internal sealed class BodyStateExporter
             : location.isCollidingPosition(tile, Game1.viewport, true, 0, false, Game1.player);
     }
 
-    /// <summary>Forces the next state to rebuild the tile grid (after an action changed the world).</summary>
-    public void InvalidateGrid() => this.gridTick = -GridCacheTicks;
+    /// <summary>Forces a full grid build on the next state (new day, new save).</summary>
+    public void InvalidateGrid() => this.gridLocation = null;
 
     private static BodyObject Feature(int x, int y, TerrainFeature feature, NativeCompanion? actor)
     {
@@ -324,7 +359,7 @@ internal sealed class BodyStateExporter
         if (++this.builds % 600 == 0)
         {
             // S12 evidence: the cost of exporting raw state, logged in batches.
-            this.monitor.Log($"Player2 body state export: {this.builds} builds, mean {this.buildMsTotal / this.builds:0.00} ms; grid rebuilt {this.gridBuilds} times, mean {(this.gridBuilds == 0 ? 0 : this.gridMsTotal / this.gridBuilds):0.00} ms.", LogLevel.Info);
+            this.monitor.Log($"Player2 body state export: {this.builds} builds, mean {this.buildMsTotal / this.builds:0.00} ms; full grid built {this.gridBuilds} times, mean {(this.gridBuilds == 0 ? 0 : this.gridMsTotal / this.gridBuilds):0.00} ms; per-tick row refresh mean {(this.rowRefreshes == 0 ? 0 : this.rowMsTotal / this.rowRefreshes):0.000} ms.", LogLevel.Info);
         }
     }
 }
