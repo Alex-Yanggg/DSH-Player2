@@ -82,6 +82,8 @@ describe("Player DSH companion composition", () => {
     expect(prompt).toContain("one or two short, natural sentences");
     expect(prompt).toContain("movementCommand");
     expect(prompt).toContain("basedOnObservationIds");
+    // The posture enum is spelled out: a live model answered kind "text" without it.
+    expect(prompt).toContain(`exactly one of "reply", "question", "disagreement", "suggestion", "uncertain"`);
     expect(prompt).not.toContain(`load the ${companionPlugin.GROUNDED_DELIBERATION_SKILL} skill`);
     const execute = vi.fn(async () => "loaded");
     ctx.tools.register(defineTool({ name: "skill", description: "load", parameters: {},

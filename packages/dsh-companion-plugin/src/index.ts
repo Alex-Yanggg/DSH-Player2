@@ -415,7 +415,7 @@ Use this procedure for a PLAYER_SOCIAL_TURN.
 3. A priorMemory is one shared, receipt-backed outcome from the immediately previous game day. It may inform the relationship, but it does not prove the current world state.
 4. Choose one social posture: reply, question, disagreement, suggestion, or uncertain. Prefer question or uncertain when evidence is insufficient.
 5. Never claim that you performed, scheduled, or completed a game action. This social composition has no game executor.
-6. Return one JSON object with exactly these fields: kind, text, basedOnObservationIds, basedOnMemoryId, rememberLatestReceipt, memorySummary.
+6. Return one JSON object with exactly these fields: kind, text, basedOnObservationIds, basedOnMemoryId, rememberLatestReceipt, memorySummary. kind is the posture from step 4, exactly one of "reply", "question", "disagreement", "suggestion", "uncertain"; any other value (such as "text") makes the whole turn invalid.
 7. basedOnObservationIds contains only ids present in observations. basedOnMemoryId is priorMemory.id or null. An uncertain response cites neither.
 8. Set rememberLatestReceipt true only when latestReceipt is completed or failed and memorySummary concisely describes that shared result; otherwise use false and null.
 
