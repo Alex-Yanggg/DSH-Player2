@@ -1,0 +1,6 @@
+pytest>=9.1
+numpy>=2.4
+pillow>=12.1
+psutil>=7.2
+pywin32>=311
+dxcam==0.3.0
