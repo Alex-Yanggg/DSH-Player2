@@ -1,5 +1,5 @@
 import type { BodyDeclaration, BodyEvent, BodyState, BodyWorld } from "@dsh-player2/contracts";
-import type { BodyPort } from "./client.js";
+import type { BodyPort } from "./port.js";
 import { directionTo, faceButton, locationRoute, planLeg, type Tile } from "./navigation.js";
 
 /** The outcome of one helper-driven walk, in plain facts. */

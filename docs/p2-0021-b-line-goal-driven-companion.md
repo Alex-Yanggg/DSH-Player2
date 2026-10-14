@@ -5,65 +5,62 @@ The player gives the companion a goal ("给我弄 3 根胡萝卜", "去矿洞带
 ## Layers
 
 ```text
-Stardew mod (pure adapter)         DSH host plugin                         DSH companion plugin (goal mode)
---------------------------         ---------------                         --------------------------------
-BodyStateExporter  -> state.json   social lane reads goal/cheat extras --> world_* tools   (read raw state)
-                      world.json   GoalLane: record, budget, dice, stop     body_walk_to    (navigation helper)
-BodyAdapter <- input/task-<n>.json   per-goal agent, one turn at a time   body_use/input  (raw buttons)
-            -> status/task-<n>.json                                        reflex_melee    (closed-loop script)
-            <- speech/say-<n>.json                                          companion_say, goal_note, goal_finish
+Stardew mod (pure adapter)               Player2 plugin in dsh --profile acp
+--------------------------               -----------------------------------
+GameMcpServer (localhost, bearer token)  world_observe / world_find / world_map / world_locations
+  body_declaration, world_state,   <---  body_walk_to (navigation helper), body_use / body_input (raw buttons)
+  world_map, body_run, body_cancel,      reflex_melee (closed-loop script)
+  cheat_grant                            DSH goals: create_goal / update_goal / get_goal
+BodyAdapter + BodyTaskRunner             speech = the agent's own messages, shown by the mod
 ```
 
 - **The mod has no semantics.** It declares which inputs it accepts (`MoveUp/Right/Down/Left` held; `Face*`, `UseTool`, `Action`, `DropItem`, `Slot1..12` pressed; `NoClip` as a cheat modifier) and exports the world as it is: a walkability grid, objects and terrain features with their raw names and fields, characters, warps, the clock, the body's toolbar. Nothing in [`BodyAdapter`](../stardew-mod/src/BodyAdapter.cs) knows "go to", "chop", or "farm".
 - **Navigation and reflexes live in the plugin.** [`navigation.ts`](../packages/dsh-companion-plugin/src/body/navigation.ts) runs A* on the exported grid and turns a path into held-direction steps of exact tick length; [`walk.ts`](../packages/dsh-companion-plugin/src/body/walk.ts) plays one leg, looks again, and re-plans, crossing locations over the exported warp graph. [`reflex.ts`](../packages/dsh-companion-plugin/src/body/reflex.ts) is a melee loop the model parameterises (time, chase range, kill target); it measures its own loop latency.
-- **Think and act are separate.** The goal agent spends one model turn per plan step; travel and fights run at game pace in helpers without a model call per tick.
+- **Think and act are separate.** One model step per plan step; travel and fights run at game pace in helpers without a model call per tick.
 
 ## Body protocol v0.1
 
-All files live under the save's session directory (`<bridge>/projects/<person>/sessions/<save>/body/`). Schemas: [`body.ts`](../packages/contracts/src/body.ts), mirrored in [`BodyBridgeContracts.cs`](../player2-core/BodyBridgeContracts.cs); golden frames in [`stardew-body-frames.json`](../fixtures/body/stardew-body-frames.json).
+The mod serves the body as MCP `tools/call` over HTTP on localhost ([`GameMcpServer`](../player2-core/GameMcpServer.cs), [`BodyChannel`](../player2-core/BodyChannel.cs)); the plugin reaches it through [`port.ts`](../packages/dsh-companion-plugin/src/body/port.ts). Schemas: [`body.ts`](../packages/contracts/src/body.ts), mirrored in [`BodyBridgeContracts.cs`](../player2-core/BodyBridgeContracts.cs); golden frames in [`stardew-body-frames.json`](../fixtures/body/stardew-body-frames.json).
 
-| File | Writer | Content |
-| --- | --- | --- |
-| `declaration.json` | mod | inputs it accepts, state fields and grid legend, limits (max steps, max step ms, tick ms, walk speed, tile px), whether the cheat setting is on |
-| `state.json` | mod | revision, tick, paused, clock, player, body (tile, pixel, facing, toolbar, stamina, active task), map rows, objects (nearest first, capped), characters, warps; ≤512 KiB; every 30 ticks, every 6 while a task asks for `fastState` |
-| `world.json` | mod | every location and its warps (route planning across maps) |
-| `input/task-<seq>.json` | plugin | `{taskId, seq, steps:[{hold?, press?, ms}], until?, fastState?}`; written once by hard link; the newest sequence wins and preempts an older running task |
-| `input/cancel-<seq>.json` | plugin | cancels that task |
-| `status/task-<seq>.json` | mod | `accepted / running / done / interrupted / failed / cancelled`, step, events (warped, used, harvested, planted, picked-up, blocked, ...), reason |
-| `../speech/say-<seq>.json` | plugin | one line the companion says in the world; the mod renames it `.shown` |
+| Tool | Content |
+| --- | --- |
+| `body_declaration` | inputs the body accepts, state fields and grid legend, limits (max steps, max step ms, tick ms, walk speed, tile px), whether the cheat setting is on |
+| `world_state` | revision, tick, paused, clock, player, body (tile, pixel, facing, toolbar, stamina, active task), map rows, objects (nearest first, capped), characters, warps; ≤512 KiB |
+| `world_map` | every location and its warps (route planning across maps) |
+| `body_run` | `{taskId, steps:[{hold?, press?, ms}], until?, fastState?}`; a new task preempts a running one; returns the final status: `done / interrupted / failed / cancelled`, step, events (warped, used, harvested, planted, picked-up, blocked, ...), reason |
+| `body_cancel` | stops the running task |
+| `cheat_grant` | records the player's words allowing or revoking cheat inputs for this save |
 
-**Shop counters.** `Action` at a tile whose game action opens a shop (`OpenShop <id>`, or the legacy counter actions) opens that shop's stock for the body instead of a menu on the player's screen, if the shop's owner is at the counter. The stock appears raw in `state.body.menu` (shop id, cursor, wallet, items with index, name, category, price, stock left, trade item). `MenuUp` / `MenuDown` move the cursor, `MenuConfirm` buys one unit of the item under it into the body's toolbar, paid from the player's wallet (the body has none), and `MenuClose` (or walking away) closes it. Every outcome is a status event: `menu-opened`, `shop-refused`, `bought`, `cant-afford`, `sold-out`, `needs-trade`, `inventory-full`. A tile action the adapter cannot operate is reported as `tile-action` with the game's raw text. There is no shop helper: the companion opens a counter with `body_use` Action, reads the stock in `world_observe`, and buys with the menu buttons; what to buy and how much to spend is its choice.
+**Shop counters.** `Action` at a tile whose game action opens a shop opens that shop's stock for the body instead of a menu on the player's screen, if the shop's owner is at the counter. The stock appears raw in `state.body.menu` (shop id, cursor, wallet, items with index, name, category, price, stock left, trade item). `MenuUp` / `MenuDown` move the cursor, `MenuConfirm` buys one unit into the body's toolbar, paid from the player's wallet, and `MenuClose` (or walking away) closes it. Every outcome is a status event: `menu-opened`, `shop-refused`, `bought`, `cant-afford`, `sold-out`, `needs-trade`, `inventory-full`. What to buy and how much to spend is the companion's choice.
 
-Durations count unpaused game ticks: the open chat pauses the world in single player, and a task pauses with it. `until` stops a task early on `arrive`, `warped`, `monsterWithin`, or `blockedMs`. Unknown inputs, a cheat input while cheats are off, too many steps or too long a step fail the task with the reason; nothing is silently dropped.
+Durations count unpaused game ticks. A paused game (the open chat pauses the world in single player) ends a running `body_run` within a second as `cancelled` with reason `paused`, so a turn never waits on the player; the goal is kept. `until` stops a task early on `arrive`, `warped`, `monsterWithin`, or `blockedMs`. Unknown inputs, a cheat input while cheats are off, too many steps or too long a step fail the task with the reason; nothing is silently dropped.
 
-## Goal lane
+## Goals
 
-[`GoalLane`](../packages/dsh-host-plugin/src/goal.ts) owns one goal per save in `<session>/goal/`:
+Goals are DSH's own goal feature; Player2 keeps no goal lane.
 
-- **Start.** The fast social lane may add `goal: {"op":"set","text":"…"}` to its reply when the player asks for real play, or `{"op":"stop"}`. The host applies it right after the chat reply is written; a new goal replaces the old one. There is no consent dialogue: the request is the authorization.
-- **Loop.** Each turn the goal agent gets `GOAL_TURN n`: the goal in the player's words, game day and budget use, its own route notes, its five persona tendencies, and this turn's dice nudges. It observes, acts with the tools, and ends with `goal_finish done|failed` and a summary in its own words, which is said in the game. The loop waits, spending nothing, while the body is absent or the world is paused.
-- **Stop.** "stay" typed in chat (the mod's game-local command) writes `goal/interrupt-<ms>.json`; the host stops the goal, cancels the agent's turn in flight and the body's active task. A stop said in chat arrives as `goal: stop`. Either way the goal ends at the next decision point and the record says why.
-- **Budget (anti-runaway only).** Defaults: 40 turns, 600 tool calls, 7 game days. When spent, the companion gets one last turn to tell the player honestly where it got to; if it says nothing, the record ends as `budget-exceeded`. No local template text is ever spoken.
-- **Status in chat.** While a goal is active or recently ended, every chat turn carries a `GOAL_STATUS` note (goal, status, turns, last notes, summary), so the companion talks about its work from facts.
-- **Restart.** An active goal resumes after a DSH restart with its own durable agent session (session id derived from the goal id).
+- **Start.** The companion policy tells the model to create a goal right away when the player asks for real play. There is no consent dialogue: the request is the authorization. A new goal replaces the old one.
+- **Loop.** DSH's goal driver runs rounds until the companion marks the goal done or failed; each round gets this turn's knob dice nudges from the plugin. What the companion says along the way is shown in the game.
+- **Stop.** "stay" typed in chat takes the body back at once (the mod cancels the running task); a stop said in chat lets the companion end the goal itself.
+- **Pause holds the goal.** A frozen world sends `session/cancel`, which pauses the DSH goal; `[resume]` resumes it through the host goal service without a model call.
+- **Restart.** The save's DSH session is resumed by id after a restart, with its goal.
 
 ## Persona knobs
 
-Five knobs per companion, each 0–1, configured per persona in the mod (`CompanionChoices[].Knobs`) and carried on every social turn: talkativeness, help-seeking, risk, obedience, skill. [`knobs.ts`](../packages/dsh-companion-plugin/src/body/knobs.ts):
+Five knobs per companion, each 0–1, configured per persona in the mod (`CompanionChoices[].Knobs`) and passed to the plugin: talkativeness, help-seeking, risk, obedience, skill. [`knobs.ts`](../packages/dsh-companion-plugin/src/body/knobs.ts):
 
 - dice only decide "does this turn consider doing X" (speak up, use own judgment over the exact wording, take the bolder option, ask for help when stuck); what to say and do stays with the model;
-- `p = 0.05 + 0.9 × knob`; rolls are `sha256(seed, turn, question)`, the seed is the goal id, and every roll is appended to `goal/dice.jsonl`;
+- `p = 0.05 + 0.9 × knob`; rolls are `sha256(seed, turn, question)` with the session id as seed, so a run can be replayed;
 - skill maps to reflex hands: reaction delay 450 → 60 ms and aim error 0.30 → 0.02;
 - failure and blockage are always reported; no die is rolled for them.
 
 ## Authorization and cheats
 
-- Autonomy now defaults to `full`; `consult` (proposal → consent → execute) stays as an explicit setting.
-- Cheat-class inputs are refused unless the mod's **Allow cheat capabilities** setting is on or the player allowed it in chat for this save. The social lane writes `cheat: {"op":"grant"|"revoke","quote":"<the player's words>"}`; the host stores `goal/cheat.json` and traces `DSH_CHEAT_SWITCH` with the quote. This build's only cheat input is the `NoClip` modifier, which exists to prove the switch.
+Cheat-class inputs are refused unless the mod's **Allow cheat capabilities** setting is on or the player allowed it in chat for this save (`cheat_grant` with the player's words). This build's only cheat input is the `NoClip` modifier, which exists to prove the switch.
 
 ## Network requests (D4, D16)
 
-The goal lane may call DSH's own web tools (host config `goalWebTools`, default `web_search`, `web_fetch`) for world knowledge; results are hints to check against the state, never facts. Search and its logging belong to DSH: every call is recorded in the goal agent's DSH session log, so Player2 keeps no separate request ledger (owner ruling, 2026-10-14). No other lane gains network access.
+Web search and fetch are DSH's own tools; every call is in the DSH session log, so Player2 keeps no separate request ledger (owner ruling, 2026-10-14). Results are hints to check against the state, never facts.
 
 ## Spikes S9–S12
 
@@ -76,10 +73,9 @@ The goal lane may call DSH's own web tools (host config `goalWebTools`, default 
 
 ## Verification
 
-- `npm run accept:0.2.0` = `accept:0.1.4` + `replay:goal` (5 carrot runs from different start tiles).
-- Package tests: [`body.test.ts`](../packages/dsh-companion-plugin/src/body/body.test.ts) (navigation, walking across maps, till/plant/water/harvest, cheat refusal, melee, dice determinism and frequency) and [`goal.test.ts`](../packages/dsh-host-plugin/src/goal.test.ts) (done, stop, budget, replace, cheat grant, resume, pause).
-- `dotnet test` covers the C# protocol files and the task runner.
-- Real game: the manual steps in [`stardew-mod/README.md`](../stardew-mod/README.md#b-line-goal-driven-companion-p2-0021) and the e2e suite.
+- Package tests: [`body.test.ts`](../packages/dsh-companion-plugin/src/body/body.test.ts) (navigation, walking across maps, till/plant/water/harvest, cheat refusal, melee, dice determinism and frequency) and [`index.test.ts`](../packages/dsh-companion-plugin/src/index.test.ts) (persona prompt, hands mounted only with a body, markers).
+- `dotnet test` covers the ACP client, the MCP endpoint, the body channel and the task runner.
+- Real game: the manual check in [`stardew-mod/README.md`](../stardew-mod/README.md#manual-check) and the e2e suite.
 
 ## Known gaps
 

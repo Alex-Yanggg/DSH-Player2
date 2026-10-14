@@ -128,9 +128,9 @@ internal sealed class BodyStateExporter
             characters.Add(new BodyCharacter(farmer.TilePoint.X, farmer.TilePoint.Y, farmer.Position.X, farmer.Position.Y, Clip(farmer.Name), "farmer", farmer.health));
         }
         var state = new BodyState(
-            BodyBridgeFiles.ProtocolVersion,
+            BodyChannel.ProtocolVersion,
             ++this.revision,
-            DecisionBridgeRules.TimestampNow(),
+            BodyWire.Now(),
             Game1.ticks,
             paused,
             new BodyTime(Game1.Date.TotalDays + 1, Game1.currentSeason, Game1.dayOfMonth, Game1.year, Game1.timeOfDay,
@@ -158,7 +158,7 @@ internal sealed class BodyStateExporter
         {
             locations.Add(new BodyWorldLocation(location.NameOrUniqueName, Clip(location.DisplayName ?? location.NameOrUniqueName), location.IsOutdoors, Warps(location)));
         }
-        return new BodyWorld(BodyBridgeFiles.ProtocolVersion, DecisionBridgeRules.TimestampNow(), locations);
+        return new BodyWorld(BodyChannel.ProtocolVersion, BodyWire.Now(), locations);
     }
 
     /// <summary>The door or other action warp on one tile, if any.</summary>

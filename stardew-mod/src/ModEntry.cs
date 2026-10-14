@@ -1,41 +1,36 @@
 ﻿using System;
-using System.Globalization;
-using System.IO;
 using System.Linq;
-using System.Text.Json;
 using DSHPlayer2.Core;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
 using StardewValley.Menus;
 using StardewValley.Objects;
-using Player2Proposal = DSHPlayer2.Core.Proposal;
 
 namespace DSHPlayer2.Stardew;
 
 /// <summary>
-/// The SMAPI adapter: wires game events to the extracted collaborators and
-/// keeps every game-touching flow here while process hosting, snapshots,
-/// receipts, transcripts, settlement, and diagnostics live in their own
-/// testable types.
+/// The SMAPI adapter. The companion's mind is a DSH session (<see cref="DshCompanion"/>);
+/// its hands are the game's MCP endpoint (<see cref="GameMcpServer"/> over
+/// <see cref="BodyAdapter"/>). This class only wires game events to prompts,
+/// shows what the companion says, and keeps the vanilla-facing flows:
+/// companion choice, native appearance customization, chat and movement commands.
 /// </summary>
 internal sealed class ModEntry : Mod
 {
-    private const string AcceptProposalId = "dsh-player2-accept";
-    private const string DeclineProposalId = "dsh-player2-decline";
+    private const string CompanionChoiceKey = "AlexYanggg.DSHPlayer2/companion-name";
     private const string CompanionChoiceIdPrefix = "dsh-player2-companion-";
+    /// <summary>Ticks of a frozen world before the turn in flight is stopped; the goal stays.</summary>
+    private const int PauseCancelTicks = 180;
+    private const int ResumeTicks = 30;
 
     private ModConfig config = new();
-    private DshProcessSupervisor supervisor = null!;
-    private DecisionBridgeHost? bridgeHost;
+    private BodyAdapter body = null!;
+    private GameMcpServer mcp = null!;
+    private DshCompanion dsh = null!;
     private ChatTranscript? transcript;
-    private DecisionTurnEnvelope? activeBridgeTurn;
-    private BridgeActionRequest? activeBridgeRequest;
-    private BridgeActionRequest? pendingBridgeRequest;
-    private Player2Proposal? pendingBridgeProposal;
-    private Player2Proposal? activeProposal;
-    private WorldSnapshot? pendingChoiceSnapshot;
-    private WorldSnapshot? pendingAppearanceSnapshot;
+    private bool choicePending;
+    private bool dayPending;
     private bool appearanceCustomizationRequested;
     private CharacterCustomization? activeAppearanceMenu;
     private CompanionAppearance? playerAppearanceBeforeCustomization;
@@ -46,83 +41,58 @@ internal sealed class ModEntry : Mod
     private string? playerDisplayNameBeforeCustomization;
     private string? playerFavoriteThingBeforeCustomization;
     private bool playerCustomizedBeforeCustomization;
-    private SocialBridgeHost? socialBridgeHost;
-    private readonly ChatInputQueue chatQueue = new();
-    private int socialTurnCounter;
-    private WorldSnapshot? pendingDaySnapshot;
-    private CompanionChoice? pendingDayCompanion;
-    private string? pendingSocialMessage;
-    private string? pendingSocialId;
-    private DateTimeOffset? pendingDayDeadline;
-    private DateTimeOffset? pendingSocialDeadline;
     private bool chatHintPending;
-    private string? movementTraceId;
-    private string? movementLatencyKey;
-    private BridgeGrowthAsset? growthAsset;
-    private string? pendingGreetingId;
-    private CompanionChoice? pendingGreetingCompanion;
-    private string? socialLatencyLane;
-    private string? socialLatencyKey;
-    private bool socialPublishedTraced;
-    private string? mouthWarmupSession;
-    private string? mouthWarmupRequestedAt;
-    private int mouthReadinessCountdown;
-    private bool bundleReadyTraced;
-    private BodyAdapter body = null!;
+    private bool dayOpen;
+    private int lastWorldTick;
+    private int pausedTicks;
+    private int runningTicks;
+    private bool cancelledForPause;
 
-    /// <summary>Registers the first semantic game event used by Player2.</summary>
-    /// <param name="helper">The SMAPI helper for the loaded mod.</param>
     public override void Entry(IModHelper helper)
     {
         this.config = helper.ReadConfig<ModConfig>();
-        this.Monitor.Log("Player2 native companion with the B-line body lane: raw state export and raw input (P2-0021).", LogLevel.Info);
-        this.config.ValidateRequiredCompanionSouls();
-        var configChanged = false;
-        // Old config files predate the DSH-owned default.  Migrate them once
-        // instead of presenting a false "not configured" state.
         if (string.IsNullOrWhiteSpace(this.config.DecisionBridgeDirectory))
         {
             this.config.DecisionBridgeDirectory = ModConfig.DefaultBridgeDirectory();
-            configChanged = true;
-        }
-        if (configChanged)
-        {
             helper.WriteConfig(this.config);
         }
-        this.TryMigrateLegacyBridgeLayout();
-        this.TraceLatency("readiness", "bundle", "mod-entry");
-        this.body = new BodyAdapter(this.Monitor, () => ReceiptRenderer.ActiveCompanion, () => this.config.AllowCheatCapabilities, this.OnBodySpeech);
-        this.supervisor = new DshProcessSupervisor(this.config, this.Monitor);
-        this.supervisor.EnsureStarted();
+        var channel = new BodyChannel();
+        this.mcp = new GameMcpServer(channel.Tools());
+        this.mcp.Start();
+        this.dsh = new DshCompanion(this.Monitor, this.config, this.mcp.McpServerEntry());
+        this.body = new BodyAdapter(this.Monitor, channel, () => CompanionPresence.ActiveCompanion, () => this.config.AllowCheatCapabilities);
+        this.Monitor.Log($"Player2 companion: DSH acp profile for the mind, game endpoint on port {this.mcp.Port} for the hands.", LogLevel.Info);
         helper.Events.GameLoop.DayStarted += this.OnDayStarted;
         helper.Events.GameLoop.DayEnding += this.OnDayEnding;
         helper.Events.GameLoop.GameLaunched += this.OnGameLaunched;
         helper.Events.GameLoop.UpdateTicked += this.OnUpdateTicked;
         helper.Events.GameLoop.ReturnedToTitle += this.OnReturnedToTitle;
         helper.Events.Input.ButtonPressed += this.OnButtonPressed;
-        ReceiptRenderer.ResolveName = this.ResolveCompanionName;
-        ReceiptRenderer.MovementReport = this.OnMovementReported;
-        helper.Events.GameLoop.Saving += (_, _) => ReceiptRenderer.DetachForSave();
-        helper.Events.GameLoop.Saved += (_, _) => ReceiptRenderer.RestoreAfterSave();
+        CompanionPresence.ResolveName = this.ResolveCompanionName;
+        CompanionPresence.MovementReport = this.OnMovementReported;
+        helper.Events.GameLoop.Saving += (_, _) => CompanionPresence.DetachForSave();
+        helper.Events.GameLoop.Saved += (_, _) => CompanionPresence.RestoreAfterSave();
         helper.Events.Player.Warped += (_, e) =>
         {
-            if (!e.IsLocalPlayer)
+            if (!e.IsLocalPlayer) return;
+            if (CompanionPresence.ActiveCompanion?.Following == true)
             {
-                return;
+                if (!CompanionPresence.ActiveCompanion.Command("follow")) this.OnMovementReported("failed", "path-blocked");
             }
-            if (ReceiptRenderer.ActiveCompanion?.Following == true)
-            {
-                if (!ReceiptRenderer.ActiveCompanion.Command("follow")) this.OnMovementReported("failed", "path-blocked");
-            }
-            else if (ReceiptRenderer.ActiveCompanion is null && CompanionAppearanceStore.Load(Game1.player, this.Monitor) is { } appearance)
+            else if (CompanionPresence.ActiveCompanion is null && CompanionAppearanceStore.Load(Game1.player, this.Monitor) is { } appearance)
             {
                 this.EnsureCompanionPresent(appearance, "player warp retry");
             }
         };
-        AppDomain.CurrentDomain.ProcessExit += this.OnProcessExit;
+        AppDomain.CurrentDomain.ProcessExit += (_, _) =>
+        {
+            this.dsh.Dispose();
+            this.mcp.Dispose();
+        };
     }
 
-    /// <summary>Opens the text-only companion input without blocking the game loop on a model response.</summary>
+    private static int GameDay => Game1.Date.TotalDays + 1;
+
     private void OnButtonPressed(object? sender, ButtonPressedEventArgs e)
     {
         if (Context.IsWorldReady && e.Button == this.config.CustomizeCompanionKey)
@@ -133,62 +103,38 @@ internal sealed class ModEntry : Mod
                 Game1.addHUDMessage(new HUDMessage(this.T("appearance.choose-first")));
                 return;
             }
-            this.RequestCompanionCustomization(null);
+            this.appearanceCustomizationRequested = true;
             return;
         }
-        if (Context.IsWorldReady && e.Button == this.config.RetryDayKey)
-        {
-            this.TryRetryCompanionDay();
-            return;
-        }
-        if (e.Button != this.config.ChatKey || !Context.IsWorldReady)
-        {
-            return;
-        }
+        if (e.Button != this.config.ChatKey || !Context.IsWorldReady) return;
         if (Game1.activeClickableMenu is CompanionChatMenu chatMenu)
         {
             this.Helper.Input.Suppress(e.Button);
             chatMenu.exitThisMenu();
             return;
         }
-        if (!Context.IsPlayerFree || Game1.activeClickableMenu is not null)
-        {
-            return;
-        }
-        // The social lane has exactly one tenant: the host farmer. A farmhand
-        // client never pumps the social bridge, so its turns would hang until
-        // the timeout; refuse up front instead of half-working.
+        if (!Context.IsPlayerFree || Game1.activeClickableMenu is not null) return;
         if (!Context.IsMainPlayer)
         {
             Game1.addHUDMessage(new HUDMessage(this.T("chat.host-only")));
-            this.Monitor.Log("Player2 refused a farmhand social turn; only the main player owns the social lane.", LogLevel.Info);
             return;
         }
-
         this.transcript ??= CompanionTranscriptStore.Load(this.Helper, this.Monitor);
         Game1.activeClickableMenu = new CompanionChatMenu(
             this.transcript,
             Game1.player.Name,
-            this.OnSocialMessageSubmitted,
-            this.IsSocialTurnPending,
+            this.OnChatSubmitted,
+            () => this.dsh.IsReplying,
             this.T("chat.title", new { name = this.ResolveCompanionName() }),
             key => this.T(key));
     }
 
-    /// <summary>Resolves one SMAPI translation key for the current game language.</summary>
-    private string T(string key, object? tokens = null)
-    {
-        return this.Helper.Translation.Get(key, tokens).ToString();
-    }
+    private string T(string key, object? tokens = null) => this.Helper.Translation.Get(key, tokens).ToString();
 
     private void OnGameLaunched(object? sender, GameLaunchedEventArgs e)
     {
         var menu = this.Helper.ModRegistry.GetApi<IGenericModConfigMenuApi>("spacechase0.GenericModConfigMenu");
-        if (menu is null)
-        {
-            this.Monitor.Log("Generic Mod Config Menu is not installed; Player2 settings remain available through config.json and hotkeys.", LogLevel.Info);
-            return;
-        }
+        if (menu is null) return;
         menu.Register(
             this.ModManifest,
             reset: () =>
@@ -196,64 +142,256 @@ internal sealed class ModEntry : Mod
                 var defaults = new ModConfig();
                 this.config.AllowCheatCapabilities = defaults.AllowCheatCapabilities;
                 this.config.ChatKey = defaults.ChatKey;
-                this.config.RetryDayKey = defaults.RetryDayKey;
                 this.config.CustomizeCompanionKey = defaults.CustomizeCompanionKey;
             },
             save: () => this.Helper.WriteConfig(this.config));
         menu.AddSectionTitle(this.ModManifest, () => this.T("config.permissions.title"));
-        menu.AddBoolOption(
-            this.ModManifest,
-            () => this.config.AllowCheatCapabilities,
-            value => this.config.AllowCheatCapabilities = value,
-            () => this.T("config.allow-cheats.name"),
-            () => this.T("config.allow-cheats.tooltip"),
-            "allow-cheat-capabilities");
+        menu.AddBoolOption(this.ModManifest, () => this.config.AllowCheatCapabilities, value => this.config.AllowCheatCapabilities = value,
+            () => this.T("config.allow-cheats.name"), () => this.T("config.allow-cheats.tooltip"), "allow-cheat-capabilities");
         menu.AddParagraph(this.ModManifest, () => this.T("config.allow-cheats.note"));
         menu.AddSectionTitle(this.ModManifest, () => this.T("config.controls.title"));
-        menu.AddKeybind(
-            this.ModManifest,
-            () => this.config.ChatKey,
-            value => this.config.ChatKey = value,
-            () => this.T("config.chat-key.name"),
-            () => this.T("config.chat-key.tooltip"),
-            "chat-key");
-        menu.AddKeybind(
-            this.ModManifest,
-            () => this.config.RetryDayKey,
-            value => this.config.RetryDayKey = value,
-            () => this.T("config.retry-key.name"),
-            () => this.T("config.retry-key.tooltip"),
-            "retry-day-key");
-        menu.AddKeybind(
-            this.ModManifest,
-            () => this.config.CustomizeCompanionKey,
-            value => this.config.CustomizeCompanionKey = value,
-            () => this.T("config.customize-key.name"),
-            () => this.T("config.customize-key.tooltip"),
-            "customize-companion-key");
+        menu.AddKeybind(this.ModManifest, () => this.config.ChatKey, value => this.config.ChatKey = value,
+            () => this.T("config.chat-key.name"), () => this.T("config.chat-key.tooltip"), "chat-key");
+        menu.AddKeybind(this.ModManifest, () => this.config.CustomizeCompanionKey, value => this.config.CustomizeCompanionKey = value,
+            () => this.T("config.customize-key.name"), () => this.T("config.customize-key.tooltip"), "customize-companion-key");
     }
 
-    private void RequestCompanionCustomization(WorldSnapshot? resumeDay)
+    // ---- the day and the mind -------------------------------------------------
+
+    private void OnDayStarted(object? sender, DayStartedEventArgs e)
     {
-        if (this.activeAppearanceMenu is not null || this.appearanceCustomizationRequested)
+        if (!Context.IsMainPlayer) return;
+        if (this.ResolveCompanionChoice() is null)
         {
+            if (this.config.CompanionChoices.Count == 0)
+                this.config.CompanionChoices.Add(CompanionChoice.CreateWithDefaultSoul("Mira", "the player's candid farm partner"));
+            this.choicePending = true;
+            this.dayPending = true;
             return;
         }
-        this.pendingAppearanceSnapshot = resumeDay;
+        if (CompanionAppearanceStore.Load(Game1.player, this.Monitor) is not { } appearance)
+        {
+            this.appearanceCustomizationRequested = true;
+            this.dayPending = true;
+            return;
+        }
+        this.EnsureCompanionPresent(appearance, "day start");
+        this.StartCompanionDay();
+    }
+
+    /// <summary>Opens the save's DSH session and tells the companion a new day began.</summary>
+    private void StartCompanionDay()
+    {
+        this.dayPending = false;
+        if (this.ResolveCompanionChoice() is not { } companion) return;
+        var session = SessionLayout.SessionDirectory(this.config.DecisionBridgeDirectory, companion.Name, SessionLayout.SaveId(Game1.uniqueIDForThisGame));
+        try
+        {
+            this.body.Attach(session);
+            this.dsh.OpenSave(companion, session);
+        }
+        catch (Exception ex)
+        {
+            this.ReportFailure("DSH_START_FAILED", ex.Message);
+            return;
+        }
+        this.dayOpen = true;
+        this.cancelledForPause = false;
+        this.chatHintPending = true;
+        this.Send($"[day-start day={GameDay}]");
+    }
+
+    private void OnDayEnding(object? sender, DayEndingEventArgs e)
+    {
+        if (Context.IsMainPlayer && this.dayOpen) this.Send($"[day-end day={GameDay}]");
+    }
+
+    private bool OnChatSubmitted(string message)
+    {
+        var transcript = this.transcript ??= new ChatTranscript();
+        transcript.Append(Game1.player.Name, message);
+        CompanionTranscriptStore.Save(this.Helper, transcript, this.Monitor);
+        if (CompanionMovement.ParseCommand(message) is { } command)
+        {
+            // The player's own movement command takes the body back, like grabbing the controller:
+            // the goal round in flight stops (DSH pauses the goal) and the command is the next turn.
+            this.body.CancelActive($"player-command:{command}");
+            this.dsh.Cancel();
+            this.cancelledForPause = false;
+            if (!CompanionPresence.Command(command, CompanionAppearanceStore.Load(Game1.player, this.Monitor), this.Monitor))
+                this.OnMovementReported("failed", "path-blocked");
+        }
+        if (!this.dayOpen) this.StartCompanionDay();
+        this.Send($"[chat day={GameDay}] {message}");
+        return true;
+    }
+
+    /// <summary>Sends one prompt; a session lost to a DSH exit is reopened once.</summary>
+    private void Send(string prompt)
+    {
+        this.Monitor.Log($"Player2 sent: {prompt}", LogLevel.Trace);
+        if (this.dsh.Send(prompt)) return;
+        if (this.ResolveCompanionChoice() is { } companion && this.body.SessionRoot is { } session)
+        {
+            try
+            {
+                this.dsh.OpenSave(companion, session);
+                if (this.dsh.Send(prompt)) return;
+            }
+            catch (Exception ex)
+            {
+                this.ReportFailure("DSH_START_FAILED", ex.Message);
+                return;
+            }
+        }
+        this.ReportFailure("DSH_NOT_RUNNING", "the companion's DSH session is not open");
+    }
+
+    /// <summary>
+    /// A frozen world (menu, event, unfocused window) stops the turn in flight;
+    /// DSH pauses the goal instead of failing it, and the game resumes it once
+    /// the world runs again.
+    /// </summary>
+    private void TrackPause()
+    {
+        var paused = Game1.ticks == this.lastWorldTick || !(Game1.activeClickableMenu is null && !Game1.eventUp && Game1.shouldTimePass());
+        this.lastWorldTick = Game1.ticks;
+        if (paused)
+        {
+            this.runningTicks = 0;
+            // Goal rounds run inside DSH without a prompt, so the stop is sent whether or not a reply is
+            // pending; a chat reply is still wanted while the chat window is open. [resume] costs no model call.
+            if (++this.pausedTicks == PauseCancelTicks && Game1.activeClickableMenu is not CompanionChatMenu)
+            {
+                this.dsh.Cancel();
+                this.cancelledForPause = true;
+            }
+            return;
+        }
+        this.pausedTicks = 0;
+        if (this.cancelledForPause && ++this.runningTicks >= ResumeTicks)
+        {
+            this.cancelledForPause = false;
+            this.Send("[resume]");
+        }
+    }
+
+    private void ShowEvents()
+    {
+        foreach (var item in this.dsh.Drain())
+        {
+            if (item.Kind == AcpClient.TurnEnded) this.Monitor.Log($"Player2 turn ended: {item.Text}", LogLevel.Trace);
+            switch (item.Kind)
+            {
+                case AcpClient.Said:
+                    this.Say(item.Text);
+                    break;
+                case AcpClient.TurnEnded when item.Text.StartsWith("error:", StringComparison.Ordinal):
+                    this.ReportFailure("DSH_TURN_FAILED", item.Text["error:".Length..].Trim());
+                    break;
+                case "failed":
+                    this.ReportFailure("DSH_TURN_FAILED", item.Text);
+                    break;
+                case AcpClient.Exited:
+                    this.ReportFailure("DSH_EXITED", item.Text);
+                    break;
+            }
+        }
+    }
+
+    /// <summary>What the companion says: above its head when the player can see it, else on the HUD.</summary>
+    private void Say(string text)
+    {
+        var name = this.ResolveCompanionName();
+        this.Monitor.Log($"Player2 companion said: {text}", LogLevel.Trace);
+        var transcript = this.transcript ??= CompanionTranscriptStore.Load(this.Helper, this.Monitor);
+        transcript.Append(name, text);
+        CompanionTranscriptStore.Save(this.Helper, transcript, this.Monitor);
+        if (Game1.activeClickableMenu is CompanionChatMenu) return;
+        if (CompanionPresence.ActiveCompanion is { } actor && actor.currentLocation == Game1.currentLocation)
+            actor.showTextAboveHead(text.Length > 120 ? text[..117] + "..." : text, duration: 4000);
+        else
+            Game1.addHUDMessage(new HUDMessage($"{name}: {text}"));
+    }
+
+    private void ReportFailure(string code, string detail)
+    {
+        this.Monitor.Log($"Player2 {code}: {detail}", LogLevel.Error);
+        Game1.addHUDMessage(new HUDMessage(this.T("error.native-dsh", new { code, detail })));
+    }
+
+    private void OnUpdateTicked(object? sender, UpdateTickedEventArgs e)
+    {
+        if (!Context.IsWorldReady || !Context.IsMainPlayer) return;
+        this.body.OnTick();
+        if (this.activeAppearanceMenu is not null && !ReferenceEquals(Game1.activeClickableMenu, this.activeAppearanceMenu))
+            this.CompleteCompanionCustomization();
+        if (this.choicePending && Context.IsPlayerFree && Game1.activeClickableMenu is null) this.ShowCompanionChoice();
+        this.TryOpenCompanionCustomization();
+        if (this.chatHintPending && Context.IsPlayerFree && Game1.activeClickableMenu is null)
+        {
+            this.chatHintPending = false;
+            Game1.addHUDMessage(new HUDMessage(this.T("chat.hint", new { key = this.config.ChatKey.ToString() })));
+        }
+        if (this.dayOpen) this.TrackPause();
+        this.ShowEvents();
+    }
+
+    private void OnReturnedToTitle(object? sender, ReturnedToTitleEventArgs e)
+    {
+        this.body.Detach("returned-to-title");
+        this.dsh.Stop();
+        CompanionPresence.ClearPresence();
+        if (this.activeAppearanceMenu is not null)
+        {
+            this.RestorePlayerAfterCustomization();
+            this.activeAppearanceMenu = null;
+        }
+        this.appearanceCustomizationRequested = false;
+        this.choicePending = false;
+        this.dayPending = false;
+        this.dayOpen = false;
+        this.chatHintPending = false;
+        this.cancelledForPause = false;
+        this.transcript = null;
+    }
+
+    // ---- who the companion is and how it looks --------------------------------
+
+    private CompanionChoice? ResolveCompanionChoice()
+    {
+        if (!Game1.player.modData.TryGetValue(CompanionChoiceKey, out var stored) || string.IsNullOrWhiteSpace(stored)) return null;
+        return this.config.CompanionChoices.FirstOrDefault(candidate => string.Equals(candidate.Name, stored, StringComparison.OrdinalIgnoreCase))
+            ?? CompanionChoice.CreateWithDefaultSoul(stored, this.T("companion.role.fallback"));
+    }
+
+    private string ResolveCompanionName() => this.ResolveCompanionChoice()?.Name ?? "Player2";
+
+    private void ShowCompanionChoice()
+    {
+        this.choicePending = false;
+        var choices = this.config.CompanionChoices
+            .OrderByDescending(choice => string.Equals(choice.Name, this.config.CompanionName, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        this.config.CompanionChoices = choices;
+        var responses = choices.Select((choice, index) => new Response(CompanionChoiceIdPrefix + index, choice.Name)).ToArray();
+        Game1.currentLocation.createQuestionDialogue(this.T("companion.choice.title"), responses, this.OnCompanionChosen);
+    }
+
+    private void OnCompanionChosen(Farmer farmer, string answer)
+    {
+        var index = answer.StartsWith(CompanionChoiceIdPrefix, StringComparison.Ordinal) &&
+            int.TryParse(answer[CompanionChoiceIdPrefix.Length..], out var parsed) ? parsed : -1;
+        var choice = index >= 0 && index < this.config.CompanionChoices.Count ? this.config.CompanionChoices[index] : this.config.CompanionChoices[0];
+        Game1.player.modData[CompanionChoiceKey] = choice.Name;
+        Game1.addHUDMessage(new HUDMessage(this.T("companion.chosen", new { name = choice.Name })));
         this.appearanceCustomizationRequested = true;
-        this.Monitor.Log("Player2 queued Stardew Valley's native character customization for the companion.", LogLevel.Info);
     }
 
     private void TryOpenCompanionCustomization()
     {
-        if (!this.appearanceCustomizationRequested ||
-            this.activeAppearanceMenu is not null ||
-            !Context.IsPlayerFree ||
-            Game1.activeClickableMenu is not null)
-        {
+        if (!this.appearanceCustomizationRequested || this.activeAppearanceMenu is not null || !Context.IsPlayerFree || Game1.activeClickableMenu is not null)
             return;
-        }
-
         var player = Game1.player;
         this.playerAppearanceBeforeCustomization = CompanionAppearance.Capture(player);
         this.previousCompanionAppearance = CompanionAppearanceStore.Load(player, this.Monitor);
@@ -263,6 +401,7 @@ internal sealed class ModEntry : Mod
         this.playerDisplayNameBeforeCustomization = player.displayName;
         this.playerFavoriteThingBeforeCustomization = player.favoriteThing.Value;
         this.playerCustomizedBeforeCustomization = player.isCustomized.Value;
+        this.appearanceCustomizationRequested = false;
         try
         {
             // The vanilla menu edits Game1.player. Temporarily present the
@@ -271,59 +410,28 @@ internal sealed class ModEntry : Mod
             player.pantsItem.Value = null;
             (this.previousCompanionAppearance ?? this.playerAppearanceBeforeCustomization).Apply(player);
             var menu = new CharacterCustomization(CharacterCustomization.Source.Wizard);
-            menu.exitFunction = () => this.CompleteCompanionCustomization(save: true);
+            menu.exitFunction = this.CompleteCompanionCustomization;
             this.activeAppearanceMenu = menu;
-            this.appearanceCustomizationRequested = false;
             Game1.activeClickableMenu = menu;
         }
         catch (Exception ex)
         {
             this.RestorePlayerAfterCustomization();
-            this.appearanceCustomizationRequested = false;
             this.Monitor.Log($"Player2 could not open native companion customization: {ex.Message}", LogLevel.Error);
             Game1.addHUDMessage(new HUDMessage(this.T("appearance.failed")));
         }
     }
 
-    private void CompleteAppearanceIfMenuWasClosed()
+    private void CompleteCompanionCustomization()
     {
-        if (this.activeAppearanceMenu is not null && !ReferenceEquals(Game1.activeClickableMenu, this.activeAppearanceMenu))
-        {
-            this.CompleteCompanionCustomization(save: true);
-        }
-    }
-
-    private void CompleteCompanionCustomization(bool save)
-    {
-        if (this.activeAppearanceMenu is null)
-        {
-            return;
-        }
-        var customized = save ? CompanionAppearance.Capture(Game1.player) : null;
+        if (this.activeAppearanceMenu is null) return;
+        var customized = CompanionAppearance.Capture(Game1.player);
         this.RestorePlayerAfterCustomization();
         this.activeAppearanceMenu = null;
-        if (customized is not null)
-        {
-            CompanionAppearanceStore.Save(Game1.player, customized);
-            this.EnsureCompanionPresent(customized, "appearance customization");
-            Game1.addHUDMessage(new HUDMessage(this.T("appearance.saved", new { name = this.ResolveCompanionName() })));
-            this.Monitor.Log($"Player2 saved the vanilla farmer appearance for companion {this.ResolveCompanionName()}.", LogLevel.Info);
-        }
-        var snapshot = this.pendingAppearanceSnapshot;
-        this.pendingAppearanceSnapshot = null;
-        if (customized is not null && snapshot is not null && this.ResolveCompanionChoice() is { } companion)
-        {
-            this.StartCompanionDay(snapshot, companion);
-        }
-    }
-
-    private void CancelAppearanceCustomization()
-    {
-        if (this.activeAppearanceMenu is not null)
-        {
-            this.RestorePlayerAfterCustomization();
-            this.activeAppearanceMenu = null;
-        }
+        CompanionAppearanceStore.Save(Game1.player, customized);
+        this.EnsureCompanionPresent(customized, "appearance customization");
+        Game1.addHUDMessage(new HUDMessage(this.T("appearance.saved", new { name = this.ResolveCompanionName() })));
+        if (this.dayPending) this.StartCompanionDay();
     }
 
     private void RestorePlayerAfterCustomization()
@@ -337,10 +445,7 @@ internal sealed class ModEntry : Mod
             player.Name = this.playerNameBeforeCustomization;
             player.displayName = this.playerDisplayNameBeforeCustomization ?? this.playerNameBeforeCustomization;
         }
-        if (this.playerFavoriteThingBeforeCustomization is not null)
-        {
-            player.favoriteThing.Value = this.playerFavoriteThingBeforeCustomization;
-        }
+        if (this.playerFavoriteThingBeforeCustomization is not null) player.favoriteThing.Value = this.playerFavoriteThingBeforeCustomization;
         player.isCustomized.Value = this.playerCustomizedBeforeCustomization;
         player.FarmerRenderer.MarkSpriteDirty();
         this.playerAppearanceBeforeCustomization = null;
@@ -352,1175 +457,16 @@ internal sealed class ModEntry : Mod
         this.playerFavoriteThingBeforeCustomization = null;
     }
 
+    private void EnsureCompanionPresent(CompanionAppearance appearance, string context)
+    {
+        if (!CompanionPresence.EnsurePresent(appearance, this.Monitor, out _))
+            this.Monitor.Log($"Player2 could not place the companion on a walkable tile during {context}; it retries after a warp or a movement command.", LogLevel.Warn);
+    }
+
     private void OnMovementReported(string status, string detail)
     {
-        if (this.movementLatencyKey is { } latencyKey)
-        {
-            var stage = status switch
-            {
-                "started" => "motion-started",
-                "completed" when detail == "stopped" => "motion-started",
-                "completed" => "arrived",
-                _ => "motion-failed",
-            };
-            this.TraceLatency("command", latencyKey, stage, null, detail);
-            if (stage != "motion-started") this.movementLatencyKey = null;
-        }
-        var trace = this.movementTraceId ?? "presence";
-        this.AppendDevelopmentLog("COMPANION_MOVEMENT_" + status.ToUpperInvariant(), detail, trace);
-        this.Monitor.Log($"Player2 native companion movement {status}: {detail}; trace={trace}.", status == "failed" ? LogLevel.Warn : LogLevel.Info);
+        this.Monitor.Log($"Player2 companion movement {status}: {detail}.", status == "failed" ? LogLevel.Warn : LogLevel.Trace);
         if (status != "started")
             Game1.addHUDMessage(new HUDMessage(this.T("movement." + detail, new { name = this.ResolveCompanionName() })));
-    }
-
-    /// <summary>
-    /// Grants a same-day retry entry after a failed day turn. A day whose
-    /// receipt recorded a completed shared outcome never retries; the
-    /// consent flow itself always stays in place.
-    /// </summary>
-    private void TryRetryCompanionDay()
-    {
-        if (!Context.IsMainPlayer || !Context.IsPlayerFree || Game1.activeClickableMenu is not null)
-        {
-            return;
-        }
-        var gameDay = Game1.Date.TotalDays + 1;
-        if (this.pendingDaySnapshot is not null || this.activeBridgeTurn is not null || this.pendingBridgeRequest is not null)
-        {
-            this.Monitor.Log("Player2 day turn retry ignored; a turn is already in flight.", LogLevel.Info);
-            return;
-        }
-        if (!CompanionSettlementStore.IsGameDaySettled(new ModDataState(Game1.player.modData), gameDay))
-        {
-            this.Monitor.Log("Player2 day turn retry ignored; today's turn is not settled, so it is still running or was never started.", LogLevel.Info);
-            return;
-        }
-        var outcome = this.ReadState<SharedOutcome>(Game1.player, Player2Rules.LastSharedOutcomeStateKey);
-        if (outcome?.Version == Player2Rules.StateVersion && outcome.Day == Game1.Date.TotalDays && outcome.Status == "completed")
-        {
-            Game1.addHUDMessage(new HUDMessage(this.T("retry.completed", new { day = gameDay })));
-            return;
-        }
-        CompanionSettlementStore.ClearSettlement(new ModDataState(Game1.player.modData));
-        var snapshot = WorldSnapshotBuilder.Capture();
-        var companion = this.ResolveCompanionChoice();
-        if (companion is null)
-        {
-            this.ShowCompanionChoice(snapshot);
-            return;
-        }
-        if (CompanionAppearanceStore.Load(Game1.player, this.Monitor) is null)
-        {
-            this.RequestCompanionCustomization(snapshot);
-            return;
-        }
-        this.Monitor.Log($"Player2 retry entry re-opens the settled game day {gameDay} after a non-completed outcome.", LogLevel.Info);
-        this.QueueCompanionDay(snapshot, companion);
-    }
-
-    /// <summary>
-    /// Publishes one message to native DSH; this host never invents a reply.
-    /// An explicit movement command is the player's own grant, so it starts at
-    /// submit time, concurrently with (and never waiting on) the DSH reply.
-    /// </summary>
-    private bool OnSocialMessageSubmitted(string message)
-    {
-        var submittedAt = DateTimeOffset.UtcNow;
-        var transcript = this.transcript ??= new ChatTranscript();
-        var command = CompanionMovement.ParseCommand(message);
-        if (command is not null)
-        {
-            this.StartMovementCommand(command, submittedAt);
-        }
-        if (this.IsSocialTurnPending())
-        {
-            if (command is not null)
-            {
-                transcript.Append(Game1.player.Name, message);
-                CompanionTranscriptStore.Save(this.Helper, transcript, this.Monitor);
-                this.Monitor.Log("Player2 started the movement command; no new DSH reply was requested because one is still pending.", LogLevel.Info);
-                return true;
-            }
-            // P2-0016: a line sent while a reply is pending waits its turn in
-            // order instead of being refused; only a full queue keeps the draft.
-            if (this.chatQueue.TryEnqueue(message, submittedAt) is { } queued)
-            {
-                transcript.Append(Game1.player.Name, message);
-                CompanionTranscriptStore.Save(this.Helper, transcript, this.Monitor);
-                this.TraceLatency("social", queued.Id, "key-enter", submittedAt);
-                this.Monitor.Log($"Player2 queued chat line social:{queued.Id} behind the pending reply ({this.chatQueue.Count} waiting).", LogLevel.Info);
-                return true;
-            }
-            Game1.addHUDMessage(new HUDMessage(this.T("chat.waiting")));
-            this.Monitor.Log("Player2 kept the unsent chat draft because the chat queue is full.", LogLevel.Info);
-            return false;
-        }
-        transcript.Append(Game1.player.Name, message);
-        CompanionTranscriptStore.Save(this.Helper, transcript, this.Monitor);
-        var id = Guid.NewGuid().ToString();
-        this.TraceLatency("social", id, "key-enter", submittedAt);
-        if (!this.supervisor.IsReady)
-        {
-            this.pendingSocialMessage = message;
-            this.pendingSocialId = id;
-            this.pendingSocialDeadline = DateTimeOffset.UtcNow + this.config.EffectiveDshStartupTimeout();
-            Game1.addHUDMessage(new HUDMessage(this.T("chat.starting")));
-            this.Monitor.Log("Player2 queued the chat message while the native DSH bundle finishes loading.", LogLevel.Info);
-            return true;
-        }
-        this.PublishSocialTurn(message, id, occasion: null);
-        return true;
-    }
-
-    /// <summary>Starts one explicit movement command now (P2-0015 T0.2) and arms its latency trace.</summary>
-    private void StartMovementCommand(string command, DateTimeOffset submittedAt)
-    {
-        var key = Guid.NewGuid().ToString("N");
-        this.movementTraceId = $"command:{key}";
-        this.movementLatencyKey = key;
-        this.TraceLatency("command", key, "key-enter", submittedAt, command);
-        // The player's own movement command takes the body back from any running input;
-        // "stay" also stops the goal the companion is pursuing (P2-0021).
-        this.body.CancelActive($"player-command:{command}");
-        if (command == "stay" && this.body.SessionRoot is { } goalSession)
-        {
-            try
-            {
-                new BodyBridgeFiles(goalSession).WriteGoalInterrupt(command, submittedAt);
-            }
-            catch (Exception ex)
-            {
-                this.Monitor.Log($"Player2 could not forward the stop command to the goal lane: {ex.Message}", LogLevel.Warn);
-            }
-        }
-        if (!ReceiptRenderer.Command(command, CompanionAppearanceStore.Load(Game1.player, this.Monitor), this.Monitor))
-            this.OnMovementReported("failed", "path-blocked");
-    }
-
-    /// <summary>Receipt-backed social memory; a damaged receipt is counted, never blocks the chat.</summary>
-    private SocialMemoryContext LoadSocialMemory(string sessionRoot, int currentDay)
-    {
-        try
-        {
-            var memory = SocialMemory.Load(sessionRoot, this.ReadState<SharedOutcome>(Game1.player, Player2Rules.LastSharedOutcomeStateKey), currentDay);
-            if (memory.SkippedReceipts > 0)
-            {
-                this.Monitor.Log($"Player2 skipped {memory.SkippedReceipts} unreadable receipt file(s) while building chat memory.", LogLevel.Warn);
-                this.AppendDevelopmentLog("SOCIAL_MEMORY_RECEIPTS_SKIPPED", $"{memory.SkippedReceipts} receipt file(s) were unreadable and skipped.", "memory");
-            }
-            return memory;
-        }
-        catch (Exception ex)
-        {
-            this.Monitor.Log($"Player2 sent the chat turn without memory because the receipts could not be listed: {ex.Message}", LogLevel.Warn);
-            return SocialMemoryContext.Empty;
-        }
-    }
-
-    /// <summary>
-    /// Applies the growth proposals DSH left since the last day (decision reflect
-    /// and day-end dream) and caches the asset every envelope carries. A refused
-    /// proposal is a traced development error and stays on disk as evidence.
-    /// </summary>
-    private void RefreshCompanionGrowth(CompanionChoice companion)
-    {
-        try
-        {
-            var intake = CompanionGrowthIntake.ConsumePendingAsync(this.SessionBridgeRoot(companion)).GetAwaiter().GetResult();
-            this.growthAsset = intake.Asset;
-            foreach (var error in intake.Errors)
-            {
-                this.Monitor.Log($"Player2 refused a growth proposal: {error}", LogLevel.Warn);
-                this.AppendDevelopmentLog("GROWTH_PROPOSAL_REFUSED", error, "growth");
-            }
-            if (intake.Applied > 0)
-            {
-                this.Monitor.Log($"Player2 applied {intake.Applied} growth proposal(s); growth revision is now {intake.Asset?.Revision ?? 0}.", LogLevel.Info);
-            }
-        }
-        catch (Exception ex)
-        {
-            this.growthAsset = null;
-            this.Monitor.Log($"Player2 could not read the companion growth asset: {ex.Message}", LogLevel.Error);
-            this.AppendDevelopmentLog("GROWTH_ASSET_UNREADABLE", ex.Message, "growth");
-        }
-    }
-
-    /// <summary>Asks DSH to pre-compose this session's social lane (graded readiness, P2-0015 T0.4).</summary>
-    private void RequestMouthWarmup(CompanionChoice companion)
-    {
-        try
-        {
-            var sessionRoot = this.SessionBridgeRoot(companion);
-            var request = MouthReadiness.WriteWarmupRequest(
-                sessionRoot,
-                new BridgeCompanionIdentity(companion.Name, companion.Role, ToBridgeSoul(companion)),
-                DecisionBridgeRules.TimestampNow());
-            this.mouthWarmupSession = sessionRoot;
-            this.mouthWarmupRequestedAt = request.RequestedAt;
-            this.mouthReadinessCountdown = 0;
-            this.TraceLatency("readiness", this.SessionLatencyKey(companion), "mouth-requested");
-        }
-        catch (Exception ex)
-        {
-            this.Monitor.Log($"Player2 could not request a DSH warm-up: {ex.Message}", LogLevel.Warn);
-        }
-    }
-
-    /// <summary>Logs bundle and mouth readiness once each; readiness is evidence, the heartbeat stays the gate.</summary>
-    private void PollGradedReadiness()
-    {
-        if (!this.bundleReadyTraced && this.supervisor.IsReady)
-        {
-            this.bundleReadyTraced = true;
-            this.TraceLatency("readiness", "bundle", "bundle-ready");
-        }
-        if (this.mouthWarmupSession is null || this.mouthWarmupRequestedAt is null)
-        {
-            return;
-        }
-        if (this.mouthReadinessCountdown-- > 0)
-        {
-            return;
-        }
-        this.mouthReadinessCountdown = Math.Clamp(this.config.PollIntervalTicks, 1, 600);
-        if (MouthReadiness.TryReadReady(this.mouthWarmupSession, this.mouthWarmupRequestedAt) is { } marker)
-        {
-            this.Monitor.Log($"Player2 companion mouth lane is ready ({marker.Mode}, composed in {marker.ComposeMs:0} ms).", LogLevel.Info);
-            this.TraceLatency("readiness", this.ResolveCompanionChoice() is { } companion ? this.SessionLatencyKey(companion) : "session", "mouth-ready-seen", null, marker.Mode);
-            this.mouthWarmupSession = null;
-            this.mouthWarmupRequestedAt = null;
-        }
-    }
-
-    private string SessionLatencyKey(CompanionChoice companion)
-    {
-        return $"{companion.Name}/{DecisionBridgeLayout.SaveId(Game1.uniqueIDForThisGame)}";
-    }
-
-    /// <summary>
-    /// The day's first line (P2-0015 T0.4): one tool-free social turn opened by
-    /// the game itself, published as soon as the bundle is alive and in
-    /// parallel with the consent proposal. A DSH failure is a traced error;
-    /// nothing local is ever shown in its place.
-    /// </summary>
-    private void TryPublishDayGreeting()
-    {
-        if (this.pendingGreetingId is null || this.pendingGreetingCompanion is null || !this.supervisor.IsReady || this.IsSocialTurnPending())
-        {
-            return;
-        }
-        var id = this.pendingGreetingId;
-        this.pendingGreetingId = null;
-        this.pendingGreetingCompanion = null;
-        this.PublishSocialTurn(SocialBridgeHost.DayStartMessage, id, SocialBridgeHost.DayStartOccasion);
-    }
-
-    /// <summary>
-    /// A line the companion chose to say while pursuing a goal (P2-0021): spoken
-    /// in the world when it is here, otherwise as a HUD line, and kept in the
-    /// chat transcript either way. The text is DSH-authored; nothing local is added.
-    /// </summary>
-    private void OnBodySpeech(string text)
-    {
-        var name = this.ResolveCompanionName();
-        if (ReceiptRenderer.ActiveCompanion is { } actor && actor.currentLocation == Game1.currentLocation)
-            actor.showTextAboveHead(text);
-        else
-            Game1.addHUDMessage(new HUDMessage($"{name}: {text}"));
-        var transcript = this.transcript ??= CompanionTranscriptStore.Load(this.Helper, this.Monitor);
-        transcript.Append(name, text);
-        CompanionTranscriptStore.Save(this.Helper, transcript, this.Monitor);
-        this.AppendDevelopmentLog("COMPANION_GOAL_SPEECH", text.Length > 200 ? text[..200] : text, "goal");
-    }
-
-    /// <summary>Same-clock latency stage (P2-0015 T0.1); diagnostics never break the game flow.</summary>
-    private void TraceLatency(string lane, string key, string stage, DateTimeOffset? at = null, string? detail = null)
-    {
-        if (string.IsNullOrWhiteSpace(this.config.DecisionBridgeDirectory))
-        {
-            return;
-        }
-        try
-        {
-            LatencyTrace.Append(this.config.DecisionBridgeDirectory, lane, key, stage, at ?? DateTimeOffset.UtcNow, detail);
-        }
-        catch (Exception ex)
-        {
-            this.Monitor.Log($"Player2 could not append latency trace {lane}/{stage}: {ex.Message}", LogLevel.Trace);
-        }
-    }
-
-    private bool IsSocialTurnPending()
-    {
-        return this.socialBridgeHost is not null || this.pendingSocialMessage is not null;
-    }
-
-    /// <summary>
-    /// Publishes the oldest queued chat line once nothing else is in flight
-    /// (P2-0016). The DSH social lane still sees exactly one turn at a time.
-    /// </summary>
-    private void TryPublishQueuedChat()
-    {
-        if (this.chatQueue.Count == 0 || !this.supervisor.IsReady || this.IsSocialTurnPending())
-        {
-            return;
-        }
-        if (this.chatQueue.TryDequeue() is { } next)
-        {
-            this.PublishSocialTurn(next.Message, next.Id, occasion: null);
-        }
-    }
-
-    /// <summary>
-    /// Publishes a social turn only after the DSH bundle heartbeat is fresh. A
-    /// chat turn carries the player's message; a day-start turn (occasion
-    /// <c>day-start</c>) carries only the fixed marker. Both carry the
-    /// receipt-backed memory and growth asset (P2-0015 T0.3).
-    /// </summary>
-    private void PublishSocialTurn(string message, string id, string? occasion)
-    {
-        if (string.IsNullOrWhiteSpace(this.config.DecisionBridgeDirectory))
-        {
-            this.ReportNativeDshFailure("DSH_NOT_CONFIGURED", "DecisionBridgeDirectory is empty; native DSH cannot receive this F2 turn.", null);
-            return;
-        }
-        var companion = this.ResolveCompanionChoice();
-        if (companion is null)
-        {
-            this.ReportNativeDshFailure("COMPANION_NOT_CREATED", "Create a companion before opening a DSH social turn.", null);
-            return;
-        }
-        var snapshot = WorldSnapshotBuilder.Capture();
-        var now = DecisionBridgeRules.TimestampNow();
-        var self = snapshot.Self ?? throw new InvalidOperationException("World snapshot was missing the farmer facts required for a social turn.");
-        var sessionRoot = this.SessionBridgeRoot(companion);
-        var memory = this.LoadSocialMemory(sessionRoot, snapshot.Day);
-        var actor = ReceiptRenderer.ActiveCompanion;
-        var presentHere = actor?.currentLocation == Game1.currentLocation;
-        var companionFacts = new NativeCompanionFacts(presentHere, actor?.currentLocation?.NameOrUniqueName,
-            actor?.MovementState ?? "absent", presentHere ? Microsoft.Xna.Framework.Vector2.Distance(actor!.Tile, Game1.player.Tile) : null);
-        var turn = new NativeSocialBridgeTurn(
-            "0.0.9", id, now, checked(snapshot.Day + 1), new NativeCompanionIdentity(companion.Name, companion.Role, ToBridgeSoul(companion)),
-            new NativeAdapterDescriptor("stardew-smapi", "stardew-valley", "semantic", Array.Empty<object>()),
-            new[]
-            {
-                new NativeObservation($"world-{snapshot.Day}-{id}", "world", now, null, "stardew-smapi", "semantic", 1d, new NativeWorldFacts(snapshot.Weather, snapshot.Location, companionFacts)),
-                new NativeObservation($"self-{snapshot.Day}-{id}", "self", now, null, "stardew-smapi", "semantic", 1d, new NativeSelfFacts(
-                    self.Name,
-                    self.Money,
-                    self.InventorySlotsUsed,
-                    self.InventorySlotCapacity,
-                    self.Items.Select(item => new NativeInventoryItemFact(item.Name, item.Count)).ToArray(),
-                    self.InventoryTruncated)),
-            },
-            memory.PriorMemory, memory.LatestReceipt, new NativePlayerMessage($"message-{++this.socialTurnCounter}-{id}", message, now),
-            occasion is null ? CompanionMovement.ParseCommand(message) : null, this.growthAsset, occasion, companion.Knobs.ToWire());
-        try
-        {
-            this.socialBridgeHost = new SocialBridgeHost(sessionRoot, Math.Min(6, this.config.PollIntervalTicks), this.config.EffectiveRequestTimeout());
-            this.socialBridgeHost.Start(turn);
-            this.socialLatencyLane = occasion is null ? "social" : "day-start";
-            this.socialLatencyKey = id;
-            this.socialPublishedTraced = false;
-            this.Monitor.Log(
-                $"Player2 published native DSH social turn social:{id}" + (occasion is null ? "" : $" ({occasion})")
-                + $"; memory {(memory.PriorMemory is null ? "none" : memory.PriorMemory.Id)}, growth revision {this.growthAsset?.Revision ?? 0}.",
-                LogLevel.Info);
-        }
-        catch (Exception ex)
-        {
-            this.socialBridgeHost?.Dispose();
-            this.socialBridgeHost = null;
-            this.ReportNativeDshFailure("DSH_SOCIAL_BRIDGE_START_FAILED", ex.Message, $"social:{id}");
-        }
-    }
-
-    /// <summary>
-    /// P2-0014: explicitly ending the game day is the only dream boundary.
-    /// The mod publishes one write-once day-end request for the companion's
-    /// dream lane; the Player growth store path consumes whatever the dream
-    /// closed with, exactly like any other DSH-authored proposal.
-    /// </summary>
-    private void OnDayEnding(object? sender, DayEndingEventArgs e)
-    {
-        if (!Context.IsMainPlayer || this.ResolveCompanionChoice() is not { } companion)
-        {
-            return;
-        }
-        try
-        {
-            var sessionRoot = this.SessionBridgeRoot(companion);
-            var sequence = new DecisionBridgeFiles(sessionRoot).NextAvailableSequence(DateTimeOffset.UtcNow);
-            var request = DecisionBridgeRules.CreateDreamRequest(
-                new BridgeCompanionIdentity(companion.Name, companion.Role, ToBridgeSoul(companion)),
-                sequence,
-                DecisionBridgeRules.TimestampNow(),
-                checked(Game1.dayOfMonth + 1));
-            new CompanionDreamBridge(sessionRoot).WriteRequestAsync(request).GetAwaiter().GetResult();
-            this.Monitor.Log($"Player2 published dream request {sequence} for the ended game day.", LogLevel.Info);        }
-        catch (Exception ex)
-        {
-            this.ReportNativeDshFailure("DSH_DREAM_REQUEST_FAILED", ex.Message, null);
-        }
-    }
-
-    private void OnDayStarted(object? sender, DayStartedEventArgs e)
-    {        if (!Context.IsMainPlayer)
-        {
-            this.Monitor.Log("Player2 is inactive because this player is not the main player.", LogLevel.Info);
-            return;
-        }
-
-        var snapshot = WorldSnapshotBuilder.Capture();
-        SocialBridgeHost.SweepStaleFiles(this.config.DecisionBridgeDirectory);
-        this.ShowYesterdayRecall(Game1.player, snapshot.Day);
-        this.Monitor.Log(
-            $"Player2 snapshot: day {snapshot.Day}, weather {snapshot.Weather}, location {snapshot.Location}. No local task was inferred.",
-            LogLevel.Info);
-        this.Monitor.Log(
-            "Player2 mod version "
-            + this.ModManifest.Version
-            + "; decision bridge "
-            + $"attached to DSH at {this.config.DecisionBridgeDirectory}"
-            + ".",
-            LogLevel.Info);
-
-        var companion = this.ResolveCompanionChoice();
-        if (companion is null)
-        {
-            this.ShowCompanionChoice(snapshot);
-            return;
-        }
-        var appearance = CompanionAppearanceStore.Load(Game1.player, this.Monitor);
-        if (appearance is null)
-        {
-            this.RequestCompanionCustomization(snapshot);
-            return;
-        }
-        this.EnsureCompanionPresent(appearance, "day start");
-        this.StartCompanionDay(snapshot, companion);
-    }
-
-    /// <summary>
-    /// Starts a companion day once identity and appearance exist: growth refresh,
-    /// mouth warm-up, the day's first line, and the queued day turn (P2-0015 W0).
-    /// Shared by a normal day start and by the first day of a save, where the
-    /// day only begins after the companion choice and native customization.
-    /// </summary>
-    private void StartCompanionDay(WorldSnapshot snapshot, CompanionChoice companion)
-    {
-        if (string.IsNullOrWhiteSpace(this.config.DecisionBridgeDirectory))
-        {
-            this.ReportNativeDshFailure("DSH_NOT_CONFIGURED", "DecisionBridgeDirectory is empty; the day turn was not sent to native DSH.", null);
-            return;
-        }
-        this.RefreshCompanionGrowth(companion);
-        this.RequestMouthWarmup(companion);
-        this.body.Attach(this.SessionBridgeRoot(companion));
-        this.pendingGreetingId = Guid.NewGuid().ToString();
-        this.pendingGreetingCompanion = companion;
-        this.TraceLatency("day-start", this.pendingGreetingId, "day-started");
-        this.QueueCompanionDay(snapshot, companion);
-    }
-
-    private bool EnsureCompanionPresent(CompanionAppearance appearance, string context)
-    {
-        if (ReceiptRenderer.EnsurePresent(appearance, this.Monitor, out var created))
-        {
-            if (created)
-            {
-                this.Monitor.Log($"Player2 loaded companion {this.ResolveCompanionName()} into the current location during {context}.", LogLevel.Info);
-            }
-            return true;
-        }
-        this.ReportNativeDshFailure(
-            "COMPANION_SPAWN_FAILED",
-            $"Player2 could not place the companion on a walkable tile during {context}; it will retry after a player warp or explicit movement command.",
-            null);
-        return false;
-    }
-
-    /// <summary>Defers the day turn until the mounted Player2 DSH bundle proves it is alive.</summary>
-    private void QueueCompanionDay(WorldSnapshot snapshot, CompanionChoice companion)
-    {
-        this.pendingDaySnapshot = snapshot;
-        this.pendingDayCompanion = companion;
-        this.pendingDayDeadline = DateTimeOffset.UtcNow + this.config.EffectiveDshStartupTimeout();
-        this.chatHintPending = true;
-        this.Monitor.Log("Player2 queued the day turn until the native DSH bundle publishes a fresh readiness heartbeat.", LogLevel.Info);
-    }
-
-    private void TryBeginPendingCompanionDay()
-    {
-        if (this.pendingDaySnapshot is null || this.pendingDayCompanion is null)
-        {
-            return;
-        }
-        if (!this.supervisor.IsReady)
-        {
-            if (this.pendingDayDeadline is { } deadline && DateTimeOffset.UtcNow > deadline)
-            {
-                CompanionSettlementStore.MarkDayFailed(new ModDataState(Game1.player.modData), checked(this.pendingDaySnapshot.Day + 1));
-                this.pendingDaySnapshot = null;
-                this.pendingDayCompanion = null;
-                this.pendingDayDeadline = null;
-                this.ReportNativeDshFailure(
-                    "DSH_STARTUP_TIMEOUT",
-                    "The Player2 DSH bundle did not publish a fresh readiness heartbeat before the startup deadline."
-                    + (this.supervisor.AutoStartError is null ? string.Empty : $" Automatic startup also failed: {this.supervisor.AutoStartError}"),
-                    null);
-            }
-            return;
-        }
-        this.pendingDayDeadline = null;
-
-        var snapshot = this.pendingDaySnapshot;
-        var companion = this.pendingDayCompanion;
-        this.pendingDaySnapshot = null;
-        this.pendingDayCompanion = null;
-        this.BeginCompanionDay(snapshot, companion);
-    }
-
-    private void TryPublishPendingSocialMessage()
-    {
-        if (this.pendingSocialMessage is null)
-        {
-            return;
-        }
-        if (!this.supervisor.IsReady)
-        {
-            if (this.pendingSocialDeadline is { } deadline && DateTimeOffset.UtcNow > deadline)
-            {
-                this.pendingSocialMessage = null;
-                this.pendingSocialDeadline = null;
-                this.chatQueue.Clear();
-                this.ReportNativeDshFailure(
-                    "DSH_STARTUP_TIMEOUT",
-                    "The queued chat message was not sent because the Player2 DSH bundle never became ready.",
-                    null);
-            }
-            return;
-        }
-        this.pendingSocialDeadline = null;
-        var message = this.pendingSocialMessage;
-        var id = this.pendingSocialId ?? Guid.NewGuid().ToString();
-        this.pendingSocialMessage = null;
-        this.pendingSocialId = null;
-        this.PublishSocialTurn(message, id, occasion: null);
-    }
-
-    private void TryShowChatHint()
-    {
-        if (!this.chatHintPending || !Context.IsPlayerFree || Game1.activeClickableMenu is not null)
-        {
-            return;
-        }
-        this.chatHintPending = false;
-        var hint = this.T("chat.hint", new { key = this.config.ChatKey.ToString() });
-        Game1.addHUDMessage(new HUDMessage(hint));
-        this.Monitor.Log(hint, LogLevel.Info);
-    }
-
-    /// <summary>
-    /// Starts the day's proposal flow once a companion identity exists: the
-    /// identity must be settled first because the bridge turn carries it.
-    /// </summary>
-    private void BeginCompanionDay(WorldSnapshot snapshot, CompanionChoice companion)
-    {
-        if (string.IsNullOrWhiteSpace(this.config.DecisionBridgeDirectory))
-        {
-            this.ReportNativeDshFailure("DSH_NOT_CONFIGURED", "DecisionBridgeDirectory is empty; the day turn was not sent to native DSH.", null);
-            return;
-        }
-        var playerPosition = Game1.player.Position;
-        var targetTileX = (int)(playerPosition.X / Game1.tileSize);
-        var targetTileY = (int)(playerPosition.Y / Game1.tileSize);
-        // Advertise an unoccupied engine-validated tile, not the player's feet.
-        var neighbor = NativeCompanion.FindOpenTileNearPlayer();
-        if (neighbor is null)
-        {
-            this.ReportNativeDshFailure("NO_COMPANION_SPACE", "No walkable companion tile near the player.", null);
-            return;
-        }
-        targetTileX = neighbor.Value.X;
-        targetTileY = neighbor.Value.Y;
-
-        var gameDay = checked(snapshot.Day + 1);
-        if (CompanionSettlementStore.IsGameDaySettled(new ModDataState(Game1.player.modData), gameDay))
-        {
-            this.Monitor.Log($"Player2 game day {gameDay} is already settled; no request will be replayed.", LogLevel.Info);
-            return;
-        }
-        var sessionRoot = this.SessionBridgeRoot(companion);
-        var sequence = CompanionSettlementStore.ResolveSequence(
-            new ModDataState(Game1.player.modData),
-            gameDay,
-            () => new DecisionBridgeFiles(sessionRoot).NextAvailableSequence(DateTimeOffset.UtcNow));
-        var yesterdayOutcome = Player2Rules.GetYesterdayOutcome(
-            this.ReadState<SharedOutcome>(Game1.player, Player2Rules.LastSharedOutcomeStateKey),
-            snapshot.Day);
-        this.activeBridgeTurn = DecisionBridgeRules.CreateTurn(AdapterProfile.StardewValley,
-            snapshot,
-            sequence,
-            DecisionBridgeRules.TimestampNow(),
-            targetTileX,
-            targetTileY,
-            yesterdayOutcome,
-            new BridgeCompanionIdentity(companion.Name, companion.Role, ToBridgeSoul(companion)),
-            this.growthAsset);
-        this.pendingBridgeRequest = null;
-        this.pendingBridgeProposal = null;
-        this.activeBridgeRequest = null;
-        this.bridgeHost?.Dispose();
-        try
-        {
-            this.bridgeHost = new DecisionBridgeHost(
-                sessionRoot,
-                this.config.PollIntervalTicks,
-                this.config.EffectiveRequestTimeout());
-            this.bridgeHost.Start(this.activeBridgeTurn);
-        }
-        catch (Exception ex)
-        {
-            this.bridgeHost = null;
-            this.ReportNativeDshFailure("DSH_DECISION_BRIDGE_START_FAILED", ex.Message, $"decision:{sequence}");
-            return;
-        }
-        this.TraceLatency("decision", sequence.ToString(CultureInfo.InvariantCulture), "published");
-        this.Monitor.Log(
-            $"Player2 published decision sequence {sequence} asynchronously and is waiting for DSH without blocking the game.",
-            LogLevel.Info);
-    }
-
-    /// <summary>
-    /// Resolves the player's companion choice: config pin first, then the
-    /// farmer-owned stored choice. Null means no choice exists yet and the
-    /// in-game dialog must ask.
-    /// </summary>
-    private CompanionChoice? ResolveCompanionChoice()
-    {
-        if (Game1.player.modData.TryGetValue(CompanionSettlementStore.CompanionChoiceKey, out var stored) &&
-            !string.IsNullOrWhiteSpace(stored))
-        {
-            return this.FindOrAdoptCompanion(stored);
-        }
-        return null;
-    }
-
-    /// <summary>Returns the player-visible companion name, or the app voice when nothing is chosen yet.</summary>
-    private string ResolveCompanionName()
-    {
-        return this.ResolveCompanionChoice()?.Name ?? "Player2";
-    }
-
-    private CompanionChoice FindOrAdoptCompanion(string name)
-    {
-        var match = this.config.CompanionChoices.FirstOrDefault(candidate =>
-            string.Equals(candidate.Name, name, StringComparison.OrdinalIgnoreCase));
-        return match ?? CompanionChoice.CreateWithDefaultSoul(name, this.T("companion.role.fallback"));
-    }
-
-    /// <summary>
-    /// The bridge directory scoped to this person and this save: one project
-    /// per companion person, one session per save inside it.
-    /// </summary>
-    private string SessionBridgeRoot(CompanionChoice companion)
-    {
-        return DecisionBridgeLayout.SessionDirectory(
-            this.config.DecisionBridgeDirectory,
-            companion.Name,
-            DecisionBridgeLayout.SaveId(Game1.uniqueIDForThisGame));
-    }
-
-    /// <summary>
-    /// Projects the required configured soul into the wire identity.
-    /// </summary>
-    private static BridgeCompanionSoul ToBridgeSoul(CompanionChoice companion)
-    {
-        if (!companion.HasCompleteSoul())
-        {
-            throw new InvalidOperationException($"Companion '{companion.Name}' requires values, bonds, voice, and boundaries before a turn can be published.");
-        }
-        var soul = new BridgeCompanionSoul(
-            companion.SoulValues.ToArray(),
-            companion.SoulBonds.ToArray(),
-            companion.SoulVoice.Trim(),
-            companion.SoulBoundaries.ToArray());
-        DecisionBridgeRules.ValidateCompanionSoul(soul);
-        return soul;
-    }
-
-    /// <summary>Asks once who the companion is; the answer starts the deferred day flow.</summary>
-    private void ShowCompanionChoice(WorldSnapshot snapshot)
-    {
-        if (this.config.CompanionChoices.Count == 0)
-        {
-            this.Monitor.Log("Player2 companion roster is empty; using the first default.", LogLevel.Warn);
-            this.config.CompanionChoices.Add(CompanionChoice.CreateWithDefaultSoul("Mira", "the player's candid farm partner"));
-        }
-        this.pendingChoiceSnapshot = snapshot;
-    }
-
-    private void TryShowPendingCompanionChoice()
-    {
-        if (this.pendingChoiceSnapshot is null || !Context.IsPlayerFree || Game1.activeClickableMenu is not null)
-        {
-            return;
-        }
-        var choices = this.config.CompanionChoices
-            .OrderByDescending(choice => string.Equals(choice.Name, this.config.CompanionName, StringComparison.OrdinalIgnoreCase))
-            .ToArray();
-        var responses = choices
-            .Select((choice, index) => new Response(CompanionChoiceIdPrefix + index, choice.Name))
-            .ToArray();
-        this.config.CompanionChoices = choices.ToList();
-        Game1.currentLocation.createQuestionDialogue(this.T("companion.choice.title"), responses, this.OnCompanionChosen);
-    }
-
-    private void OnCompanionChosen(Farmer farmer, string answer)
-    {
-        var snapshot = this.pendingChoiceSnapshot;
-        this.pendingChoiceSnapshot = null;
-        var index = answer.StartsWith(CompanionChoiceIdPrefix, StringComparison.Ordinal) &&
-            int.TryParse(answer[CompanionChoiceIdPrefix.Length..], out var parsed)
-                ? parsed
-                : -1;
-        var choice = index >= 0 && index < this.config.CompanionChoices.Count
-            ? this.config.CompanionChoices[index]
-            : this.config.CompanionChoices[0];
-        Game1.player.modData[CompanionSettlementStore.CompanionChoiceKey] = choice.Name;
-        this.Monitor.Log($"Player2 companion {choice.Name} was chosen and persists on this farmer.", LogLevel.Info);
-        Game1.addHUDMessage(new HUDMessage(this.T("companion.chosen", new { name = choice.Name })));
-        this.RequestCompanionCustomization(snapshot);
-    }
-
-    private void OnUpdateTicked(object? sender, UpdateTickedEventArgs e)
-    {
-        if (!Context.IsWorldReady || !Context.IsMainPlayer)
-        {
-            return;
-        }
-        this.supervisor.PollReadiness();
-        this.body.OnTick();
-        this.CompleteAppearanceIfMenuWasClosed();
-        this.TryShowPendingCompanionChoice();
-        this.TryOpenCompanionCustomization();
-        this.TryShowChatHint();
-        this.PollGradedReadiness();
-        this.TryPublishDayGreeting();
-        this.TryBeginPendingCompanionDay();
-        this.TryPublishPendingSocialMessage();
-        this.UpdateSocialBridge();
-        this.TryPublishQueuedChat();
-        this.TryPresentPendingBridgeChoice();
-        if (this.pendingBridgeRequest is not null || this.activeBridgeRequest is not null)
-        {
-            return;
-        }
-        if (this.bridgeHost is null)
-        {
-            return;
-        }
-        var update = this.bridgeHost.Update();
-        if (update.Error is not null)
-        {
-            this.ReportNativeDshFailure("DSH_DECISION_TURN_FAILED", update.Error.Message, this.activeBridgeTurn is null ? null : $"decision:{this.activeBridgeTurn.Sequence}");
-            // A failed day is settled without a receipt so F6 can retry it with a fresh sequence.
-            CompanionSettlementStore.MarkDayFailed(new ModDataState(Game1.player.modData), this.activeBridgeTurn?.GameDay ?? checked(Game1.Date.TotalDays + 1));
-            this.ClearBridgeDay();
-            return;
-        }
-        if (update.RecoveredReceipt is not null && this.activeBridgeTurn is not null)
-        {
-            CompanionSettlementStore.MarkSettled(new ModDataState(Game1.player.modData), this.activeBridgeTurn.Sequence, this.activeBridgeTurn.GameDay);
-            this.Monitor.Log(
-                $"Player2 recovered settled sequence {this.activeBridgeTurn.Sequence} from its {update.RecoveredReceipt.Status} receipt; it will not execute again.",
-                LogLevel.Info);
-            this.ClearBridgeDay();
-            return;
-        }
-        if (update.Request is not null && this.activeBridgeTurn is not null)
-        {
-            this.TraceLatency("decision", this.activeBridgeTurn.Sequence.ToString(CultureInfo.InvariantCulture), "mod-picked");
-            var validated = DecisionBridgeRules.ValidateRequest(this.activeBridgeTurn, update.Request);
-            if (update.Request.Status == DecisionBridgeRules.AutonomousStatus)
-            {
-                // Full-autonomy order: the composition was mounted with
-                // companion.autonomy "full", so Player executes the grounded
-                // order directly and receipts it — no consent dialogue exists
-                // on this lane, and every outcome still lands in a receipt.
-                this.ExecuteAutonomousRequest(update.Request, validated.GameProposal);
-                return;
-            }
-            this.pendingBridgeRequest = update.Request;
-            this.pendingBridgeProposal = validated.GameProposal;
-            this.Monitor.Log(
-                $"Player2 received grounded DSH proposal {update.Request.Proposal.Id}; it is awaiting native player consent.",
-                LogLevel.Info);
-        }
-        this.TryPresentPendingBridgeChoice();
-    }
-
-    /// <summary>Executes one validated autonomous order through the same game-mechanics receipts as the consent lane.</summary>
-    private void ExecuteAutonomousRequest(BridgeActionRequest request, Player2Proposal proposal)
-    {
-        var activeTurn = this.activeBridgeTurn ?? throw new InvalidOperationException("Bridge turn disappeared before autonomous settlement.");
-        var now = DateTimeOffset.UtcNow;
-        var authorization = DecisionBridgeRules.AuthorizeAutonomous(
-            activeTurn,
-            request,
-            DecisionBridgeRules.UtcTimestamp(now));
-        var receiptShown = ReceiptRenderer.Show(
-            request,
-            proposal,
-            CompanionAppearanceStore.Load(Game1.player, this.Monitor),
-            this.Monitor);
-        var completion = DecisionBridgeRules.CompleteGranted(
-            authorization,
-            receiptShown,
-            DecisionBridgeRules.TimestampNow(),
-            DecisionBridgeRules.FullAutonomy);
-        var receipt = completion.Receipt;
-        this.SaveLocalState(Game1.player, completion.State);
-        var sequence = activeTurn.Sequence;
-        CompanionSettlementStore.MarkSettled(new ModDataState(Game1.player.modData), sequence, activeTurn.GameDay);
-        this.bridgeHost?.RecordAutonomousSettlement(receipt);
-        this.AppendDevelopmentLog(
-            "AUTONOMOUS_ACTION_SETTLED",
-            $"Autonomous order {receipt.ProposalId} settled as {receipt.Status}.",
-            $"decision:{sequence}");
-        Game1.addHUDMessage(new HUDMessage(this.T("receipt.autonomous", new
-        {
-            name = this.ResolveCompanionName(),
-            status = this.T("status." + receipt.Status),
-            target = proposal.LocationDisplayName,
-        })));
-        this.Monitor.Log(
-            $"Player2 settled autonomous order {receipt.ProposalId} as {receipt.Status} (autonomy: full).",
-            LogLevel.Info);
-        this.ClearBridgeDay(keepHost: true);
-    }
-
-    private void TryPresentPendingBridgeChoice()
-    {
-        if (!Context.IsPlayerFree || Game1.activeClickableMenu is not null)
-        {
-            return;
-        }
-        if (this.pendingBridgeRequest is not null && this.pendingBridgeProposal is not null)
-        {
-            this.activeBridgeRequest = this.pendingBridgeRequest;
-            this.activeProposal = this.pendingBridgeProposal;
-            this.pendingBridgeRequest = null;
-            this.pendingBridgeProposal = null;
-            this.OpenProposalDialogue(this.activeProposal);
-            this.TraceLatency("decision", this.activeBridgeRequest.Sequence.ToString(CultureInfo.InvariantCulture), "rendered");
-            return;
-        }
-    }
-
-    /// <summary>Consumes only a completed native DSH social result; all other states are visible errors.</summary>
-    private void UpdateSocialBridge()
-    {
-        if (this.socialBridgeHost is null)
-        {
-            return;
-        }
-        var update = this.socialBridgeHost.Update();
-        var lane = this.socialLatencyLane ?? "social";
-        var key = this.socialLatencyKey ?? this.socialBridgeHost.Turn?.Id ?? "unknown";
-        if (!this.socialPublishedTraced && this.socialBridgeHost.PublishedAt is { } publishedAt)
-        {
-            this.socialPublishedTraced = true;
-            this.TraceLatency(lane, key, "published", publishedAt);
-        }
-        if (update.Error is not null)
-        {
-            this.TraceLatency(lane, key, "failed");
-            this.ReportNativeDshFailure("DSH_SOCIAL_TURN_FAILED", update.Error.Message, update.TraceId);
-            this.socialBridgeHost.Dispose();
-            this.socialBridgeHost = null;
-            return;
-        }
-        if (update.Result is null)
-        {
-            return;
-        }
-        if (this.socialBridgeHost.PickedAt is { } pickedAt)
-        {
-            this.TraceLatency(lane, key, "mod-picked", pickedAt);
-        }
-        var text = update.Result.Text ?? throw new InvalidOperationException("Native DSH social result was missing text.");
-        var transcript = this.transcript ??= new ChatTranscript();
-        transcript.Append(this.ResolveCompanionName(), text);
-        var completedTurn = this.socialBridgeHost.Turn;
-        if (completedTurn?.Occasion == SocialBridgeHost.DayStartOccasion)
-        {
-            // The day's first line is spoken in the world, not only in the chat log.
-            if (ReceiptRenderer.ActiveCompanion is { } actor && actor.currentLocation == Game1.currentLocation)
-                actor.showTextAboveHead(text);
-            else
-                Game1.addHUDMessage(new HUDMessage($"{this.ResolveCompanionName()}: {text}"));
-        }
-        CompanionTranscriptStore.Save(this.Helper, transcript, this.Monitor);
-        this.TraceLatency(lane, key, "rendered");
-        this.Monitor.Log($"Player2 presented native DSH social result {update.TraceId}{(completedTurn?.Occasion is { } occasion ? $" ({occasion})" : "")}; session {update.Result.SessionId}.", LogLevel.Info);
-        this.AppendDevelopmentLog("DSH_SOCIAL_TURN_COMPLETED", completedTurn?.Occasion is null ? "Native DSH social response presented." : "Native DSH day-start line presented.", update.TraceId ?? throw new InvalidOperationException("Native DSH social result was missing trace id."));
-        this.socialBridgeHost.Dispose();
-        this.socialBridgeHost = null;
-    }
-
-    /// <summary>Every failure is a traced development error; nothing player-visible falls back to local templates.</summary>
-    private void ReportNativeDshFailure(string code, string message, string? traceId)
-    {
-        var resolvedTraceId = traceId ?? $"host:{Guid.NewGuid():N}";
-        this.Monitor.Log($"Player2 {code} trace={resolvedTraceId}: {message}", LogLevel.Error);
-        this.AppendDevelopmentLog(code, message, resolvedTraceId);
-        Game1.addHUDMessage(new HUDMessage(this.T("error.native-dsh", new { code, traceId = resolvedTraceId })));
-    }
-
-    private void AppendDevelopmentLog(string code, string message, string traceId)
-    {
-        if (string.IsNullOrWhiteSpace(this.config.DecisionBridgeDirectory))
-        {
-            return;
-        }
-        try
-        {
-            DevelopmentLogWriter.Append(
-                this.config.DecisionBridgeDirectory,
-                code,
-                traceId,
-                message,
-                Context.IsWorldReady ? Game1.Date.TotalDays : null);
-        }
-        catch (Exception ex)
-        {
-            this.Monitor.Log($"Player2 could not persist development log {traceId}: {ex.Message}", LogLevel.Error);
-        }
-    }
-
-    private void OnReturnedToTitle(object? sender, ReturnedToTitleEventArgs e)
-    {
-        this.body.Detach("returned-to-title");
-        this.ClearBridgeDay();
-        this.activeProposal = null;
-        this.pendingChoiceSnapshot = null;
-        this.CancelAppearanceCustomization();
-        this.pendingAppearanceSnapshot = null;
-        this.appearanceCustomizationRequested = false;
-        this.pendingDaySnapshot = null;
-        this.pendingDayCompanion = null;
-        this.pendingSocialMessage = null;
-        this.chatQueue.Clear();
-        this.pendingDayDeadline = null;
-        this.pendingSocialDeadline = null;
-        this.chatHintPending = false;
-        this.supervisor.ResetForTitle();
-        this.transcript = null;
-        this.socialBridgeHost?.Dispose();
-        this.socialBridgeHost = null;
-        ReceiptRenderer.ClearPresence();
-        this.movementTraceId = null;
-        this.movementLatencyKey = null;
-        this.pendingSocialId = null;
-        this.pendingGreetingId = null;
-        this.pendingGreetingCompanion = null;
-        this.growthAsset = null;
-        this.mouthWarmupSession = null;
-        this.mouthWarmupRequestedAt = null;
-        this.socialLatencyLane = null;
-        this.socialLatencyKey = null;
-    }
-
-    private void OnProcessExit(object? sender, EventArgs e)
-    {
-        this.supervisor.StopOwnedProcess();
-    }
-
-    private void OpenProposalDialogue(Player2Proposal proposal)
-    {
-        var responses = new[]
-        {
-            new Response(AcceptProposalId, this.T("proposal.accept")),
-            new Response(DeclineProposalId, this.T("proposal.decline")),
-        };
-
-        Game1.currentLocation.createQuestionDialogue(this.FormatProposal(proposal), responses, this.OnProposalAnswered);
-    }
-
-    /// <summary>Records the player's explicit response without changing gameplay state.</summary>
-    /// <param name="farmer">The player who answered.</param>
-    /// <param name="answer">The selected response identifier.</param>
-    private void OnProposalAnswered(Farmer farmer, string answer)
-    {
-        var proposal = this.activeProposal;
-        var bridgeRequest = this.activeBridgeRequest;
-        this.activeProposal = null;
-        this.activeBridgeRequest = null;
-
-        if (proposal is null)
-        {
-            this.Monitor.Log("Player2 received a proposal response without an active proposal.", LogLevel.Warn);
-            return;
-        }
-
-        if (bridgeRequest is not null && this.activeBridgeTurn is not null && this.bridgeHost is not null)
-        {
-            this.OnBridgeProposalAnswered(farmer, proposal, bridgeRequest, answer == AcceptProposalId);
-            return;
-        }
-
-        this.ReportNativeDshFailure("NON_NATIVE_PROPOSAL_REJECTED", "A proposal reached the UI without a validated native DSH request.", null);
-    }
-
-    private string FormatProposal(Player2Proposal proposal)
-    {
-        return Player2Rules.FormatProposal(proposal);
-    }
-
-    private void OnBridgeProposalAnswered(
-        Farmer farmer,
-        Player2Proposal proposal,
-        BridgeActionRequest request,
-        bool accepted)
-    {
-        var now = DateTimeOffset.UtcNow;
-        var grant = DecisionBridgeRules.CreateGrant(
-            request,
-            accepted,
-            DecisionBridgeRules.UtcTimestamp(now),
-            DecisionBridgeRules.UtcTimestamp(now.AddMinutes(5)));
-        var authorization = DecisionBridgeRules.Authorize(
-            this.activeBridgeTurn ?? throw new InvalidOperationException("Bridge turn disappeared before settlement."),
-            request,
-            grant,
-            DecisionBridgeRules.UtcTimestamp(now));
-        BridgeActionReceipt receipt;
-        if (!authorization.MayExecute)
-        {
-            receipt = authorization.TerminalReceipt
-                ?? throw new InvalidOperationException("Terminal authorization has no receipt.");
-            Game1.addHUDMessage(new HUDMessage(this.T("receipt.declined", new { name = this.ResolveCompanionName() })));
-        }
-        else
-        {
-            var receiptShown = ReceiptRenderer.Show(
-                request,
-                proposal,
-                CompanionAppearanceStore.Load(Game1.player, this.Monitor),
-                this.Monitor);
-            var completion = DecisionBridgeRules.CompleteGranted(
-                authorization,
-                receiptShown,
-                DecisionBridgeRules.TimestampNow());
-            receipt = completion.Receipt;
-            this.SaveLocalState(farmer, completion.State);
-            Game1.addHUDMessage(new HUDMessage(this.T("receipt.bridge", new
-            {
-                name = this.ResolveCompanionName(),
-                status = this.T("status." + receipt.Status),
-                target = proposal.LocationDisplayName,
-                scope = receipt.Scope,
-            })));
-        }
-
-        var sequence = this.activeBridgeTurn.Sequence;
-        CompanionSettlementStore.MarkSettled(
-            new ModDataState(farmer.modData),
-            sequence,
-            this.activeBridgeTurn?.GameDay ?? throw new InvalidOperationException("Bridge turn disappeared before settlement."));
-        this.bridgeHost?.RecordSettlement(grant, receipt);
-        this.Monitor.Log(
-            $"Player2 settled DSH decision sequence {sequence} as {receipt.Status}; granted: {grant.Granted}.",
-            LogLevel.Info);
-        this.ClearBridgeDay(keepHost: true);
-    }
-
-    private void ClearBridgeDay(bool keepHost = false)
-    {
-        if (!keepHost)
-        {
-            this.bridgeHost?.Dispose();
-            this.bridgeHost = null;
-        }
-        this.activeBridgeTurn = null;
-        this.activeBridgeRequest = null;
-        this.pendingBridgeRequest = null;
-        this.pendingBridgeProposal = null;
-    }
-
-    private void SaveLocalState(Farmer farmer, AcceptedState acceptedState)
-    {
-        farmer.modData[Player2Rules.CommitmentStateKey] = JsonSerializer.Serialize(acceptedState.Commitment);
-        farmer.modData[Player2Rules.LastSharedOutcomeStateKey] = JsonSerializer.Serialize(acceptedState.Outcome);
-    }
-
-    private void ShowYesterdayRecall(Farmer farmer, int currentDay)
-    {
-        var commitment = this.ReadState<Commitment>(farmer, Player2Rules.CommitmentStateKey);
-        var outcome = this.ReadState<SharedOutcome>(farmer, Player2Rules.LastSharedOutcomeStateKey);
-
-        if (commitment?.Version == Player2Rules.StateVersion && outcome?.Version == Player2Rules.StateVersion)
-        {
-            this.Monitor.Log(
-                $"Player2 local state: commitment day {commitment.Day}, latest outcome day {outcome.Day}.",
-                LogLevel.Trace);
-        }
-
-        outcome = Player2Rules.GetYesterdayOutcome(outcome, currentDay);
-        if (outcome is null)
-        {
-            return;
-        }
-
-        Game1.addHUDMessage(new HUDMessage(this.T("recall.yesterday", new
-        {
-            name = this.ResolveCompanionName(),
-            status = this.T("status." + outcome.Status),
-        })));
-        this.Monitor.Log(
-            $"Player2 recalled one prior outcome: day {outcome.Day}; target tile {outcome.TargetTileX}, {outcome.TargetTileY}; status {outcome.Status}.",
-            LogLevel.Info);
-    }
-
-    /// <summary>
-    /// Moves the pre-layout flat bridge lanes into the legacy session so old
-    /// receipts and conversations survive the project/session layout. This
-    /// runs before DSH starts so the host never scans a half-migrated root.
-    /// </summary>
-    private void TryMigrateLegacyBridgeLayout()
-    {
-        if (string.IsNullOrWhiteSpace(this.config.DecisionBridgeDirectory))
-        {
-            return;
-        }
-        try
-        {
-            DecisionBridgeLayout.MigrateLegacyRoot(this.config.DecisionBridgeDirectory);
-        }
-        catch (Exception ex)
-        {
-            this.Monitor.Log($"Player2 could not migrate the flat bridge layout: {ex.Message}", LogLevel.Error);
-        }
-    }
-
-    private TState? ReadState<TState>(Farmer farmer, string key)
-        where TState : class
-    {
-        if (!farmer.modData.TryGetValue(key, out var serialized))
-        {
-            return null;
-        }
-        try
-        {
-            return JsonSerializer.Deserialize<TState>(serialized);
-        }
-        catch (JsonException ex)
-        {
-            this.Monitor.Log($"Player2 ignored unreadable local state '{key}': {ex.Message}", LogLevel.Warn);
-            return null;
-        }
     }
 }

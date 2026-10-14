@@ -54,13 +54,13 @@ export function ledgerDigest(episodes: readonly Episode[], traits: readonly Trai
   ].join("\n");
 }
 
-/** The instruction lines that teach the optional `ledger` field. */
+/** The instruction lines that teach the `dream_commit` arguments. */
 export const DREAM_LEDGER_INSTRUCTIONS = [
-  'You may add one optional "ledger" field to either JSON object: {"story":"<=600 chars or null","traits":[...],"forget":["ep-…"]}.',
+  'When something is worth keeping, call dream_commit once with {"story":"<=600 chars or null","traits":[...],"forget":["ep-…"]}.',
   '- story: rewrite our story so far in your own voice when today changed it; null keeps it. Mention only what the episodes and the existing story support.',
   '- traits: {"op":"add","text":"...","scope":"person","episodeIds":["ep-…","ep-…"]} needs two independent episodes (or one player correction); fewer keeps it as a candidate. {"op":"strengthen"|"weaken"|"retire","id":"tr-…","episodeIds":["ep-…"]} changes an existing trait and needs at least one episode.',
   "- forget: trivial episode ids not worth keeping; receipts are never forgotten.",
-  "Leave the ledger field out when nothing changed. Every id you write must appear above.",
+  "Do not call dream_commit when nothing changed. Every id you write must appear above.",
 ];
 
 /** Shape-check the raw `ledger` field; anything malformed is dropped whole. */

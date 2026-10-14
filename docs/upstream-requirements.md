@@ -6,6 +6,9 @@ rules forbid changing Harness as incidental support for this application. Each
 requirement names the in-boundary workaround Player2 ships today, so the
 workaround can be retired cleanly if the requirement lands upstream.
 
+Since the move to DSH's `acp` profile (2026-10-14) Player2 mounts one plugin
+and uses no agent presets; UR-1 below is kept as history.
+
 ## UR-1 Agent preset composition (`agentPresets.mount()`)
 
 **Status: resolved by P2-0013 (2026-09-05).** Player2 now depends on the

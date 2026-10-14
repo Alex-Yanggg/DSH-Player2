@@ -27,8 +27,6 @@ export interface MindContextInput {
   readonly retrieved: readonly RetrievedEpisode[];
   /** Present when the player asks why the previous reply was said. */
   readonly why?: { readonly record: WhyRecord; readonly episodes: readonly Episode[] } | null;
-  /** Trait texts already carried elsewhere on the turn (the growth note). */
-  readonly omitTraitTexts?: readonly string[];
 }
 
 /** Traits a lane may inject for one game: active, in scope, most confident first. */
@@ -36,14 +34,6 @@ export function traitsInScope(traits: readonly Trait[], game: string): Trait[] {
   return traits
     .filter((trait) => trait.status === "active" && (trait.scope === "person" || trait.scope === `game:${game}`))
     .sort((left, right) => right.confidence - left.confidence || left.createdAt.localeCompare(right.createdAt));
-}
-
-/** The episode ids a reply may cite this turn. */
-export function citableEpisodeIds(input: Pick<MindContextInput, "retrieved" | "why">): Set<string> {
-  return new Set([
-    ...input.retrieved.map((item) => item.episode.id),
-    ...(input.why?.episodes ?? []).map((episode) => episode.id),
-  ]);
 }
 
 /**
@@ -65,10 +55,9 @@ export function mindContextNote(input: MindContextInput, limit: number = MIND_CO
     lines.push(episodeLine(item.episode));
   }
   if (input.story !== null && input.story.text.trim() !== "") lines.push(`- our story so far: ${clip(input.story.text, 600)}`);
-  const omit = new Set((input.omitTraitTexts ?? []).map((text) => text.trim().toLowerCase()));
-  const traits = traitsInScope(input.traits, input.game).filter((trait) => !omit.has(trait.text.trim().toLowerCase())).slice(0, TRAITS_SHOWN);
+  const traits = traitsInScope(input.traits, input.game).slice(0, TRAITS_SHOWN);
   if (traits.length > 0) lines.push(`- tendencies you have shown: ${traits.map((trait) => clip(trait.text, 120)).join("; ")}`);
-  const header = `${MIND_CONTEXT_TAG} (your own memory: history, never current facts; cite an [ep-…] id in episodeIds only when your words rely on it):`;
+  const header = `${MIND_CONTEXT_TAG} (your own memory: history, never current facts):`;
   let note = header;
   for (const line of lines) {
     if (note.length + 1 + line.length > limit) continue;

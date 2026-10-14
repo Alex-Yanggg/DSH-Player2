@@ -1,6 +1,4 @@
 import { createHash } from "node:crypto";
-import { appendFile, mkdir } from "node:fs/promises";
-import { dirname } from "node:path";
 import type { PersonaKnobs } from "@dsh-player2/contracts";
 
 /**
@@ -9,7 +7,7 @@ import type { PersonaKnobs } from "@dsh-player2/contracts";
  * stuck, follow the wording closely or bring its own judgment, take the bolder
  * option). What to say and how stays with the model and the persona. Failure
  * and blockage are reported unconditionally; no die is ever rolled for them.
- * Every roll uses a fixed seed and is logged so a run can be replayed.
+ * Every roll uses a fixed seed, so a run can be replayed.
  */
 
 export type KnobName = keyof PersonaKnobs;
@@ -40,19 +38,13 @@ export class PersonaDice {
   public constructor(
     private readonly knobs: PersonaKnobs,
     private readonly seed: string,
-    private readonly logFile?: string,
   ) {}
 
   /** Rolls one "consider doing it this turn?" question for a knob. */
   public async roll(turn: number, knob: KnobName, question: string, invert = false): Promise<DiceRoll> {
     const p = probability(invert ? 1 - this.knobs[knob] : this.knobs[knob]);
     const roll = seededUniform(this.seed, turn, `${knob}:${question}`);
-    const result: DiceRoll = { seed: this.seed, turn, knob, question, p, roll, yes: roll < p };
-    if (this.logFile !== undefined) {
-      await mkdir(dirname(this.logFile), { recursive: true });
-      await appendFile(this.logFile, `${JSON.stringify({ at: new Date().toISOString(), ...result })}\n`, "utf8");
-    }
-    return result;
+    return { seed: this.seed, turn, knob, question, p, roll, yes: roll < p };
   }
 
   /** Reaction delay and aim error for reflex scripts, from the skill knob. */
@@ -62,7 +54,7 @@ export class PersonaDice {
   }
 }
 
-/** The persona's standing tendencies, as words the goal lane reads every turn. */
+/** The persona's standing tendencies, as words in the system prompt. */
 export function tendencyLines(knobs: PersonaKnobs): string[] {
   const band = (value: number, low: string, mid: string, high: string) => value < 0.35 ? low : value > 0.65 ? high : mid;
   return [
@@ -74,12 +66,12 @@ export function tendencyLines(knobs: PersonaKnobs): string[] {
   ];
 }
 
-/** This turn's dice nudges for the goal lane prompt. */
+/** This turn's dice nudges, added before the turn's messages. */
 export async function turnNudges(dice: PersonaDice, turn: number, stuck: boolean): Promise<string[]> {
   const nudges: string[] = [];
   const talk = await dice.roll(turn, "talkativeness", "speak-up");
   nudges.push(talk.yes
-    ? "This turn, consider saying a line to the player (companion_say) if something fits your persona."
+    ? "This turn, consider saying a line to the player if something fits your persona."
     : "This turn, there is no need to chat; speak only if something important happens.");
   const obey = await dice.roll(turn, "obedience", "own-initiative", true);
   nudges.push(obey.yes
@@ -90,7 +82,7 @@ export async function turnNudges(dice: PersonaDice, turn: number, stuck: boolean
   if (stuck) {
     const help = await dice.roll(turn, "helpSeeking", "ask-for-help");
     nudges.push(help.yes
-      ? "You seem stuck. Consider asking the player for help or advice (companion_say), in your own words."
+      ? "You seem stuck. Consider asking the player for help or advice, in your own words."
       : "You seem stuck. Try another approach on your own first.");
   }
   return nudges;

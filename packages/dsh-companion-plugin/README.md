@@ -1,51 +1,36 @@
 # `@dsh-player2/dsh-companion-plugin`
 
-This is the Player-owned DeepSeek Harness composition for actionless social turns and permission-seeking decision turns. It is a Cordis plugin built only on published DSH services.
+The Player2 companion as one Cordis plugin inside DeepSeek Harness's `acp` profile. The Stardew mod starts `dsh --profile acp` with a patch that mounts this plugin; DSH does everything else (model, goals, queueing, cancellation, logs).
 
 It contributes:
 
-- the model-invocable `companion-grounded-deliberation` DSH skill;
-- a stable companion identity and social-response policy through `dsh-system-prompt`;
-- a monotonic `dsh-tools` guard that permits only the `skill` loader in this composition.
+- the persona: the soul as a constitution, the companion policy, the five knobs as tendencies, the response language;
+- turn markers (`[chat day=N]`, `[day-start day=N]`, `[day-end day=N]`, `[resume]`) read in `agent/pre-step`: memory notes, the dream, goal resume without a model call, and dice nudges on goal rounds;
+- body tools when `gameUrl` and `gameToken` are configured: `world_observe`, `world_find`, `world_map`, `world_locations`, `body_walk_to`, `body_use`, `body_input`, `reflex_melee`, `cheat_grant`;
+- memory: `remember` (one episode per call) and `dream_commit` (only during a dream), over the Persona Ledger next to the save's session directory.
 
-The default `social` mode retains that exact authority. `decision` mode instead contributes the `companion-grounded-decision` skill and three fixed-path tools:
-
-- `game_observe` reads one Player-authored immutable turn envelope;
-- `companion_propose` validates cited observation and capability ids, then writes one deterministic proposal;
-- `game_request_action` writes one immutable `awaiting-player` request and never executes it.
-
-It does not own world facts, mutable relationship memory, game permissions, or a game executor. The Player runtime supplies a bounded `PLAYER_SOCIAL_TURN` envelope and validates every cited observation and memory id after DSH returns structured JSON.
-
-A dedicated DSH composition mounts the plugin beside `dsh-skill` and `dsh-tool-skill` in native tool mode:
-
-```yaml
-- id: player2-companion
-  name: '@dsh-player2/dsh-companion-plugin'
-  config:
-    characterName: Mira
-    relationshipRole: the player's candid farm partner
-    mode: social
-```
-
-For a dedicated decision composition, set `mode: decision` and a trusted local `bridgeDirectory`. The model cannot provide paths: the plugin constructs only `inbox/turn-<sequence>.json`, `drafts/proposal-<sequence>.json`, and `outbox/request-<sequence>.json` below that root.
-
-```yaml
-- id: player2-companion
-  name: '@dsh-player2/dsh-companion-plugin'
-  config:
-    characterName: Mira
-    relationshipRole: the player's candid farm partner
-    mode: decision
-    bridgeDirectory: C:/path/to/player2-bridge
-```
-
-Do not mount this plugin into a general coding-agent process: its global tool guard intentionally denies every tool outside the selected mode. Use a dedicated DSH composition or preset. DSH dynamic Cordis packages are useful for disposable experiments but do not persist across restart and are not this plugin's installation mechanism.
-
-Run the keyless composition and product replay acceptance path from the repository root:
+Install it once into DSH's acp profile from the repository root:
 
 ```powershell
-npm run accept:0.0.2
-npm run accept:0.0.3
+npm run build
+dsh plugin --profile acp add ./packages/dsh-companion-plugin
 ```
 
-Live verification runs through the host bundle inside a DSH profile; see the repository README.
+The patch the mod writes looks like this (JSON is valid YAML):
+
+```yaml
+- insert:
+    - id: player2-companion
+      name: '@dsh-player2/dsh-companion-plugin'
+      config:
+        characterName: Mira
+        relationshipRole: the player's candid farm partner
+        soul: { values: [...], bonds: [...], voice: ..., boundaries: [...] }
+        knobs: { talkativeness: 0.5, helpSeeking: 0.5, risk: 0.5, obedience: 0.5, skill: 0.5 }
+        gameUrl: http://localhost:<port>/mcp
+        gameToken: <per-run token>
+- id: tool-bash
+  disabled: true
+```
+
+The session's working directory must be `<root>/projects/<person>/sessions/<save>`; the ledger lives in `<root>/projects/<person>/ledger/`.

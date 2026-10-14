@@ -138,7 +138,7 @@ public sealed class BodyTaskRunner
 
     public BodyTaskStatus ToStatus(long stateRevision, string updatedAt)
     {
-        return new BodyTaskStatus(BodyBridgeFiles.ProtocolVersion, this.task.TaskId, this.task.Seq, this.Status, this.Update,
+        return new BodyTaskStatus(BodyChannel.ProtocolVersion, this.task.TaskId, this.task.Seq, this.Status, this.Update,
             this.step, this.events.ToArray(), this.Reason, stateRevision, updatedAt);
     }
 

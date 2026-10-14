@@ -1,10 +1,7 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { readFile } from "node:fs/promises";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { bodyDeclarationSchema, bodyStateSchema, bodyTaskSchema, bodyTaskStatusSchema, defaultPersonaKnobs, type BodyItem, type PersonaKnobs } from "@dsh-player2/contracts";
-import { BodyFileClient } from "./client.js";
-import { createGoalTools, GOAL_TOOL_NAMES, type GoalController } from "./goal-tools.js";
+import { BODY_TOOL_NAMES, createBodyTools } from "./tools.js";
 import { PersonaDice, probability, seededUniform, turnNudges } from "./knobs.js";
 import { findPath, locationRoute, pathToSteps, Walkability } from "./navigation.js";
 import { runMelee } from "./reflex.js";
@@ -47,13 +44,11 @@ function world(): SimLocation[] {
   ];
 }
 
-let dir: string;
 let sim: SimAdapter;
-let client: BodyFileClient;
+let client: SimAdapter;
 
 beforeEach(async () => {
-  dir = await mkdtemp(join(tmpdir(), "dsh-body-"));
-  sim = new SimAdapter(dir, {
+  sim = new SimAdapter({
     locations: world(), body: { location: "Farm", x: 2, y: 2, items: kit.map((i) => ({ ...i })) },
     shops: { SeedShop: [
       { id: "(O)472", name: "Parsnip Seeds", category: "Seed", price: 20, stock: null },
@@ -61,43 +56,27 @@ beforeEach(async () => {
     ] },
   });
   await sim.start(1);
-  client = new BodyFileClient(dir, 5);
+  client = sim;
 });
 
 afterEach(async () => {
   await sim.stop();
-  await rm(dir, { recursive: true, force: true });
 });
 
-function controller(overrides: Partial<GoalController> = {}): GoalController & { notes: string[]; finished: { status: string; summary: string } | undefined } {
-  const notes: string[] = [];
-  const self = {
-    goalId: "00000000-0000-4000-8000-000000000001",
-    body: client,
-    dice: new PersonaDice(defaultPersonaKnobs, "seed"),
-    signal: new AbortController().signal,
-    cheatsAllowed: async () => false,
-    note: async (text: string) => { notes.push(text); },
-    finish: async (status: "done" | "failed", summary: string) => { self.finished = { status, summary }; },
-    toolCallsLeft: () => 100,
-    notes,
-    finished: undefined as { status: string; summary: string } | undefined,
-    ...overrides,
-  };
-  return self;
-}
+const exec = { callId: "call-1", signal: new AbortController().signal };
 
-function tool(goal: GoalController, name: string) {
-  const found = createGoalTools(goal).find((t) => t.name === name);
+function tool(name: string) {
+  const found = createBodyTools({ body: client, dice: new PersonaDice(defaultPersonaKnobs, "seed") }).find((t) => t.name === name);
   if (!found) throw new Error(name);
-  return found as unknown as { execute(args: Record<string, unknown>, exec?: unknown): Promise<string> };
+  const run = found as unknown as { execute(args: Record<string, unknown>, exec: unknown): Promise<string> };
+  return { execute: (args: Record<string, unknown>) => run.execute(args, exec) };
 }
 
 describe("body protocol frames", () => {
-  it("the sim writes frames the contracts accept", async () => {
-    const declaration = bodyDeclarationSchema.parse(JSON.parse(await readFile(join(dir, "body", "declaration.json"), "utf8")));
+  it("the sim serves frames the contracts accept", async () => {
+    const declaration = bodyDeclarationSchema.parse(await sim.declaration());
     expect(declaration.inputs.some((i) => i.id === "NoClip" && i.cheat)).toBe(true);
-    const state = bodyStateSchema.parse(JSON.parse(await readFile(join(dir, "body", "state.json"), "utf8")));
+    const state = bodyStateSchema.parse(await sim.state());
     expect(state.body?.location).toBe("Farm");
   });
 
@@ -162,10 +141,9 @@ describe("walk helper over raw input", () => {
   });
 });
 
-describe("goal tools", () => {
+describe("body tools", () => {
   it("tills, plants, waters and harvests a carrot", async () => {
-    const goal = controller();
-    const use = tool(goal, GOAL_TOOL_NAMES.use);
+    const use = tool(BODY_TOOL_NAMES.use);
     expect(await use.execute({ button: "UseTool", x: 4, y: 7, slot: 1 })).toMatch(/Hoe/);
     expect(await use.execute({ button: "Action", x: 4, y: 7, slot: 3 })).toMatch(/planted/);
     expect(await use.execute({ button: "UseTool", x: 4, y: 7, slot: 2 })).toMatch(/Watering Can/);
@@ -175,33 +153,26 @@ describe("goal tools", () => {
     expect(sim.body.items.some((i) => i?.name === "Carrot")).toBe(true);
   });
 
-  it("refuses cheat inputs while the switch is off and allows them on grant", async () => {
-    const off = tool(controller(), GOAL_TOOL_NAMES.input);
-    expect(await off.execute({ steps: [{ hold: ["MoveUp", "NoClip"], ms: 100 }] })).toMatch(/^Refused/);
-    sim.cheatGrant = true;
-    const on = tool(controller({ cheatsAllowed: async () => true }), GOAL_TOOL_NAMES.input);
-    expect(await on.execute({ steps: [{ hold: ["MoveUp", "NoClip"], ms: 100 }] })).not.toMatch(/^Refused/);
+  it("the game refuses cheat inputs while the switch is off and allows them on grant", async () => {
+    const input = tool(BODY_TOOL_NAMES.input);
+    expect(await input.execute({ steps: [{ hold: ["MoveUp", "NoClip"], ms: 100 }] })).toMatch(/cheat-off/);
+    await sim.grantCheats(true);
+    expect(await input.execute({ steps: [{ hold: ["MoveUp", "NoClip"], ms: 100 }] })).not.toMatch(/cheat-off/);
   });
 
-  it("finds forage and records notes and the finish", async () => {
-    const goal = controller();
-    expect(await tool(goal, GOAL_TOOL_NAMES.find).execute({ kind: "forage" })).toMatch(/Daffodil/);
-    await tool(goal, GOAL_TOOL_NAMES.note).execute({ text: "planting carrots in the garden" });
-    await tool(goal, GOAL_TOOL_NAMES.finish).execute({ status: "failed", summary: "out of seeds" });
-    expect(goal.notes).toEqual(["planting carrots in the garden"]);
-    expect(goal.finished).toEqual({ status: "failed", summary: "out of seeds" });
+  it("finds forage", async () => {
+    expect(await tool(BODY_TOOL_NAMES.find).execute({ kind: "forage" })).toMatch(/Daffodil/);
   });
 });
 
 describe("shop counter", () => {
   it("opens with Action, shows the stock, and buys with raw menu buttons from the player's wallet", async () => {
-    const goal = controller();
-    const opened = await tool(goal, GOAL_TOOL_NAMES.use).execute({ button: "Action", x: 17, y: 1 });
+    const opened = await tool(BODY_TOOL_NAMES.use).execute({ button: "Action", x: 17, y: 1 });
     expect(opened).toMatch(/menu-opened/);
-    const look = await tool(goal, GOAL_TOOL_NAMES.observe).execute({});
+    const look = await tool(BODY_TOOL_NAMES.observe).execute({});
     expect(look).toMatch(/#0 Parsnip Seeds 20g/);
     expect(look).toMatch(/Potato Seeds 50g \(1 left\)/);
-    const input = tool(goal, GOAL_TOOL_NAMES.input);
+    const input = tool(BODY_TOOL_NAMES.input);
     await input.execute({ steps: [{ press: ["MenuConfirm"], ms: 0 }, { press: ["MenuConfirm"], ms: 0 }] });
     expect(sim.body.items.find((i) => i?.name === "Parsnip Seeds")?.stack).toBe(2);
     expect(sim.player.money).toBe(460);
@@ -212,9 +183,8 @@ describe("shop counter", () => {
 
   it("reports when the wallet is short", async () => {
     sim.player.money = 10;
-    const goal = controller();
-    await tool(goal, GOAL_TOOL_NAMES.use).execute({ button: "Action", x: 17, y: 1 });
-    const result = await tool(goal, GOAL_TOOL_NAMES.input).execute({ steps: [{ press: ["MenuConfirm"], ms: 0 }] });
+    await tool(BODY_TOOL_NAMES.use).execute({ button: "Action", x: 17, y: 1 });
+    const result = await tool(BODY_TOOL_NAMES.input).execute({ steps: [{ press: ["MenuConfirm"], ms: 0 }] });
     expect(result).toMatch(/cant-afford/);
   });
 });
@@ -253,14 +223,9 @@ describe("persona dice", () => {
     expect(chatty).toBeGreaterThan(quiet + 0.5);
   });
 
-  it("logs every roll it makes for a turn", async () => {
-    const log = join(dir, "dice.jsonl");
-    const dice = new PersonaDice(defaultPersonaKnobs, "seed", log);
-    const nudges = await turnNudges(dice, 1, true);
-    expect(nudges.length).toBeGreaterThanOrEqual(3);
-    const lines = (await readFile(log, "utf8")).trim().split("\n").map((l) => JSON.parse(l));
-    expect(lines.length).toBe(4);
-    expect(lines.some((l) => l.knob === "helpSeeking")).toBe(true);
+  it("asks the help question only when stuck", async () => {
+    const dice = new PersonaDice(defaultPersonaKnobs, "seed");
+    expect((await turnNudges(dice, 1, true)).length).toBe((await turnNudges(dice, 1, false)).length + 1);
   });
 
   it("skill maps to faster, steadier hands", () => {

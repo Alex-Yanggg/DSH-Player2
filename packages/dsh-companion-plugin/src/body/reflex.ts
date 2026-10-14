@@ -1,5 +1,5 @@
 import type { BodyCharacter, BodyDeclaration, BodyState } from "@dsh-player2/contracts";
-import { sleep, type BodyPort } from "./client.js";
+import { sleep, type BodyPort } from "./port.js";
 import { seededUniform } from "./knobs.js";
 import { directionTo, faceButton, findPath, moveButton, neighbours, pathToSteps, walkMs, Walkability, type Direction } from "./navigation.js";
 
@@ -76,6 +76,7 @@ export async function runMelee(body: BodyPort, limits: BodyDeclaration["limits"]
       swings++;
       if (run.acceptMs !== undefined) accepts.push(run.acceptMs);
       if (run.status === "failed") return finish("error", run.reason ?? "the swing failed");
+      if (run.status === "cancelled") return finish("aborted", run.reason ?? "the swing was stopped");
     } else {
       // Step in along the map when walls are in the way; straight at it otherwise.
       const from = { x: self.x, y: self.y };
@@ -87,6 +88,7 @@ export async function runMelee(body: BodyPort, limits: BodyDeclaration["limits"]
       steps++;
       if (run.acceptMs !== undefined) accepts.push(run.acceptMs);
       if (run.status === "failed") return finish("error", run.reason ?? "the step failed");
+      if (run.status === "cancelled") return finish("aborted", run.reason ?? "the step was stopped");
     }
     await sleep(hands.reactionMs, signal);
   }

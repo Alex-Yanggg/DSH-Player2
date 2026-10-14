@@ -224,11 +224,6 @@ internal sealed class CompanionChatMenu : IClickableMenu
             return;
         }
 
-        if (this.isWaiting())
-        {
-            Game1.addHUDMessage(new HUDMessage(this.translate("chat.waiting")));
-            return;
-        }
         if (!this.submit(message))
         {
             return;

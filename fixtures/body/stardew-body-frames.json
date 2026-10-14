@@ -7,8 +7,8 @@
     "game": "stardew-valley",
     "writtenAt": "2026-10-14T06:00:00.000Z",
     "state": {
-      "file": "state.json",
-      "world": "world.json",
+      "file": "world_state",
+      "world": "world_map",
       "description": "Raw Stardew Valley state around the companion's body.",
       "fields": [
         {

@@ -42,8 +42,8 @@ export const bodyDeclarationSchema = z.object({
   game: z.string().min(1),
   writtenAt: z.string().datetime(),
   state: z.object({
-    file: z.literal("state.json"),
-    world: z.literal("world.json"),
+    file: z.literal("world_state"),
+    world: z.literal("world_map"),
     description: z.string().min(1).max(800),
     fields: z.array(bodyStateFieldSchema).max(48),
     /** Characters used in `map.rows`, each with its meaning. */
@@ -273,12 +273,3 @@ export const bodyTaskStatusSchema = z.object({
   updatedAt: z.string().datetime(),
 });
 export type BodyTaskStatus = z.infer<typeof bodyTaskStatusSchema>;
-
-/** Plugin -> adapter: one line the companion says in the world, `<session>/speech/say-<seq>.json`. */
-export const bodySpeechSchema = z.object({
-  version: z.literal(bodyProtocolVersion),
-  seq: z.number().int().positive(),
-  text: z.string().trim().min(1).max(400),
-  at: z.string().datetime(),
-});
-export type BodySpeech = z.infer<typeof bodySpeechSchema>;
