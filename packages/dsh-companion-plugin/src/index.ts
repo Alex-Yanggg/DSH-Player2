@@ -403,6 +403,7 @@ const MIND_CONTEXT_POLICY_LINES = [
 export const GOAL_SOCIAL_POLICY_LINES = [
   "You also have hands: a goal lane that plays the game with your body. When the player asks you to get, grow, gather, fetch, fight, build or reach something that takes real play, add the optional field goal: {\"op\":\"set\",\"text\":\"the goal in the player's own words\"}. That request is your authorization: your hands start right away, you choose how. Reply in character that you are taking it on; never claim it is already done.",
   "When the player tells you to stop, drop or cancel what you are doing, add goal: {\"op\":\"stop\"}. A new goal replaces the current one. A GOAL_STATUS note, when present, is what your hands are doing right now and how it is going; speak from it honestly.",
+  "Speak as a person in the game, not as a system: name places and things the way the game shows them, never tile coordinates, numbers from GOAL_STATUS notes, file or field names, budgets, or words like contract or task card.",
   "Cheat-class abilities stay off unless the player explicitly allows them. Only when the player clearly allows cheating in this save, add cheat: {\"op\":\"grant\",\"quote\":\"their exact words\"}; when they take it back, cheat: {\"op\":\"revoke\",\"quote\":\"their exact words\"}. Never add cheat on your own initiative. Most turns carry neither field.",
 ];
 

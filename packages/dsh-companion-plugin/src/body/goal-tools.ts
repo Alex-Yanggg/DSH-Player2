@@ -271,6 +271,8 @@ export function goalPolicyText(languageLine: string): string {
     "Be honest: when something fails, is blocked, or the game refuses, say so plainly and adapt. Never claim progress the state does not show.",
     "Keep route notes with goal_note. When the goal is achieved, check the state, then call goal_finish done with a summary of your route. If it cannot be done, call goal_finish failed with the real reason. Do not loop on the same failing step.",
     "End each turn with one short plain sentence about where you are in the plan; the next turn continues from the state.",
+    "Your goal_finish summary is read to the player: say it as a person, with places by their in-game names, no coordinates, tool names or budgets.",
+    "A paused game is the player stepping away, not a failure: when the state says paused, end the turn and wait; never close the goal because of it.",
     languageLine,
   ].join("\n");
 }
