@@ -77,7 +77,7 @@ The same [`stardew-visual-receipt` golden fixture](../fixtures/decision-turn/sta
 
 Player2 is a DSH plugin, not a DSH client: it never spawns or bundles a Harness runtime. The 0.0.5 SDK sidecar (a resident process driving `DeepSeekHarness.run`) was removed when the project moved to DSH 0.2, because the 0.2 SDK client carries the whole `dsh` CLI as a dependency. Dispatch now happens in-process: [`@dsh-player2/dsh-host-plugin`](../packages/dsh-host-plugin/src/index.ts) scans `inbox/turn-<sequence>.json`, wakes one durable decision lane agent, and requires `outbox/request-<sequence>.json` to exist and validate against the action request schema. The model's final message is never completion evidence. Every `@deepseek-ai/*` package is a peer dependency supplied by the host DSH profile.
 
-[`@dsh-player2/dsh-dispatcher`](../packages/dsh-dispatcher/src/index.ts) survives only as the keyless replay watcher (no DSH dependency) behind `npm run replay:dispatch` and the dual-end replays.
+The keyless dual-end replays play the DSH role directly in `scripts/dual-end-model.mjs`; the old standalone dispatcher package was removed because production never used it.
 
 ```text
 Mod publishes turn -> host plugin wakes lane agent -> skill/tool pipeline -> request file
@@ -85,7 +85,7 @@ Mod publishes turn -> host plugin wakes lane agent -> skill/tool pipeline -> req
 grant/receipt/consent files: written only by the Player (SMAPI) host
 ```
 
-The dedicated session id is stable per bridge, so Harness' durable session log accumulates the relationship history across days. That log is replayable audit context; the receipt-backed projection remains the only fact source, and no memory index may grant authority. Failed dispatches retry with bounded doubling backoff and then give the sequence up for the process lifetime — the Mod's existing timeout falls back deterministically. Restarts are idempotent because any persisted request marks the sequence answered, and the write-once bridge refuses conflicting rewrites. `npm run replay:dispatch` exercises the replay watcher against the real plugin registries without a model or game.
+The dedicated session id is stable per bridge, so Harness' durable session log accumulates the relationship history across days. That log is replayable audit context; the receipt-backed projection remains the only fact source, and no memory index may grant authority. A failed turn gets one `outbox/error-<sequence>.json` and is not retried; the Mod's existing timeout falls back deterministically. Restarts are idempotent because any persisted request marks the sequence answered, and the write-once bridge refuses conflicting rewrites.
 
 ## Receipt Memory (0.0.6)
 

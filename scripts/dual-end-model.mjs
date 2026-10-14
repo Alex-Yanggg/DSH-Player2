@@ -9,7 +9,6 @@ import SystemPrompt from "@deepseek-ai/dsh-system-prompt";
 import ToolRuntime from "@deepseek-ai/dsh-tools";
 import * as companionPlugin from "../packages/dsh-companion-plugin/dist/index.js";
 import { DreamFileLane, SpineFileStore, SpineTimeline, spineStateFileAt } from "../packages/dsh-companion-plugin/dist/index.js";
-import { BridgeDispatcher } from "../packages/dsh-dispatcher/dist/index.js";
 
 // The TS end of the unattended dual-end harness: one process that plays the
 // DSH composition role. It wakes the dedicated session for whatever turn the
@@ -83,11 +82,7 @@ await ctx.plugin(companionPlugin, {
 });
 
 const signal = new AbortController().signal;
-const dispatcher = new BridgeDispatcher({
-  bridgeDirectory,
-  useWatcher: true,
-  pollIntervalMs: 25,
-  runner: {
+const runner = {
     async runDecisionTurn(turnSequence) {
       const calls = [
         {
@@ -154,20 +149,20 @@ const dispatcher = new BridgeDispatcher({
         }
       }
     },
-  },
-});
+};
 
-await dispatcher.start();
+// Wait for the C# dual host to publish the turn, then play the DSH role once.
+const turnPath = join(bridgeDirectory, "inbox", `turn-${sequence}.json`);
 const startedAt = Date.now();
-while (!await exists(requestPath)) {
+while (!await exists(turnPath)) {
   if (Date.now() - startedAt > timeoutMs) {
-    console.error(`dual-end-model: timed out waiting for ${requestPath}`);
+    console.error(`dual-end-model: timed out waiting for ${turnPath}`);
     process.exit(3);
   }
   await new Promise((resolveTimeout) => setTimeout(resolveTimeout, 25));
 }
-await dispatcher.stop();
-assert.equal(dispatcher.stats.dispatched, 1, "the dual-end model must dispatch exactly one turn");
+await runner.runDecisionTurn(sequence);
+assert.ok(await exists(requestPath), `the dual-end model must write ${requestPath}`);
 JSON.parse(await readFile(requestPath, "utf8"));
 process.stdout.write(`dual-end-model: request-${sequence}.json accepted\n`);
 process.exit(0);
