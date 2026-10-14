@@ -417,7 +417,17 @@ internal sealed class BodyAdapter
             {
                 var debrisBefore = location.debris.Count;
                 var playerBefore = CountItem(Game1.player, crop.indexOfHarvest.Value);
-                if (crop.harvest(tile.X, tile.Y, dirt, null, isForcedScytheHarvest: true))
+                // The game drops harvested produce into the player's current location;
+                // when the body harvests elsewhere, those items belong where it stands.
+                var spill = Game1.currentLocation;
+                var spillBefore = spill?.debris.Count ?? 0;
+                var harvested = crop.harvest(tile.X, tile.Y, dirt, null, isForcedScytheHarvest: true);
+                if (spill is not null && !ReferenceEquals(spill, location))
+                {
+                    for (var i = spillBefore; i < spill.debris.Count; i++) location.debris.Add(spill.debris[i]);
+                    while (spill.debris.Count > spillBefore) spill.debris.RemoveAt(spill.debris.Count - 1);
+                }
+                if (harvested)
                 {
                     if (!crop.RegrowsAfterHarvest()) dirt.destroyCrop(showAnimation: true);
                     var toPlayer = CountItem(Game1.player, crop.indexOfHarvest.Value) - playerBefore;
