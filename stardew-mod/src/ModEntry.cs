@@ -294,7 +294,7 @@ internal sealed class ModEntry : Mod
         }
     }
 
-    /// <summary>What the companion says: above its head when the player can see it, else on the HUD.</summary>
+    /// <summary>What the companion says: in the game's chat, as a co-op friend's words appear.</summary>
     private void Say(string text)
     {
         var name = this.ResolveCompanionName();
@@ -303,8 +303,8 @@ internal sealed class ModEntry : Mod
         transcript.Append(name, text);
         CompanionTranscriptStore.Save(this.Helper, transcript, this.Monitor);
         if (Game1.activeClickableMenu is CompanionChatMenu) return;
-        if (CompanionSeat.FarmerOnHost() is { } farmer && farmer.currentLocation == Game1.currentLocation)
-            farmer.showTextAboveHead(text.Length > 120 ? text[..117] + "..." : text, duration: 4000);
+        if (Game1.chatBox is { } chat)
+            chat.addMessage($"{name}: {text}", Microsoft.Xna.Framework.Color.White);
         else
             Game1.addHUDMessage(new HUDMessage($"{name}: {text}"));
     }

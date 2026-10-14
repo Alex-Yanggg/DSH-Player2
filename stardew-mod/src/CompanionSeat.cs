@@ -79,9 +79,6 @@ internal sealed class CompanionSeat
         return null;
     }
 
-    /// <summary>Host screen: the companion's farmer as the host's world holds it (for speech above its head).</summary>
-    public static Farmer? FarmerOnHost() => Game1.getOnlineFarmers().FirstOrDefault(farmer => farmer.modData.ContainsKey(FarmhandKey) && !farmer.IsMainPlayer);
-
     public void Close()
     {
         if (seat is not null && GameRunner.instance.gameInstances.Contains(seat)) GameRunner.instance.RemoveGameInstance(seat);
