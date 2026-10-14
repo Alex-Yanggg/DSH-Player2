@@ -132,6 +132,10 @@ internal sealed class CompanionSeat
         player.modData[FarmhandKey] = "1";
         this.reflection.GetField<TextBox>(creator, "nameBox").GetValue().Text = this.Name;
         this.reflection.GetField<TextBox>(creator, "favThingBox").GetValue().Text = "farming";
+        // The menu copies its boxes into the farmer only while drawn, and the seat is not drawn.
+        player.Name = this.Name;
+        player.favoriteThing.Value = "farming";
+        player.farmName.Value = Game1.MasterPlayer.farmName.Value;
         this.reflection.GetMethod(creator, "optionButtonClick").Invoke("OK");
     }
 
