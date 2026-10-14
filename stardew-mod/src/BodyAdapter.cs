@@ -356,7 +356,7 @@ internal sealed class BodyAdapter
     {
         var avatar = actor.Avatar;
         avatar.currentLocation = actor.currentLocation;
-        avatar.Position = actor.Position;
+        avatar.Position = actor.AvatarPosition;
         avatar.FacingDirection = actor.FacingDirection;
     }
 

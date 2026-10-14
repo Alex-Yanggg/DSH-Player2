@@ -46,6 +46,13 @@ internal sealed class NativeCompanion : NPC
     public string MovementState => this.heldDirections != 0 ? "input" : this.controller is not null ? "walking" : this.following ? "following" : "standing";
     /// <summary>The farmer body Stardew draws and tools act through.</summary>
     public Farmer Avatar => this.avatar;
+    /// <summary>
+    /// Where the farmer avatar stands for this NPC body. A farmer's hitbox
+    /// starts at its position and an NPC's 16 px lower; drawing and acting
+    /// through the avatar 16 px lower keeps both hitboxes, and so the tile the
+    /// body is drawn on, identical to the tile the game and the state report.
+    /// </summary>
+    public Vector2 AvatarPosition => this.Position + new Vector2(0, 16);
     /// <summary>Last game tick the location (or the adapter) updated this actor.</summary>
     public int LastUpdateTick { get; private set; } = -1;
     /// <summary>Whether movement was held on the last unpaused update, and how far it got.</summary>
@@ -113,7 +120,7 @@ internal sealed class NativeCompanion : NPC
         this.currentLocation = location;
         this.Position = new Vector2(tile.X * 64, tile.Y * 64);
         this.StopAvatarMovement();
-        this.avatar.Position = this.Position;
+        this.avatar.Position = this.AvatarPosition;
         this.avatar.currentLocation = location;
         location.characters.Add(this);
         return true;
@@ -177,7 +184,7 @@ internal sealed class NativeCompanion : NPC
                 }
             }
         }
-        this.avatar.Position = this.Position;
+        this.avatar.Position = this.AvatarPosition;
         this.avatar.currentLocation = location;
         if (before != this.Position)
         {
@@ -199,7 +206,7 @@ internal sealed class NativeCompanion : NPC
 
     public override void draw(SpriteBatch batch, float alpha = 1f)
     {
-        this.avatar.Position = this.Position;
+        this.avatar.Position = this.AvatarPosition;
         this.avatar.currentLocation = this.currentLocation;
         this.avatar.draw(batch);
     }
@@ -238,7 +245,7 @@ internal sealed class NativeCompanion : NPC
     public bool CollidesAsFarmer(GameLocation location, Rectangle box)
     {
         this.avatar.currentLocation = location;
-        this.avatar.Position = this.Position;
+        this.avatar.Position = this.AvatarPosition;
         var passes = this.farmerPassesThrough;
         this.farmerPassesThrough = true;
         try
