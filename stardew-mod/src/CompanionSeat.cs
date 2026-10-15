@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using HarmonyLib;
 using Microsoft.Xna.Framework;
 using StardewModdingAPI;
@@ -63,6 +64,9 @@ internal sealed class CompanionSeat
         harmony.Patch(AccessTools.Method(typeof(Game1), nameof(Game1.DrawSplitScreenWindow)),
             prefix: new HarmonyMethod(typeof(CompanionSeat), nameof(NotTheSeat)), finalizer: new HarmonyMethod(typeof(CompanionSeat), nameof(BlitRestore)));
         harmony.Patch(AccessTools.Method(typeof(Game1), "Draw", new[] { typeof(GameTime) }), prefix: new HarmonyMethod(typeof(CompanionSeat), nameof(SeatDraws)));
+        // The instance's own Update override (SMAPI's), which also gates mod input on IsActive.
+        harmony.Patch(AccessTools.Method(Game1.game1.GetType(), "Update", new[] { typeof(GameTime) }),
+            prefix: new HarmonyMethod(typeof(CompanionSeat), nameof(SeatFocused)), finalizer: new HarmonyMethod(typeof(CompanionSeat), nameof(FocusRestore)));
     }
 
     /// <summary>Host screen: seats the companion when the farm has a home for it. Returns why not, or null.</summary>
@@ -174,6 +178,25 @@ internal sealed class CompanionSeat
     }
 
     private static void BlitRestore(Game1? __state) => Game1.game1 = __state!;
+
+    private static readonly FieldInfo Platform = AccessTools.Field(typeof(Game), "Platform");
+    private static readonly FieldInfo PlatformActive = AccessTools.Field(Platform.FieldType, "_isActive");
+
+    /// <summary>
+    /// The game reads a screen's controls, and SMAPI applies mod input, only while
+    /// the shared window has focus. A co-op friend has a window of their own, so the
+    /// seat updates as focused; it reads no keyboard or mouse, only its controller.
+    /// </summary>
+    private static void SeatFocused(Game1 __instance, ref bool __state)
+    {
+        __state = ReferenceEquals(__instance, seat) && !GameRunner.instance.IsActive;
+        if (__state) PlatformActive.SetValue(Platform.GetValue(GameRunner.instance), true);
+    }
+
+    private static void FocusRestore(bool __state)
+    {
+        if (__state) PlatformActive.SetValue(Platform.GetValue(GameRunner.instance), false);
+    }
 
     /// <summary>The seat draws only while joining (its join menu connects after its first draw), never while it plays.</summary>
     private static bool SeatDraws() => !IsSeatScreen || Game1.gameMode != Game1.playingGameMode;
