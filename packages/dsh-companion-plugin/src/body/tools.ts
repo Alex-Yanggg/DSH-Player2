@@ -203,7 +203,7 @@ export function renderObservation(state: BodyState, radius: number): string {
   const lines = [`Day ${t.day} (${t.season} ${t.dayOfMonth}, year ${t.year}), ${clock}, ${t.weather}${state.paused ? ", game paused" : ""}.`];
   const self = state.body;
   if (self === null) lines.push("Your body is not in the world right now.");
-  else lines.push(`You: ${self.location} (${self.x},${self.y}) facing ${self.facing}, stamina ${Math.round(self.stamina)}, selected slot ${self.selectedSlot + 1}. Toolbar: ${itemsLine(self.items)}.`);
+  else lines.push(`You: ${self.location} (${self.x},${self.y}) facing ${self.facing}, stamina ${Math.round(self.stamina)}, gold ${self.money}, selected slot ${self.selectedSlot + 1}. Toolbar: ${itemsLine(self.items)}.`);
   if (self?.menu) lines.push(menuLine(self.menu));
   const p = state.player;
   // Cabin ids look like "FarmHouse<guid>"; without this the model reads the host's FarmHouse as its own room.

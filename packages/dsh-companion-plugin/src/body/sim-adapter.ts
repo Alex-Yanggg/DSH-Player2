@@ -300,7 +300,7 @@ export class SimAdapter implements BodyPort {
       version: bodyProtocolVersion, revision: ++this.revision, writtenAt: new Date().toISOString(), tick: this.tick, paused: this.paused,
       time: { day: this.day, season: "spring", dayOfMonth: this.day, year: 1, timeOfDay: 600 + this.tick % 1400, weather: "clear" },
       player: { location: this.player.location, x: this.player.x, y: this.player.y, px: this.player.x * 64, py: this.player.y * 64, facing: "down", name: "Tester", money: this.player.money, health: 100, stamina: 270, items: this.player.items },
-      body: { location: this.body.location, x: t.x, y: t.y, px: this.body.px, py: this.body.py, facing: this.body.facing, present: true, moving: false, selectedSlot: this.body.slot, stamina: this.body.stamina, items: this.body.items.filter((i): i is BodyItem => i !== null), activeTask: this.task && this.task.status === "running" ? this.task.task.seq : null, menu: this.menuState() },
+      body: { location: this.body.location, x: t.x, y: t.y, px: this.body.px, py: this.body.py, facing: this.body.facing, present: true, moving: false, selectedSlot: this.body.slot, stamina: this.body.stamina, money: this.player.money, items: this.body.items.filter((i): i is BodyItem => i !== null), activeTask: this.task && this.task.status === "running" ? this.task.task.seq : null, menu: this.menuState() },
       map: { location: location.name, width: location.rows[0].length, height: location.rows.length, rows: location.rows },
       objects: location.objects, characters: location.characters, warps: location.warps, truncated: { objects: 0 },
     };

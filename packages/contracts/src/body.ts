@@ -177,6 +177,8 @@ export const bodyStateSchema = z.object({
     moving: z.boolean(),
     selectedSlot: z.number().int().nonnegative(),
     stamina: z.number(),
+    /** Its own gold; co-op farmers share one purse unless the farm splits wallets. */
+    money: z.number().int(),
     items: z.array(bodyItemSchema).max(48),
     activeTask: z.number().int().positive().nullable(),
     /** The menu the body has open, if any. */

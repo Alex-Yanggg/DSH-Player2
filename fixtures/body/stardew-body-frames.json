@@ -112,6 +112,7 @@
       "moving": false,
       "selectedSlot": 0,
       "stamina": 270,
+      "money": 500,
       "items": [
         {
           "slot": 0,
