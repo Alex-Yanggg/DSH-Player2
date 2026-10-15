@@ -89,6 +89,14 @@ describe("body protocol frames", () => {
   });
 });
 
+describe("observation", () => {
+  it("says when the player is somewhere else", async () => {
+    expect(await tool("world_observe").execute({})).not.toContain("a different place from you");
+    sim.player.location = "Town";
+    expect(await tool("world_observe").execute({})).toContain("Player Tester: Town, a different place from you");
+  });
+});
+
 describe("navigation", () => {
   it("routes around walls and turns a path into exact holds", async () => {
     const state = await client.state();

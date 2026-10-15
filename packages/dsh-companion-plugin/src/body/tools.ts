@@ -206,7 +206,9 @@ export function renderObservation(state: BodyState, radius: number): string {
   else lines.push(`You: ${self.location} (${self.x},${self.y}) facing ${self.facing}, stamina ${Math.round(self.stamina)}, selected slot ${self.selectedSlot + 1}. Toolbar: ${itemsLine(self.items)}.`);
   if (self?.menu) lines.push(menuLine(self.menu));
   const p = state.player;
-  lines.push(`Player ${p.name}: ${p.location} (${p.x},${p.y}), gold ${p.money}, health ${Math.round(p.health)}, stamina ${Math.round(p.stamina)}. Inventory: ${itemsLine(p.items)}.`);
+  // Cabin ids look like "FarmHouse<guid>"; without this the model reads the host's FarmHouse as its own room.
+  const apart = self !== null && self.location !== p.location ? ", a different place from you" : "";
+  lines.push(`Player ${p.name}: ${p.location}${apart} (${p.x},${p.y}), gold ${p.money}, health ${Math.round(p.health)}, stamina ${Math.round(p.stamina)}. Inventory: ${itemsLine(p.items)}.`);
   const origin = self ?? p;
   const near = state.objects
     .map((o) => ({ o, d: Math.abs(o.x - origin.x) + Math.abs(o.y - origin.y) }))
