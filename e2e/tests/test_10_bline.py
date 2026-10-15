@@ -36,7 +36,7 @@ def test_goal_from_chat_runs_and_stops_on_request(world, hello, art):
     world.shot("bline_goal_working")
     world.smapi.poll()
     during = [ln for _, ln in world.smapi.lines[mark:]]
-    stop = world.send_chat("好了，先停下吧，别清了", interrupt=True)
+    stop = world.send_chat("好了，先停下吧，别清了", until_said=True)
     stopped = _tile(world)
     time.sleep(STILL_S)
     still = _tile(world)
@@ -46,5 +46,5 @@ def test_goal_from_chat_runs_and_stops_on_request(world, hello, art):
     errors = [ln for ln in during if "Player2 DSH_" in ln or "Player2 body could" in ln]
     assert not errors, errors
     assert working != start, f"the companion did not move while it worked: {start}"
-    assert stop.outcome == "completed" and stop.reply, stop.error or stop.stop_reason
+    assert stop.reply, stop.error or stop.stop_reason
     assert still == stopped, f"the companion kept moving after the stop: {stopped} -> {still}"

@@ -60,7 +60,9 @@ def test_day_start_reaches_dsh(game, art):
     assert hit, "the day-start prompt was never sent"
     errors = game.smapi.grep(r"Player2 DSH_(START_FAILED|NOT_RUNNING|EXITED):")
     assert not errors, errors
-    assert game.wait_idle(90), "the day-start turn never ended"
+    # The companion may work on inside the day's first turn; it is enough that it spoke.
+    start = next(i for i, (_, ln) in enumerate(game.smapi.lines) if "Player2 sent: [day-start" in ln)
+    assert game.smapi.wait_for(r"Player2 companion said: ", 90, since=start), "the companion said nothing at day start"
     art.record("boot", day_start_end=game.smapi.grep(r"Player2 turn ended:")[-1:])
     game.shot("world_ready")
     assert vision.mean_luma(game.frame()) < 200, "screen is blank/white; capture or game is stuck"

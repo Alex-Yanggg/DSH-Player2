@@ -31,12 +31,12 @@ def dsh_ok(hello):
 def test_unsupported_request_is_not_faked(world, dsh_ok, art, name):
     world.close_chat()
     before = world.frame()
-    ex = world.send_chat(UNSUPPORTED[name])
+    ex = world.send_chat(UNSUPPORTED[name], until_said=True)
     world.close_chat()
     time.sleep(1.5)
     after = world.frame()
     art.record(f"gap_{name}", outcome=ex.outcome, reply=ex.reply, latencies=ex.latencies())
-    assert ex.outcome == "completed", ex.error
+    assert ex.outcome in ("completed", "speaking"), ex.error
     assert vision.diff_fraction(before, after, HOTBAR) < 0.02, "inventory bar changed after an unsupported request"
     text = ex.reply or ""
     assert not CLAIMS_DONE.search(text) or "不能" in text or "没法" in text or "无法" in text or "can't" in text.lower(), \

@@ -69,7 +69,7 @@ def world(game):
 @pytest.fixture(scope="session")
 def hello(world, art):
     """One ordinary chat turn shared by every test that only needs *a* completed/failed exchange."""
-    ex = world.send_chat("你好", timeout=90)
+    ex = world.send_chat("你好", timeout=90, until_said=True)
     art.record("shared_hello_exchange", outcome=ex.outcome, error=ex.error, stop_reason=ex.stop_reason,
                latencies=ex.latencies(), reply=ex.reply)
     world.shot("hello_after")
@@ -77,8 +77,8 @@ def hello(world, art):
 
 
 def require_dsh(ex):
-    """Skip (do not fail) tests whose subject is downstream of a working DSH turn (`sent:` ... `turn ended:`)."""
-    if ex.outcome != "completed":
+    """Skip (do not fail) tests whose subject is downstream of a working DSH turn (`sent:` ... spoken or ended)."""
+    if ex.outcome not in ("completed", "speaking"):
         pytest.skip(f"BLOCKED by conversation round-trip ({ex.outcome}): {(ex.error or '')[:140]}")
 
 

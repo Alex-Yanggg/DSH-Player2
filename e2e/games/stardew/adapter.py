@@ -327,14 +327,13 @@ class StardewFlows:
             time.sleep(0.2)
         return True
 
-    def send_chat(self, text: str, timeout: float = 90.0, until_said: bool = False, interrupt: bool = False) -> Exchange:
+    def send_chat(self, text: str, timeout: float = 90.0, until_said: bool = False) -> Exchange:
         """Type `text` into the open chat, press Enter, and follow its turn in the SMAPI log: the turn starts at
         the `sent: [chat day=N] <text>` line and ends at the next `turn ended:` line; `companion said:` lines in
         between are the reply. The companion may work inside the turn after it spoke; until_said returns at the first
-        spoken line instead; interrupt sends while an earlier turn still works, and that turn's end is not ours. The
-        chat stays open; with the companion seated the world keeps running."""
-        if not interrupt and not self.wait_idle(timeout):
-            raise TimeoutError(f"{self.pending_turns()} earlier turn(s) never ended")
+        spoken line instead. Like a player, it does not wait for earlier turns: one that has spoken is stopped by
+        the message, one that has not answers first, and their lines are not ours. The chat stays open; with the
+        companion seated the world keeps running."""
         ahead = self.pending_turns()
         self.open_chat()
         self.smapi.poll()
