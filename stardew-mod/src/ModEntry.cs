@@ -50,6 +50,7 @@ internal sealed class ModEntry : Mod
     private int runningTicks;
     private bool cancelledForPause;
     private bool noCabinShown;
+    private bool sleepWaitNoted;
 
     public override void Entry(IModHelper helper)
     {
@@ -208,16 +209,35 @@ internal sealed class ModEntry : Mod
         var transcript = this.transcript ??= new ChatTranscript();
         transcript.Append(Game1.player.Name, message);
         CompanionTranscriptStore.Save(this.Helper, transcript, this.Monitor);
+        if (!this.dayOpen) this.StartCompanionDay();
+        this.Interrupt($"[chat day={GameDay}] {message}");
+        return true;
+    }
+
+    /// <summary>
+    /// Something the companion should hear about now stops what it was doing, as a person stops
+    /// to listen: the goal round in flight ends (DSH pauses the goal) and the companion answers first.
+    /// </summary>
+    private void Interrupt(string prompt)
+    {
         if (!this.dsh.IsReplying)
         {
-            // Being talked to stops what the companion was doing, as a person stops to listen:
-            // the goal round in flight ends (DSH pauses the goal) and the companion answers first.
             this.dsh.Cancel();
             this.cancelledForPause = false;
         }
-        if (!this.dayOpen) this.StartCompanionDay();
-        this.Send($"[chat day={GameDay}] {message}");
-        return true;
+        this.Send(prompt);
+    }
+
+    /// <summary>
+    /// [world] prompts are plain facts about the shared world the companion could not otherwise
+    /// notice; what to do about them is its own call. The first: the player waits in bed, and in
+    /// co-op the night ends only when every farmer sleeps.
+    /// </summary>
+    private void NoticeWorld()
+    {
+        var waiting = Game1.activeClickableMenu is ReadyCheckDialog { checkName: "sleep" };
+        if (waiting && !this.sleepWaitNoted) this.Interrupt($"[world day={GameDay}] {Game1.player.Name} went to bed and is waiting for every farmer to sleep before the night can end.");
+        this.sleepWaitNoted = waiting;
     }
 
     /// <summary>Sends one prompt; a session lost to a DSH exit is reopened once.</summary>
@@ -335,7 +355,11 @@ internal sealed class ModEntry : Mod
             this.chatHintPending = false;
             Game1.addHUDMessage(new HUDMessage(this.T("chat.hint", new { key = this.config.ChatKey.ToString() })));
         }
-        if (this.dayOpen) this.TrackPause();
+        if (this.dayOpen)
+        {
+            this.TrackPause();
+            this.NoticeWorld();
+        }
         this.ShowEvents();
     }
 
@@ -357,6 +381,7 @@ internal sealed class ModEntry : Mod
         this.dayOpen = false;
         this.chatHintPending = false;
         this.cancelledForPause = false;
+        this.sleepWaitNoted = false;
         this.transcript = null;
     }
 

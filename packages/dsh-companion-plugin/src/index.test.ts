@@ -92,6 +92,7 @@ describe("Player2 companion inside the ACP profile", () => {
     expect(companionPlugin.readMarker("[chat day=12] 你好")).toEqual({ kind: "chat", day: 12, text: "你好" });
     expect(companionPlugin.readMarker("[day-end day=3]")).toEqual({ kind: "day-end", day: 3, text: "" });
     expect(companionPlugin.readMarker("[resume]")).toEqual({ kind: "resume", day: null, text: "" });
+    expect(companionPlugin.readMarker("[world day=4] Alex went to bed")).toEqual({ kind: "world", day: 4, text: "Alex went to bed" });
     expect(companionPlugin.readMarker("hello")).toBeNull();
   });
 });

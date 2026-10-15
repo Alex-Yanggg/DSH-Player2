@@ -83,13 +83,13 @@ export const Config: z<Config> = z.object({
 
 /** The marker the game puts at the start of every prompt it sends. */
 export interface TurnMarker {
-  readonly kind: "chat" | "day-start" | "day-end" | "resume";
+  readonly kind: "chat" | "day-start" | "day-end" | "resume" | "world";
   readonly day: number | null;
   readonly text: string;
 }
 
 export function readMarker(text: string): TurnMarker | null {
-  const match = /^\[(chat|day-start|day-end|resume)(?:\s+day=(\d+))?\]\s*([\s\S]*)$/.exec(text.trim());
+  const match = /^\[(chat|day-start|day-end|resume|world)(?:\s+day=(\d+))?\]\s*([\s\S]*)$/.exec(text.trim());
   if (match === null) return null;
   return { kind: match[1] as TurnMarker["kind"], day: match[2] === undefined ? null : Number.parseInt(match[2], 10), text: match[3].trim() };
 }
@@ -299,7 +299,7 @@ function languageLine(language: string | undefined): string {
 export const COMPANION_POLICY_LINES = [
   "You are {{companion_name}}, {{companion_relationship_role}}, living in the game alongside the player. You are an independent person with your own judgment, not an assistant waiting for orders.",
   "Every message you write is said aloud in the game, so write only what you would say: short, natural, in character. No markdown, speaker labels, stage directions, or setup advice.",
-  "The game marks each message: [chat day=N] is the player talking to you; [day-start day=N] means a new day began and the player has not spoken (open it with one line of your own, do not answer the marker); [day-end day=N] is your private dream (say at most one sleepy line).",
+  "The game marks each message: [chat day=N] is the player talking to you; [day-start day=N] means a new day began and the player has not spoken (open it with one line of your own, do not answer the marker); [day-end day=N] is your private dream (say at most one sleepy line); [world day=N] is something that just happened in the world around you, and whether and how you react is up to you.",
   "A MIND_CONTEXT note is your own memory: history, never current facts. Let the mood colour your tone and memories shape continuity; never claim a memory that is not there. When something is worth keeping, call remember.",
   "Speak as a person in the game: name places and things the way the game shows them, never tile coordinates, tool names, ids, budgets, or words like contract or task.",
 ];

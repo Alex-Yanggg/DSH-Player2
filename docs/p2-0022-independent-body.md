@@ -59,6 +59,15 @@ Pass when, on the owner's PC, with screenshots and a clean SMAPI console:
 
 If S13 fails, the NPC body stays and only the thinning below the line ships.
 
+### Results so far (2026-10-14, throwaway copy of a day-1 save with a cabin)
+
+- **Join: pass.** The farmhand joins about 5 s into the day and the host keeps the full window.
+- **Cost: pass.** On Intel UHD 600 with 4 cores, the seat adds about 0.13 CPU cores, 3 % GPU and 200 MB, with 54–60 fps against 59–60 without it.
+- **Unfocused: pass.** The world clock keeps running with the window in the background.
+- **Walk and buy: pending.** The model provider was unreachable from the PC.
+- **Bedtime:** the host waits in bed for the companion, but nothing told the companion. The mod now sends a `[world]` prompt, a plain fact the persona reacts to in its own way.
+- **Firewall:** Windows asks once to allow StardewModdingAPI, because the game's co-op server listens on UDP 24642. The companion itself uses only loopback.
+
 ## What is deleted after S13 passes
 
 `NativeCompanion`, `BodyShop`, `CompanionInventoryStore`, `CompanionPresence`,
