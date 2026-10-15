@@ -146,6 +146,18 @@ describe("walk helper over raw input", () => {
     expect(result.ok).toBe(false);
     expect(result.reason).toMatch(/no walkable path/);
   });
+
+  it("names the objects in the way when only they block the path", async () => {
+    // The game's grid marks an object's tile blocked as well.
+    const farm = sim.locations.get("Farm")!;
+    farm.rows[6] = "#.....#####........#";
+    farm.objects.push(...[6, 8, 9].map((x) => ({ x, y: 6, kind: "object", name: "Stone", extra: { passable: false } })));
+    farm.objects.push({ x: 7, y: 6, kind: "clump", name: "Large Stump", extra: { passable: false } });
+    const result = await walkTo(client, controlsOf(await client.declaration()), () => client.world(), { x: 7, y: 5, mode: "stand" });
+    expect(result.ok).toBe(false);
+    // The shortest way runs through the stump; a way around it is named first.
+    expect(result.reason).toMatch(/in the way: Stone at \((6|8),6\)$/);
+  });
 });
 
 /** Walks next to a tile, cycles the toolbar to a slot (0-based) and presses one button, as the model would. */

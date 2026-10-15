@@ -1,6 +1,6 @@
 import type { BodyEvent, BodyState, BodyWorld } from "@dsh-player2/contracts";
 import type { BodyPort } from "./port.js";
-import { directionTo, faceStep, locationRoute, planLeg, type Controls, type Tile } from "./navigation.js";
+import { directionTo, faceStep, findPath, locationRoute, neighbours, planLeg, Walkability, type Controls, type Tile } from "./navigation.js";
 
 /** The outcome of one helper-driven walk, in plain facts. */
 export interface WalkResult {
@@ -60,8 +60,8 @@ export async function walkTo(body: BodyPort, controls: Controls, loadWorld: () =
       leg = planLeg(state, controls, { tile: goal, mode: target.mode }, blocked);
       if (leg === undefined) {
         return result(false, target.mode === "stand"
-          ? `no walkable path from ${self.location} (${self.x},${self.y}) to (${goal.x},${goal.y}); the tile may be blocked (try mode adjacent) or walled off`
-          : `no walkable tile next to (${goal.x},${goal.y}) is reachable from (${self.x},${self.y}) in ${self.location}`);
+          ? `no walkable path from ${self.location} (${self.x},${self.y}) to (${goal.x},${goal.y}); ${inTheWay(state, [goal])}`
+          : `no walkable tile next to (${goal.x},${goal.y}) is reachable from (${self.x},${self.y}) in ${self.location}; ${inTheWay(state, neighbours(goal, self))}`);
       }
     } else {
       world ??= await loadWorld();
@@ -69,7 +69,11 @@ export async function walkTo(body: BodyPort, controls: Controls, loadWorld: () =
       if (route === undefined) return result(false, `no known route from ${self.location} to ${destination} in the exported location graph`);
       const hop = route[0];
       leg = planLeg(state, controls, { tile: { x: hop.warp.x, y: hop.warp.y }, mode: hop.warp.kind === "walk" ? "walk-warp" : "action-warp" }, blocked);
-      if (leg === undefined) return result(false, `no walkable path in ${self.location} from (${self.x},${self.y}) to the exit toward ${hop.warp.to} at (${hop.warp.x},${hop.warp.y})`);
+      if (leg === undefined) {
+        const exit = { x: Math.min(Math.max(hop.warp.x, 0), state.map.width - 1), y: Math.min(Math.max(hop.warp.y, 0), state.map.height - 1) };
+        const goals = hop.warp.kind === "walk" ? [exit] : neighbours(exit, self);
+        return result(false, `no walkable path in ${self.location} from (${self.x},${self.y}) to the exit toward ${hop.warp.to} at (${hop.warp.x},${hop.warp.y}); ${inTheWay(state, goals)}`);
+      }
       warped = true;
     }
     // No early "arrive" stop: whole-tile holds keep the body on tile centres.
@@ -81,6 +85,30 @@ export async function walkTo(body: BodyPort, controls: Controls, loadWorld: () =
     if (outcome !== undefined) return result(false, outcome);
   }
   return result(false, `gave up after ${MAX_ATTEMPTS} legs without reaching the target`);
+}
+
+/**
+ * Why no path: the objects on the shortest way when only they block it, else walled off. The
+ * exported grid marks an object's tiles blocked too, so they are opened here. Clumps (stumps,
+ * logs, boulders) take upgraded tools, so a way around them is named first.
+ */
+function inTheWay(state: BodyState, goals: readonly Tile[]): string {
+  const tiles = (o: BodyState["objects"][number]) => {
+    const w = typeof o.extra?.width === "number" ? o.extra.width : 1;
+    const h = typeof o.extra?.height === "number" ? o.extra.height : 1;
+    return Array.from({ length: w * h }, (_, i) => ({ x: o.x + (i % w), y: o.y + Math.floor(i / w) }));
+  };
+  const blocking = state.objects.filter((o) => o.extra?.passable === false);
+  for (const objects of [blocking.filter((o) => o.kind !== "clump"), blocking]) {
+    const rows = state.map.rows.map((row) => [...row]);
+    for (const t of objects.flatMap(tiles)) if (rows[t.y]?.[t.x] !== undefined) rows[t.y][t.x] = ".";
+    const open = { ...state, map: { ...state.map, rows: rows.map((row) => row.join("")) }, objects: [] };
+    const path = findPath(new Walkability(open), state.body!, goals);
+    if (path === undefined) continue;
+    const on = objects.filter((o) => tiles(o).some((t) => path.some((p) => p.x === t.x && p.y === t.y)));
+    return on.length === 0 ? "someone stands in the way" : `in the way: ${on.slice(0, 4).map((o) => `${o.name} at (${o.x},${o.y})`).join(", ")}`;
+  }
+  return "walled off";
 }
 
 /** Returns a terminal failure reason, or undefined to keep going (after marking a blocking tile). */
