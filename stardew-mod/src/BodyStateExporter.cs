@@ -344,6 +344,12 @@ internal sealed class BodyStateExporter
             .Where(c => c.visible).Select(Label).Where(label => label != "?").Distinct().Take(60).ToList();
         List<BodyMenuItem>? stock = null;
         string? focused = focus is null ? null : Label(focus);
+        if (menu is DialogueBox { isQuestion: true } box)
+        {
+            // Its answers are unnamed components: the question's own responses, and the one the cursor is on.
+            options = box.responses.Select(response => Clip(response.responseText)).ToList();
+            focused = box.selectedResponse >= 0 && box.selectedResponse < options.Count ? options[box.selectedResponse] : null;
+        }
         if (menu is ShopMenu shop)
         {
             stock = shop.forSale.Take(200).Select((item, index) => new BodyMenuItem(index, item.QualifiedItemId ?? "", Clip(item.DisplayName),
