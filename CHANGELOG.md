@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased - independent body (P2-0022)
+
+- the companion is a real co-op farmer: a hidden second local player in the
+  same game process joins the save as a farmhand (it needs a cabin, like any
+  co-op friend) and plays through its own virtual controller; the host keeps
+  the whole window;
+- body protocol 0.2: inputs are the game's controller buttons with what the
+  game binds them to (`body_controls`), and the menu on the companion's own
+  screen is exported as the game holds it;
+- state is built only when the plugin asks and serialized off the game thread
+  (owner bug OB-2);
+- removes the NPC stand-in (`NativeCompanion`, `BodyShop`, the stand-in
+  inventory store, come/follow/stay commands), `body_use` and the scripted
+  melee reflex; the world no longer pauses for one player's menu or an
+  unfocused window, as in co-op.
+
 ## Unreleased - DSH-native transport
 
 - the mod now starts `dsh --profile acp` as its own child process, one DSH

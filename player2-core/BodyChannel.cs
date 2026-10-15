@@ -11,14 +11,15 @@ namespace DSHPlayer2.Core;
 
 /// <summary>
 /// The companion's body as seen from DSH (P2-0021 body protocol, now in
-/// memory instead of files): the adapter publishes declaration, state, world
-/// and task status on the game thread; the plugin's calls arrive through
-/// <see cref="Tools"/> on pool threads. Only the spoken cheat grant is stored
-/// on disk, because it belongs to the save.
+/// memory instead of files): the adapter publishes declaration, world and task
+/// status on the game thread, and builds state only when the plugin asks for
+/// it (serialized here, off the game thread); the plugin's calls arrive
+/// through <see cref="Tools"/> on pool threads. Only the spoken cheat grant is
+/// stored on disk, because it belongs to the save.
 /// </summary>
 public sealed class BodyChannel
 {
-    public const string ProtocolVersion = "0.1";
+    public const string ProtocolVersion = "0.2";
     public const int MaxStateBytes = 512 * 1024;
 
     public static readonly JsonSerializerOptions JsonOptions = new()
@@ -33,8 +34,10 @@ public sealed class BodyChannel
     private readonly Dictionary<int, BodyTaskStatus> statuses = new();
     private readonly Dictionary<int, TaskCompletionSource<BodyTaskStatus>> waiters = new();
     private readonly HashSet<int> cancelled = new();
+    private static readonly TimeSpan StateWait = TimeSpan.FromSeconds(2);
     private string declaration = "null";
-    private string state = "null";
+    private BodyState? state;
+    private TaskCompletionSource<bool>? stateRequest;
     private string world = "null";
     private bool paused = true;
     private int nextSeq;
@@ -58,10 +61,28 @@ public sealed class BodyChannel
     public void WriteDeclaration(BodyDeclaration value) => this.Set(ref this.declaration, value);
     public int WriteWorld(BodyWorld value) => this.Set(ref this.world, value);
 
-    public int WriteState(BodyState value)
+    /// <summary>Whether the plugin is waiting for a fresh state (the adapter builds one on its next tick).</summary>
+    public bool StateWanted
     {
-        lock (this.gate) this.paused = value.Paused;
-        return this.Set(ref this.state, value);
+        get { lock (this.gate) return this.stateRequest is not null; }
+    }
+
+    public void SetPaused(bool value)
+    {
+        lock (this.gate) this.paused = value;
+    }
+
+    public void WriteState(BodyState value)
+    {
+        TaskCompletionSource<bool>? request;
+        lock (this.gate)
+        {
+            this.paused = value.Paused;
+            this.state = value;
+            request = this.stateRequest;
+            this.stateRequest = null;
+        }
+        request?.TrySetResult(true);
     }
 
     public void WriteStatus(BodyTaskStatus status)
@@ -110,7 +131,7 @@ public sealed class BodyChannel
     public IReadOnlyList<GameTool> Tools() => new[]
     {
         Tool("body_declaration", "Inputs the body accepts, state fields, grid legend and limits.", Empty(), (_, _) => Task.FromResult(this.Read(ref this.declaration))),
-        Tool("world_state", "Raw state around the body (map rows, objects, characters, warps, clock, toolbar).", Empty(), (_, _) => Task.FromResult(this.Read(ref this.state))),
+        Tool("world_state", "Raw state around the body (map rows, objects, characters, warps, clock, toolbar, open menu).", Empty(), this.ReadStateAsync),
         Tool("world_map", "Every location and its warps.", Empty(), (_, _) => Task.FromResult(this.Read(ref this.world))),
         Tool("body_run", "Plays one raw input sequence on the body and returns its final status. A paused game stops the input at once (status cancelled, reason paused).",
             Schema(("steps", "array"), ("until", "object"), ("fastState", "boolean"), ("timeoutMs", "number")), this.RunAsync),
@@ -162,6 +183,19 @@ public sealed class BodyChannel
         }
         var status = await completion.Task.ConfigureAwait(false);
         return JsonSerializer.Serialize(new { seq = status.Seq, status = status.Status, reason = status.Reason, events = status.Events, stateRevision = status.StateRevision }, JsonOptions);
+    }
+
+    /// <summary>Asks the game thread for a fresh state; a game that does not tick (title, loading) answers with the last one.</summary>
+    private async Task<string> ReadStateAsync(JsonObject _, CancellationToken cancel)
+    {
+        Task wanted;
+        lock (this.gate) wanted = (this.stateRequest ??= new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously)).Task;
+        await Task.WhenAny(wanted, Task.Delay(StateWait, cancel)).ConfigureAwait(false);
+        BodyState? value;
+        lock (this.gate) value = this.state;
+        var json = JsonSerializer.Serialize(value, JsonOptions);
+        if (json.Length > MaxStateBytes) throw new InvalidDataException($"state would be {json.Length} bytes, over {MaxStateBytes}.");
+        return json;
     }
 
     private string CancelActive()

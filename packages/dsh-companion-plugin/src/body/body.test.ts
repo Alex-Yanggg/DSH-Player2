@@ -3,8 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { bodyDeclarationSchema, bodyStateSchema, bodyTaskSchema, bodyTaskStatusSchema, defaultPersonaKnobs, type BodyItem, type PersonaKnobs } from "@dsh-player2/contracts";
 import { BODY_TOOL_NAMES, createBodyTools } from "./tools.js";
 import { PersonaDice, probability, seededUniform, turnNudges } from "./knobs.js";
-import { findPath, locationRoute, pathToSteps, Walkability } from "./navigation.js";
-import { runMelee } from "./reflex.js";
+import { controlsOf, findPath, locationRoute, pathToSteps, Walkability } from "./navigation.js";
 import { SimAdapter, type SimLocation } from "./sim-adapter.js";
 import { walkTo } from "./walk.js";
 
@@ -66,7 +65,7 @@ afterEach(async () => {
 const exec = { callId: "call-1", signal: new AbortController().signal };
 
 function tool(name: string) {
-  const found = createBodyTools({ body: client, dice: new PersonaDice(defaultPersonaKnobs, "seed") }).find((t) => t.name === name);
+  const found = createBodyTools({ body: client }).find((t) => t.name === name);
   if (!found) throw new Error(name);
   const run = found as unknown as { execute(args: Record<string, unknown>, exec: unknown): Promise<string> };
   return { execute: (args: Record<string, unknown>) => run.execute(args, exec) };
@@ -90,6 +89,14 @@ describe("body protocol frames", () => {
   });
 });
 
+describe("observation", () => {
+  it("says when the player is somewhere else", async () => {
+    expect(await tool("world_observe").execute({})).not.toContain("a different place from you");
+    sim.player.location = "Town";
+    expect(await tool("world_observe").execute({})).toContain("Player Tester: Town, a different place from you");
+  });
+});
+
 describe("navigation", () => {
   it("routes around walls and turns a path into exact holds", async () => {
     const state = await client.state();
@@ -97,7 +104,7 @@ describe("navigation", () => {
     const path = findPath(walk, { x: 2, y: 2 }, [{ x: 7, y: 5 }]);
     expect(path?.at(-1)).toEqual({ x: 7, y: 5 });
     expect(path!.every((t) => walk.walkableFrom({ x: 2, y: 2 }, t.x, t.y))).toBe(true);
-    const steps = pathToSteps(path!, (await client.declaration()).limits);
+    const steps = pathToSteps(path!, controlsOf(await client.declaration()));
     expect(steps.every((s) => s.hold?.length === 1)).toBe(true);
   });
 
@@ -112,7 +119,7 @@ describe("pause", () => {
   it("holds a task through a paused world instead of timing it out", async () => {
     sim.paused = true;
     setTimeout(() => { sim.paused = false; }, 2_000);
-    const run = await client.run([{ hold: ["MoveRight"], ms: 200 }], { timeoutMs: 800 });
+    const run = await client.run([{ hold: ["DPadRight"], ms: 200 }], { timeoutMs: 800 });
     expect(run.status).toBe("done");
     expect(run.totalMs).toBeGreaterThan(1_500);
   });
@@ -120,44 +127,65 @@ describe("pause", () => {
 
 describe("walk helper over raw input", () => {
   it("walks into the walled garden", async () => {
-    const result = await walkTo(client, (await client.declaration()).limits, () => client.world(), { x: 7, y: 5, mode: "stand" });
+    const result = await walkTo(client, controlsOf(await client.declaration()), () => client.world(), { x: 7, y: 5, mode: "stand" });
     expect(result.ok, result.reason).toBe(true);
     expect(sim.tile).toEqual({ x: 7, y: 5 });
     // Only raw buttons ever reached the adapter.
     const ids = new Set(sim.inputsSeen.flatMap((t) => t.steps.flatMap((s) => [...(s.hold ?? []), ...(s.press ?? [])])));
-    for (const id of ids) expect(id).toMatch(/^(Move|Face)(Up|Right|Down|Left)$/);
+    for (const id of ids) expect(id).toMatch(/^DPad(Up|Right|Down|Left)$/);
   });
 
   it("crosses into another location through a walk warp", async () => {
-    const result = await walkTo(client, (await client.declaration()).limits, () => client.world(), { location: "Town", x: 5, y: 2, mode: "stand" });
+    const result = await walkTo(client, controlsOf(await client.declaration()), () => client.world(), { location: "Town", x: 5, y: 2, mode: "stand" });
     expect(result.ok, result.reason).toBe(true);
     expect(sim.body.location).toBe("Town");
   });
 
   it("fails honestly for an unreachable tile", async () => {
-    const result = await walkTo(client, (await client.declaration()).limits, () => client.world(), { x: 0, y: 0, mode: "stand" });
+    const result = await walkTo(client, controlsOf(await client.declaration()), () => client.world(), { x: 0, y: 0, mode: "stand" });
     expect(result.ok).toBe(false);
     expect(result.reason).toMatch(/no walkable path/);
   });
+
+  it("names the objects in the way when only they block the path", async () => {
+    // The game's grid marks an object's tile blocked as well.
+    const farm = sim.locations.get("Farm")!;
+    farm.rows[6] = "#.....#####........#";
+    farm.objects.push(...[6, 8, 9].map((x) => ({ x, y: 6, kind: "object", name: "Stone", extra: { passable: false } })));
+    farm.objects.push({ x: 7, y: 6, kind: "clump", name: "Large Stump", extra: { passable: false } });
+    const result = await walkTo(client, controlsOf(await client.declaration()), () => client.world(), { x: 7, y: 5, mode: "stand" });
+    expect(result.ok).toBe(false);
+    // The shortest way runs through the stump; a way around it is named first.
+    expect(result.reason).toMatch(/in the way: Stone at \((6|8),6\)$/);
+  });
 });
 
+/** Walks next to a tile, cycles the toolbar to a slot (0-based) and presses one button, as the model would. */
+async function act(x: number, y: number, button: string, slot?: number): Promise<string> {
+  expect(await tool(BODY_TOOL_NAMES.walk).execute({ x, y, mode: "adjacent" })).toMatch(/^OK/);
+  const cycle = slot === undefined ? [] : Array.from({ length: (slot - sim.body.slot + 12) % 12 }, () => ({ press: ["RightShoulder"], ms: 0 }));
+  return tool(BODY_TOOL_NAMES.input).execute({ steps: [...cycle, { press: [button], ms: 0 }] });
+}
+
 describe("body tools", () => {
-  it("tills, plants, waters and harvests a carrot", async () => {
-    const use = tool(BODY_TOOL_NAMES.use);
-    expect(await use.execute({ button: "UseTool", x: 4, y: 7, slot: 1 })).toMatch(/Hoe/);
-    expect(await use.execute({ button: "Action", x: 4, y: 7, slot: 3 })).toMatch(/planted/);
-    expect(await use.execute({ button: "UseTool", x: 4, y: 7, slot: 2 })).toMatch(/Watering Can/);
+  it("tills, plants, waters and harvests a carrot with controller buttons", async () => {
+    expect(await act(4, 7, "ControllerX", 0)).toMatch(/Hoe/);
+    expect(await act(4, 7, "ControllerA", 2)).toMatch(/planted/);
+    expect(await act(4, 7, "ControllerX", 1)).toMatch(/Watering Can/);
     sim.growAll();
-    const harvest = await use.execute({ button: "Action", x: 4, y: 7 });
-    expect(harvest).toMatch(/harvested/);
+    expect(await act(4, 7, "ControllerA")).toMatch(/harvested/);
     expect(sim.body.items.some((i) => i?.name === "Carrot")).toBe(true);
   });
 
   it("the game refuses cheat inputs while the switch is off and allows them on grant", async () => {
     const input = tool(BODY_TOOL_NAMES.input);
-    expect(await input.execute({ steps: [{ hold: ["MoveUp", "NoClip"], ms: 100 }] })).toMatch(/cheat-off/);
+    expect(await input.execute({ steps: [{ hold: ["DPadUp", "NoClip"], ms: 100 }] })).toMatch(/cheat-off/);
     await sim.grantCheats(true);
-    expect(await input.execute({ steps: [{ hold: ["MoveUp", "NoClip"], ms: 100 }] })).not.toMatch(/cheat-off/);
+    expect(await input.execute({ steps: [{ hold: ["DPadUp", "NoClip"], ms: 100 }] })).not.toMatch(/cheat-off/);
+  });
+
+  it("lists the controller", async () => {
+    expect(await tool(BODY_TOOL_NAMES.controls).execute({})).toMatch(/ControllerA \(press\)/);
   });
 
   it("finds forage", async () => {
@@ -166,40 +194,25 @@ describe("body tools", () => {
 });
 
 describe("shop counter", () => {
-  it("opens with Action, shows the stock, and buys with raw menu buttons from the player's wallet", async () => {
-    const opened = await tool(BODY_TOOL_NAMES.use).execute({ button: "Action", x: 17, y: 1 });
-    expect(opened).toMatch(/menu-opened/);
+  it("opens with the action button, shows the stock, and buys with the same buttons", async () => {
+    expect(await act(17, 1, "ControllerA")).toMatch(/menu-opened/);
     const look = await tool(BODY_TOOL_NAMES.observe).execute({});
     expect(look).toMatch(/#0 Parsnip Seeds 20g/);
     expect(look).toMatch(/Potato Seeds 50g \(1 left\)/);
     const input = tool(BODY_TOOL_NAMES.input);
-    await input.execute({ steps: [{ press: ["MenuConfirm"], ms: 0 }, { press: ["MenuConfirm"], ms: 0 }] });
+    await input.execute({ steps: [{ press: ["ControllerA"], ms: 0 }, { press: ["ControllerA"], ms: 0 }] });
     expect(sim.body.items.find((i) => i?.name === "Parsnip Seeds")?.stack).toBe(2);
     expect(sim.player.money).toBe(460);
-    const sold = await input.execute({ steps: [{ press: ["MenuDown"], ms: 0 }, { press: ["MenuConfirm"], ms: 0 }, { press: ["MenuConfirm"], ms: 0 }, { press: ["MenuClose"], ms: 0 }] });
+    const sold = await input.execute({ steps: [{ hold: ["DPadDown"], ms: 17 }, { press: ["ControllerA"], ms: 0 }, { press: ["ControllerA"], ms: 0 }, { press: ["ControllerB"], ms: 0 }] });
     expect(sold).toMatch(/sold-out/);
     expect(sim.body.items.find((i) => i?.name === "Potato Seeds")?.stack).toBe(1);
   });
 
   it("reports when the wallet is short", async () => {
     sim.player.money = 10;
-    await tool(BODY_TOOL_NAMES.use).execute({ button: "Action", x: 17, y: 1 });
-    const result = await tool(BODY_TOOL_NAMES.input).execute({ steps: [{ press: ["MenuConfirm"], ms: 0 }] });
-    expect(result).toMatch(/cant-afford/);
+    await act(17, 1, "ControllerA");
+    expect(await tool(BODY_TOOL_NAMES.input).execute({ steps: [{ press: ["ControllerA"], ms: 0 }] })).toMatch(/cant-afford/);
   });
-});
-
-describe("reflex melee", () => {
-  it("clears nearby monsters and reports latency", async () => {
-    sim.locations.get("Farm")!.characters.push(
-      { name: "Green Slime", kind: "monster", x: 6, y: 2, px: 6 * 64, py: 2 * 64, health: 20 },
-      { name: "Green Slime", kind: "monster", x: 2, y: 5, px: 2 * 64, py: 5 * 64, health: 20 },
-    );
-    const report = await runMelee(client, (await client.declaration()).limits, { seconds: 8, chaseTiles: 8, targetKills: 0 }, { reactionMs: 0, aimError: 0 }, "s");
-    expect(report.endedBy, JSON.stringify({ ...report, tile: sim.tile, facing: sim.body.facing, chars: sim.locations.get("Farm")!.characters })).toBe("clear");
-    expect(report.monstersGone).toBe(2);
-    expect(report.acceptMs.p95).toBeGreaterThanOrEqual(report.acceptMs.p50);
-  }, 15_000);
 });
 
 describe("persona dice", () => {
@@ -226,12 +239,5 @@ describe("persona dice", () => {
   it("asks the help question only when stuck", async () => {
     const dice = new PersonaDice(defaultPersonaKnobs, "seed");
     expect((await turnNudges(dice, 1, true)).length).toBe((await turnNudges(dice, 1, false)).length + 1);
-  });
-
-  it("skill maps to faster, steadier hands", () => {
-    const clumsy = new PersonaDice({ ...defaultPersonaKnobs, skill: 0 }, "s").hands();
-    const sharp = new PersonaDice({ ...defaultPersonaKnobs, skill: 1 }, "s").hands();
-    expect(sharp.reactionMs).toBeLessThan(clumsy.reactionMs);
-    expect(sharp.aimError).toBeLessThan(clumsy.aimError);
   });
 });

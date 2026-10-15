@@ -3,7 +3,7 @@
   "chat.empty": "Player2：请先输入内容。",
   "chat.hint": "按 {{key}} 打开 Player2 聊天框；它不会常驻屏幕。",
   "chat.waiting-short": "回复中…",
-  "chat.input-placeholder": "输入消息或：过来 / 跟着我 / 停下",
+  "chat.input-placeholder": "输入消息",
   "chat.host-only": "Player2 聊天属于主机农夫；农场帮工无法打开。",
   "companion.choice.title": "谁将成为你的同伴？这个选择会记在这位农夫身上。",
   "companion.chosen": "{{name}}从今天起就是你的同伴了。",
@@ -21,7 +21,5 @@
   "config.customize-key.name": "重新捏脸",
   "config.customize-key.tooltip": "在世界中按此键，为同伴打开星露谷原生人物捏脸界面。",
   "error.native-dsh": "Player2：{{code}}：{{detail}}。详情见 SMAPI 日志和 DSH 会话日志。",
-  "movement.arrived": "{{name}}已走到你身边。",
-  "movement.stopped": "{{name}}已停下。",
-  "movement.path-blocked": "同伴暂时无法到达；请移到有空地的位置后重试。"
+  "seat.no-cabin": "{{name}} 需要农场上有一间小屋才能住进来，和联机好友一样。罗宾可以建。"
 }

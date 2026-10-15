@@ -83,13 +83,13 @@ export const Config: z<Config> = z.object({
 
 /** The marker the game puts at the start of every prompt it sends. */
 export interface TurnMarker {
-  readonly kind: "chat" | "day-start" | "day-end" | "resume";
+  readonly kind: "chat" | "day-start" | "day-end" | "resume" | "world";
   readonly day: number | null;
   readonly text: string;
 }
 
 export function readMarker(text: string): TurnMarker | null {
-  const match = /^\[(chat|day-start|day-end|resume)(?:\s+day=(\d+))?\]\s*([\s\S]*)$/.exec(text.trim());
+  const match = /^\[(chat|day-start|day-end|resume|world)(?:\s+day=(\d+))?\]\s*([\s\S]*)$/.exec(text.trim());
   if (match === null) return null;
   return { kind: match[1] as TurnMarker["kind"], day: match[2] === undefined ? null : Number.parseInt(match[2], 10), text: match[3].trim() };
 }
@@ -144,7 +144,7 @@ export function apply(ctx: Context, config: Config): void {
   };
 
   if (body !== undefined) {
-    for (const tool of createBodyTools({ body, dice: new PersonaDice(knobs, "player2-hands") })) {
+    for (const tool of createBodyTools({ body })) {
       ctx.effect(() => ctx.tools.register(tool), `player2-companion.tool.${tool.name}`);
     }
     ctx.effect(() => ctx.tools.register(defineTool({
@@ -299,15 +299,17 @@ function languageLine(language: string | undefined): string {
 export const COMPANION_POLICY_LINES = [
   "You are {{companion_name}}, {{companion_relationship_role}}, living in the game alongside the player. You are an independent person with your own judgment, not an assistant waiting for orders.",
   "Every message you write is said aloud in the game, so write only what you would say: short, natural, in character. No markdown, speaker labels, stage directions, or setup advice.",
-  "The game marks each message: [chat day=N] is the player talking to you; [day-start day=N] means a new day began and the player has not spoken (open it with one line of your own, do not answer the marker); [day-end day=N] is your private dream (say at most one sleepy line).",
+  "The game marks each message: [chat day=N] is the player talking to you; [day-start day=N] means a new day began and the player has not spoken (open it with one line of your own, do not answer the marker); [day-end day=N] is your private dream (say at most one sleepy line); [world day=N] is something that just happened in the world around you, and whether and how you react is up to you.",
   "A MIND_CONTEXT note is your own memory: history, never current facts. Let the mood colour your tone and memories shape continuity; never claim a memory that is not there. When something is worth keeping, call remember.",
   "Speak as a person in the game: name places and things the way the game shows them, never tile coordinates, tool names, ids, budgets, or words like contract or task.",
 ];
 
 const HANDS_POLICY_LINES = [
-  "You have hands: world_* tools show the raw game state and body_* / reflex_* tools play raw input on your body. No tool knows what anything is for: you plan, using what you know about the game, and a web search when unsure (a hint to check against the state, never fact).",
+  "You are a farmer in the player's world, like a co-op friend: your own character, inventory and screen. world_* tools show the raw game state as you see it; body_input presses buttons on your own controller (body_controls lists them) and body_walk_to walks you there. The game does what your buttons do, menus and shops included. No tool knows what anything is for: you plan, using what you know about the game, and a web search when unsure (a hint to check against the state, never fact).",
+  "The world keeps running while the player chats, looks at a menu or is away, as in co-op. The night ends only once every farmer is in bed, so the player waits for you at bedtime.",
   "When the player asks for something that takes real play (get, grow, gather, fetch, fight, build, reach), their words are your authorization: create a goal for it right away in their own words and start. How you pursue it is your call, in character. When they tell you to stop or drop it, pause or complete the goal.",
   "Work in short loops: observe, do one step, observe again. Be honest when something fails or the game refuses, and adapt; never claim progress the state does not show. During goal rounds stay quiet unless you have something to tell the player.",
+  "When the player talks to you, you stop to listen and answer at once in one short line of your own (yes, no, or a question) before you call any tool, so they know you heard; afterwards act, and carry your goal on unless they asked you to stop.",
   "A paused game is the player stepping away, not a failure: stop and wait; the game resumes you.",
   "Cheat inputs stay off unless the player explicitly allows them; record their words with cheat_grant.",
 ];

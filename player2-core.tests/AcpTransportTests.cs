@@ -185,6 +185,20 @@ public sealed class BodyChannelTests
     }
 
     [Fact]
+    public async Task StateIsBuiltOnlyWhenThePluginAsks()
+    {
+        var channel = new BodyChannel();
+        channel.Attach(Path.GetTempPath());
+        Assert.False(channel.StateWanted);
+        var read = Call(channel, "world_state", new JsonObject());
+        for (var i = 0; i < 100 && !channel.StateWanted; i++) await Task.Delay(10);
+        Assert.True(channel.StateWanted);
+        channel.WriteState(State(paused: false));
+        Assert.Equal(1, JsonNode.Parse(await read)!["revision"]!.GetValue<int>());
+        Assert.False(channel.StateWanted);
+    }
+
+    [Fact]
     public async Task APausedGameEndsTheRunAtOnceAndKeepsNothingRunning()
     {
         var channel = new BodyChannel();

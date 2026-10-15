@@ -36,13 +36,13 @@ The mod sends plain prompts into the save's session; the plugin reads the marker
 
 A paused game (a menu, an event, an unfocused window) never blocks the companion: its hands report "paused" at once, and after about three seconds the turn in flight is stopped; DSH pauses the goal instead of failing it, and `[resume]` re-arms it once the world runs again. The chat window does not stop a pending reply.
 
-What the companion says appears above its head when it is in the player's location, otherwise as a HUD line, and always in the chat history. A DSH failure is an in-game error naming the code; the details are in the SMAPI log and the DSH session log.
+What the companion says appears in the game's chat box, as a co-op friend's words do, and in the chat history. A DSH failure is an in-game error naming the code; the details are in the SMAPI log and the DSH session log.
 
-## Chat and movement
+## Chat and goals
 
-Press **F2** (`ChatKey`) to open or close the chat window. Recent lines stay visible, the mouse wheel and PageUp/PageDown scroll, **Up** recalls your last line, and **Enter** sends. The history (50 lines) persists per save. An explicit movement command ("come here", "follow me", "stay", or the Chinese equivalents) moves the companion the moment you press Enter and takes the body back from whatever it was doing; negated, quoted or questioning phrases never move it.
+Press **F2** (`ChatKey`) to open or close the chat window. Recent lines stay visible, the mouse wheel and PageUp/PageDown scroll, **Up** recalls your last line, and **Enter** sends. The history (50 lines) persists per save.
 
-Give the companion a goal in chat ("给我弄 3 根胡萝卜"): it creates a DSH goal, plays with its own body over the following days, and says how it went. Its body carries its own 12-slot toolbar (hoe, watering can, pickaxe, axe, scythe, rusty sword), saved on the farmer. Design: [docs/p2-0021-b-line-goal-driven-companion.md](../docs/p2-0021-b-line-goal-driven-companion.md).
+Give the companion a goal in chat ("给我弄 3 根胡萝卜"): it creates a DSH goal, plays with its own body over the following days, and says how it went. It plays as its own co-op farmer with its own inventory, which needs a cabin on the farm. Design: [docs/p2-0022-independent-body.md](../docs/p2-0022-independent-body.md).
 
 ## Choosing a companion
 
@@ -74,11 +74,11 @@ With Generic Mod Config Menu installed, the chat and re-customize keys and **All
 
 ## Manual check
 
-1. Load a save. The SMAPI console shows `Player2 started DSH (acp profile) for companion <name>.`, and the companion greets you above its head without any input.
+1. Load a save. The SMAPI console shows `Player2 started DSH (acp profile) for companion <name>.`, the companion joins as a co-op farmer (`Player2 seated <name> as a hidden co-op farmer`) and greets you in the chat box without any input.
 2. Press F2, say hello, and confirm the reply appears in the chat window in the game's language. Send two more lines quickly; both are answered in order.
-3. Type "来我面前" and confirm the companion starts walking at once; "不要来我面前" moves nothing.
+3. Type "过来找我" and confirm the companion answers in one line, then walks to you; it keeps walking with the game window in the background.
 4. Ask for 3 carrots. Confirm the companion acts on its own, keeps going across days, and ends with a line about how it went. Open the inventory mid-goal for a few seconds, close it, and confirm the goal continues.
 5. Type "停下" during a goal and confirm the companion stops.
 6. Sleep, then open `projects/<person>/ledger/remember.md` and confirm the day is in its story.
 7. Close the game and confirm no `dsh` process is left running.
-8. Rename `DshCommand` to something missing, load a save, and confirm an in-game error names `DSH_START_FAILED` or `DSH_EXITED`; movement commands still work.
+8. Rename `DshCommand` to something missing, load a save, and confirm an in-game error names `DSH_START_FAILED` or `DSH_EXITED`.

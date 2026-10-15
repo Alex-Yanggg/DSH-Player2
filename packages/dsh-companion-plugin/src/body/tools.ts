@@ -1,19 +1,17 @@
 import { defineTool } from "@deepseek-ai/dsh-tools";
-import type { BodyDeclaration, BodyInputStep, BodyItem, BodyState, BodyUntil, BodyWorld } from "@dsh-player2/contracts";
+import type { BodyInputStep, BodyItem, BodyState, BodyUntil, BodyWorld } from "@dsh-player2/contracts";
 import type { BodyPort, BodyRun } from "./port.js";
-import type { PersonaDice } from "./knobs.js";
-import { runMelee } from "./reflex.js";
+import { controlsOf, type Controls } from "./navigation.js";
 import { walkTo } from "./walk.js";
 
 /**
- * The companion's hands as DSH tools (P2-0021): raw perception, raw input,
- * and the navigation and reflex helpers built on them. Every call runs under
- * the caller's own cancellation, so a cancelled turn stops the body too. The
- * adapter itself refuses cheat inputs while no cheat switch is on.
+ * The companion's hands as DSH tools: raw perception, raw input on the body's
+ * own controller, and the navigation helper built on them. Every call runs
+ * under the caller's own cancellation, so a cancelled turn stops the body too.
+ * The adapter itself refuses cheat inputs while no cheat switch is on.
  */
 export interface BodyContext {
   readonly body: BodyPort;
-  readonly dice: PersonaDice;
 }
 
 export const BODY_TOOL_NAMES = {
@@ -22,17 +20,16 @@ export const BODY_TOOL_NAMES = {
   map: "world_map",
   locations: "world_locations",
   walk: "body_walk_to",
-  use: "body_use",
+  controls: "body_controls",
   input: "body_input",
-  melee: "reflex_melee",
 } as const;
 
 const textOutput = { schema: { type: "string" }, render: (_args: unknown, value: unknown) => [{ type: "text" as const, text: String(value) }] } as const;
 
 export function createBodyTools(hands: BodyContext) {
-  let declaration: BodyDeclaration | undefined;
+  let controls: Controls | undefined;
   let world: BodyWorld | undefined;
-  const limits = async () => (declaration ??= await hands.body.declaration()).limits;
+  const controlsNow = async () => (controls ??= controlsOf(await hands.body.declaration()));
   const loadWorld = async () => (world ??= await hands.body.world());
   return [
     defineTool({
@@ -102,38 +99,20 @@ export function createBodyTools(hands: BodyContext) {
       },
       output: textOutput,
       execute: async (args, exec) => {
-        const result = await walkTo(hands.body, await limits(), loadWorld, { x: args.x, y: args.y, mode: args.mode === "adjacent" ? "adjacent" : "stand", ...(args.location ? { location: args.location } : {}) }, exec.signal);
+        const result = await walkTo(hands.body, await controlsNow(), loadWorld, { x: args.x, y: args.y, mode: args.mode === "adjacent" ? "adjacent" : "stand", ...(args.location ? { location: args.location } : {}) }, exec.signal);
         return `${result.ok ? "OK" : "NOT REACHED"}: ${result.reason}. Now at ${result.location ?? "?"} (${result.x ?? "?"},${result.y ?? "?"}) after ${result.legs} leg(s), ${Math.round(result.ms / 100) / 10} s.${eventsLine(result.events)}`;
       },
     }),
     defineTool({
-      name: BODY_TOOL_NAMES.use,
-      description: "Press a button with your body: UseTool (the selected tool on the faced tile), Action (harvest, plant the selected seed, pick up forage, open a door), or DropItem (drop the selected stack in front of you). Optionally walk next to tile x,y first, select a toolbar slot (1-12) and press several times. Reports what the game did and how your inventory changed.",
-      parameters: {
-        button: { type: "string", required: true, enum: ["UseTool", "Action", "DropItem"], description: "Which button." },
-        x: { type: "integer", description: "Tile to act on (walk adjacent and face it first)." },
-        y: { type: "integer", description: "Tile to act on." },
-        slot: { type: "integer", description: "Toolbar slot to select first, 1-12." },
-        times: { type: "integer", description: "Presses, 1-20 (default 1)." },
-      },
+      name: BODY_TOOL_NAMES.controls,
+      description: "Your controller: every button id, whether it is held or pressed, and what this game binds it to.",
+      parameters: {},
       output: textOutput,
-      execute: async (args, exec) => {
-        const before = await hands.body.state();
-        if (args.x !== undefined && args.y !== undefined) {
-          const walk = await walkTo(hands.body, await limits(), loadWorld, { x: args.x, y: args.y, mode: "adjacent" }, exec.signal);
-          if (!walk.ok) return `Did not press ${args.button}: could not get next to (${args.x},${args.y}): ${walk.reason}.`;
-        }
-        const steps: BodyInputStep[] = [];
-        if (args.slot !== undefined) steps.push({ press: [`Slot${Math.min(12, Math.max(1, args.slot))}`], ms: 0 });
-        const gap = args.button === "UseTool" ? 350 : 150;
-        for (let i = 0; i < Math.min(20, Math.max(1, args.times ?? 1)); i++) steps.push({ press: [args.button], ms: gap });
-        const run = await hands.body.run(steps, { signal: exec.signal });
-        return describeRun(run, before);
-      },
+      execute: async () => (await hands.body.declaration()).inputs.map((i) => `- ${i.id} (${i.kind}${i.cheat ? ", cheat" : ""}): ${i.description}`).join("\n"),
     }),
     defineTool({
       name: BODY_TOOL_NAMES.input,
-      description: "Raw input: play a sequence of steps on your body. Each step holds buttons (hold) for ms milliseconds and fires press buttons once at its start. Button ids come from the adapter's declaration (MoveUp/Right/Down/Left hold; FaceUp..., UseTool, Action, DropItem, Slot1-12, MenuUp/MenuDown/MenuConfirm/MenuClose press; cheat modifiers only while a cheat switch is on, otherwise the game refuses the sequence). until can stop early: blockedMs, monsterWithin (tiles), warped, arrive {location,x,y,radius}.",
+      description: `Raw input on your own controller: play a sequence of steps. Each step holds buttons (hold) for ms milliseconds and fires press buttons once at its start. The game does what the buttons do for any farmer, menus included. until can stop early: blockedMs, monsterWithin (tiles), warped, arrive {location,x,y,radius}. Button ids: see ${BODY_TOOL_NAMES.controls}.`,
       parameters: {
         steps: {
           type: "array", required: true, description: "1-64 steps.",
@@ -153,24 +132,6 @@ export function createBodyTools(hands: BodyContext) {
         const before = await hands.body.state();
         const run = await hands.body.run(args.steps as BodyInputStep[], { ...(args.until ? { until: args.until as BodyUntil } : {}), signal: exec.signal });
         return describeRun(run, before);
-      },
-    }),
-    defineTool({
-      name: BODY_TOOL_NAMES.melee,
-      description: "Reflex script: fight nearby monsters with your weapon in a closed loop at the game's pace (face, swing, step in), until the time is up, the area is clear, or enough monsters are gone. You set the tactic; it reports swings, monsters gone and the measured loop latency.",
-      parameters: {
-        seconds: { type: "integer", description: "How long, 1-120 (default 20)." },
-        chaseTiles: { type: "integer", description: "Chase monsters up to this far, 1-15 (default 6)." },
-        targetKills: { type: "integer", description: "Stop after this many are gone (0 = no target)." },
-      },
-      output: textOutput,
-      execute: async (args, exec) => {
-        const report = await runMelee(hands.body, await limits(), {
-          seconds: Math.min(120, Math.max(1, args.seconds ?? 20)),
-          chaseTiles: Math.min(15, Math.max(1, args.chaseTiles ?? 6)),
-          targetKills: Math.max(0, args.targetKills ?? 0),
-        }, hands.dice.hands(), `${exec.callId}:melee`, exec.signal);
-        return `Melee ended by ${report.endedBy}: ${report.detail}. Swings ${report.swings}, steps ${report.steps}, monsters gone ${report.monstersGone}. Loop latency: state age p50 ${report.stateAgeMs.p50} ms / p95 ${report.stateAgeMs.p95} ms; input accept p50 ${report.acceptMs.p50} ms / p95 ${report.acceptMs.p95} ms.`;
       },
     }),
   ] as const;
@@ -232,8 +193,8 @@ function itemsLine(items: readonly BodyItem[]): string {
 }
 
 function menuLine(menu: NonNullable<NonNullable<BodyState["body"]>["menu"]>): string {
-  if (menu.items.length === 0) return "Nothing for sale.";
-  return `For sale: ${menu.items.map((item) => `#${item.index} ${item.name} ${item.price}g${item.stock === null ? "" : ` (${item.stock} left)`}${item.tradeItem ? ` + ${item.tradeItem}` : ""}`).join("; ")}.`;
+  const stock = menu.stock === undefined ? "" : ` For sale: ${menu.stock.map((item) => `#${item.index} ${item.name} ${item.price}g${item.stock === null ? "" : ` (${item.stock} left)`}`).join("; ") || "nothing"}.`;
+  return `Open menu: ${menu.kind}, cursor on ${menu.focus ?? "nothing"}, your gold ${menu.money}g. Buttons: ${menu.options.join(", ") || "none"}.${stock}`;
 }
 
 export function renderObservation(state: BodyState, radius: number): string {
@@ -242,10 +203,12 @@ export function renderObservation(state: BodyState, radius: number): string {
   const lines = [`Day ${t.day} (${t.season} ${t.dayOfMonth}, year ${t.year}), ${clock}, ${t.weather}${state.paused ? ", game paused" : ""}.`];
   const self = state.body;
   if (self === null) lines.push("Your body is not in the world right now.");
-  else lines.push(`You: ${self.location} (${self.x},${self.y}) facing ${self.facing}, stamina ${Math.round(self.stamina)}, selected slot ${self.selectedSlot + 1}. Toolbar: ${itemsLine(self.items)}.`);
-  if (self?.menu) lines.push(`Open menu: ${self.menu.shopId} shop, cursor on #${self.menu.cursor}, wallet ${self.menu.money}g. ${menuLine(self.menu)}`);
+  else lines.push(`You: ${self.location} (${self.x},${self.y}) facing ${self.facing}, stamina ${Math.round(self.stamina)}, gold ${self.money}, selected slot ${self.selectedSlot + 1}. Toolbar: ${itemsLine(self.items)}.`);
+  if (self?.menu) lines.push(menuLine(self.menu));
   const p = state.player;
-  lines.push(`Player ${p.name}: ${p.location} (${p.x},${p.y}), gold ${p.money}, health ${Math.round(p.health)}, stamina ${Math.round(p.stamina)}. Inventory: ${itemsLine(p.items)}.`);
+  // Cabin ids look like "FarmHouse<guid>"; without this the model reads the host's FarmHouse as its own room.
+  const apart = self !== null && self.location !== p.location ? ", a different place from you" : "";
+  lines.push(`Player ${p.name}: ${p.location}${apart} (${p.x},${p.y}), gold ${p.money}, health ${Math.round(p.health)}, stamina ${Math.round(p.stamina)}. Inventory: ${itemsLine(p.items)}.`);
   const origin = self ?? p;
   const near = state.objects
     .map((o) => ({ o, d: Math.abs(o.x - origin.x) + Math.abs(o.y - origin.y) }))

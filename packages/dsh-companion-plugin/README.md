@@ -6,7 +6,7 @@ It contributes:
 
 - the persona: the soul as a constitution, the companion policy, the five knobs as tendencies, the response language;
 - turn markers (`[chat day=N]`, `[day-start day=N]`, `[day-end day=N]`, `[resume]`) read in `agent/pre-step`: memory notes, the dream, goal resume without a model call, and dice nudges on goal rounds;
-- body tools when `gameUrl` and `gameToken` are configured: `world_observe`, `world_find`, `world_map`, `world_locations`, `body_walk_to`, `body_use`, `body_input`, `reflex_melee`, `cheat_grant`;
+- body tools when `gameUrl` and `gameToken` are configured: `world_observe`, `world_find`, `world_map`, `world_locations`, `body_walk_to`, `body_controls`, `body_input`, `cheat_grant`;
 - memory: `remember` (one episode per call) and `dream_commit` (only during a dream), over the Persona Ledger next to the save's session directory.
 
 Install it once into DSH's acp profile from the repository root:

@@ -71,7 +71,7 @@ describe("Player2 companion inside the ACP profile", () => {
     const sim = new SimAdapter({ locations: [{ name: "Farm", rows: ["..."], warps: [], objects: [], characters: [] }], body: { location: "Farm", x: 0, y: 0, items: [] } });
     const withBody = await createComposition({ body: sim });
     const names = withBody.tools.schemas().map((tool) => tool.name);
-    expect(names).toEqual(expect.arrayContaining(["world_observe", "body_walk_to", "reflex_melee", "cheat_grant", "remember"]));
+    expect(names).toEqual(expect.arrayContaining(["world_observe", "body_walk_to", "body_input", "cheat_grant", "remember"]));
     expect(renderPrompt(await withBody.systemPrompt.assemble())).toContain("create a goal for it right away");
   });
 
@@ -92,6 +92,7 @@ describe("Player2 companion inside the ACP profile", () => {
     expect(companionPlugin.readMarker("[chat day=12] 你好")).toEqual({ kind: "chat", day: 12, text: "你好" });
     expect(companionPlugin.readMarker("[day-end day=3]")).toEqual({ kind: "day-end", day: 3, text: "" });
     expect(companionPlugin.readMarker("[resume]")).toEqual({ kind: "resume", day: null, text: "" });
+    expect(companionPlugin.readMarker("[world day=4] Alex went to bed")).toEqual({ kind: "world", day: 4, text: "Alex went to bed" });
     expect(companionPlugin.readMarker("hello")).toBeNull();
   });
 });

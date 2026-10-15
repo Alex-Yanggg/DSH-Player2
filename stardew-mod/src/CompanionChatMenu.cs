@@ -12,7 +12,7 @@ namespace DSHPlayer2.Stardew;
 /// <summary>
 /// A bounded chat window in the multiplayer ChatBox tradition: the last lines
 /// stay visible above the input, the wheel and PageUp/PageDown scroll back,
-/// and submitting keeps the menu open. Explicit bounded movement commands are validated by the host.
+/// and submitting keeps the menu open.
 /// </summary>
 internal sealed class CompanionChatMenu : IClickableMenu
 {

@@ -1,8 +1,8 @@
 {
   "id": "stardew-body-frames",
-  "description": "P2-0021 body protocol golden frames. Parsed by the TS zod schemas and by the C# records; the C# task runner must turn `task` into `status`.",
+  "description": "Body protocol 0.2 (P2-0022) golden frames. Parsed by the TS zod schemas and by the C# records; the C# task runner must turn `task` into `status`.",
   "declaration": {
-    "version": "0.1",
+    "version": "0.2",
     "adapter": "stardew-smapi",
     "game": "stardew-valley",
     "writtenAt": "2026-10-14T06:00:00.000Z",
@@ -26,24 +26,27 @@
     },
     "inputs": [
       {
-        "id": "MoveRight",
+        "id": "DPadRight",
         "kind": "hold",
-        "description": "Walk right while held."
+        "description": "Walk right while held.",
+        "role": "right"
       },
       {
-        "id": "MoveDown",
+        "id": "DPadDown",
         "kind": "hold",
-        "description": "Walk down while held."
+        "description": "Walk down while held.",
+        "role": "down"
       },
       {
-        "id": "UseTool",
+        "id": "ControllerA",
         "kind": "press",
-        "description": "Use the selected tool on the faced tile."
+        "description": "The action button.",
+        "role": "action"
       },
       {
-        "id": "Slot1",
+        "id": "ControllerX",
         "kind": "press",
-        "description": "Select toolbar slot 1."
+        "description": "Use the selected tool."
       },
       {
         "id": "NoClip",
@@ -56,7 +59,7 @@
       "maxSteps": 64,
       "maxStepMs": 10000,
       "tickMs": 16.666666666666668,
-      "walkPxPerTick": 4,
+      "walkPxPerTick": 5,
       "tilePx": 64
     },
     "cheats": {
@@ -64,7 +67,7 @@
     }
   },
   "state": {
-    "version": "0.1",
+    "version": "0.2",
     "revision": 41,
     "writtenAt": "2026-10-14T06:00:01.000Z",
     "tick": 9000,
@@ -109,6 +112,7 @@
       "moving": false,
       "selectedSlot": 0,
       "stamina": 270,
+      "money": 500,
       "items": [
         {
           "slot": 0,
@@ -123,29 +127,27 @@
       ],
       "activeTask": null,
       "menu": {
-        "kind": "shop",
-        "shopId": "SeedShop",
-        "title": "SeedShop",
-        "cursor": 1,
+        "kind": "ShopMenu",
+        "focus": "#1 Cauliflower Seeds",
+        "options": [
+          "Parsnip Seeds",
+          "Cauliflower Seeds"
+        ],
         "money": 500,
-        "items": [
+        "stock": [
           {
             "index": 0,
             "id": "(O)472",
             "name": "Parsnip Seeds",
-            "category": "Seed",
             "price": 20,
-            "stock": null,
-            "tradeItem": null
+            "stock": null
           },
           {
             "index": 1,
             "id": "(O)474",
             "name": "Cauliflower Seeds",
-            "category": "Seed",
             "price": 80,
-            "stock": 5,
-            "tradeItem": null
+            "stock": 5
           }
         ]
       }
@@ -199,21 +201,20 @@
     }
   },
   "task": {
-    "version": "0.1",
+    "version": "0.2",
     "taskId": "7f2d4c1e-9a0b-4c3d-8e5f-1a2b3c4d5e6f",
     "seq": 12,
     "createdAt": "2026-10-14T06:00:02.000Z",
     "steps": [
       {
         "hold": [
-          "MoveRight"
+          "DPadRight"
         ],
-        "ms": 267
+        "ms": 213
       },
       {
         "press": [
-          "Slot1",
-          "UseTool"
+          "ControllerX"
         ],
         "ms": 0
       }
@@ -223,7 +224,7 @@
     }
   },
   "status": {
-    "version": "0.1",
+    "version": "0.2",
     "taskId": "7f2d4c1e-9a0b-4c3d-8e5f-1a2b3c4d5e6f",
     "seq": 12,
     "status": "done",
@@ -231,7 +232,7 @@
     "reason": "completed"
   },
   "speech": {
-    "version": "0.1",
+    "version": "0.2",
     "seq": 3,
     "text": "I'll till a patch by the pond first.",
     "at": "2026-10-14T06:00:03.000Z"
