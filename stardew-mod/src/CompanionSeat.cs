@@ -198,6 +198,6 @@ internal sealed class CompanionSeat
         if (__state) PlatformActive.SetValue(Platform.GetValue(GameRunner.instance), false);
     }
 
-    /// <summary>The seat draws only while joining (its join menu connects after its first draw), never while it plays.</summary>
-    private static bool SeatDraws() => !IsSeatScreen || Game1.gameMode != Game1.playingGameMode;
+    /// <summary>The seat draws only while joining or saving (both menus advance only after their first draw), never while it plays.</summary>
+    private static bool SeatDraws() => !IsSeatScreen || Game1.gameMode != Game1.playingGameMode || Game1.activeClickableMenu is SaveGameMenu;
 }
