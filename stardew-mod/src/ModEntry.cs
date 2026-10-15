@@ -220,11 +220,9 @@ internal sealed class ModEntry : Mod
     /// </summary>
     private void Interrupt(string prompt)
     {
-        if (!this.dsh.IsReplying)
-        {
-            this.dsh.Cancel();
-            this.cancelledForPause = false;
-        }
+        // Whether or not it has spoken yet: a turn that works on in silence must still hear the player.
+        this.dsh.Cancel();
+        this.cancelledForPause = false;
         this.Send(prompt);
     }
 

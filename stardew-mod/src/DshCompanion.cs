@@ -30,7 +30,6 @@ internal sealed class DshCompanion : IDisposable
     private string? sessionDirectory;
     private volatile bool initialized;
     private int promptsInFlight;
-    private bool answered;
     private Task prompts = Task.CompletedTask;
 
     public DshCompanion(IMonitor monitor, ModConfig config, JsonObject gameEndpoint)
@@ -40,11 +39,8 @@ internal sealed class DshCompanion : IDisposable
         this.gameEndpoint = gameEndpoint;
     }
 
-    /// <summary>
-    /// True while a prompt the game sent has not been answered. A turn that has spoken and goes on
-    /// working is answered: a new chat message may then stop it.
-    /// </summary>
-    public bool IsReplying => this.promptsInFlight > 0 && !this.answered;
+    /// <summary>True while a prompt the game sent has not been answered.</summary>
+    public bool IsReplying => this.promptsInFlight > 0;
 
     /// <summary>
     /// Opens (or resumes) the save's session, restarting DSH when the chosen
@@ -134,12 +130,7 @@ internal sealed class DshCompanion : IDisposable
         }
         while (client.Events.TryDequeue(out var item))
         {
-            if (item.Kind == AcpClient.Said) this.answered = true;
-            if (item.Kind == AcpClient.TurnEnded || item.Kind == "failed")
-            {
-                this.promptsInFlight = Math.Max(0, this.promptsInFlight - 1);
-                this.answered = false;
-            }
+            if (item.Kind == AcpClient.TurnEnded || item.Kind == "failed") this.promptsInFlight = Math.Max(0, this.promptsInFlight - 1);
             if (item.Kind == AcpClient.Exited)
             {
                 this.promptsInFlight = 0;
@@ -161,7 +152,6 @@ internal sealed class DshCompanion : IDisposable
         this.sessionDirectory = null;
         this.initialized = false;
         this.promptsInFlight = 0;
-        this.answered = false;
     }
 
     public void Dispose() => this.Stop();
