@@ -12,24 +12,22 @@ The mod starts `dsh --profile acp` as its own child process, with one DSH sessio
 | --- | --- |
 | `Player2 started DSH (acp profile) for companion <name>.` | The companion's DSH process is running. |
 | `Player2 sent: <prompt>` | A prompt went to DSH: `[day-start day=N]`, `[chat day=N] <text>`, `[day-end day=N]` or `[resume]`. |
-| `Player2 companion said: <text>` | A line the companion spoke, above its head or on the HUD, and in the chat transcript. |
+| `Player2 companion said: <text>` | A line the companion spoke, in the game's chat box and the chat transcript. |
 | `Player2 turn ended: <stopReason>` | The prompt's turn ended. A chat turn runs from its `sent:` line to the next `turn ended:` line. |
 | `Player2 <CODE>: <detail>` | An error: `DSH_START_FAILED`, `DSH_NOT_RUNNING`, `DSH_TURN_FAILED` or `DSH_EXITED`. |
-| `Player2 companion movement <status>: <detail>.` | A movement command started, completed or failed. |
 
 ## What is covered
 
 | Category | Question |
 | --- | --- |
 | boot | The game starts through SMAPI, the mod loads, the test save loads, and the mod starts DSH and sends the day-start prompt. |
-| presence | The chosen companion is placed in the player's location. |
+| presence | The companion joins the save as a hidden co-op farmer. |
 | conversation | F2 chat reaches DSH and the turn ends with a spoken line, or with an error code. |
-| movement | Explicit commands are issued at Enter, negated phrases never move anyone, follow keeps up, and stay stops. |
 | boundaries | Requests the companion's body cannot do (trading from the player's inventory) are not faked. |
 | feel | Time from Enter to the sent prompt, the first spoken line, and the end of the turn. |
-| bline | A goal asked in chat makes the companion work, and `/stay` takes the body back. Goals are DSH's own, so the judgement is the spoken reply, the SMAPI lines and screenshots. |
+| bline | A goal asked in chat makes the companion work, and a stop said in chat ends it. Goals are DSH's own, so the judgement is the spoken reply, the SMAPI lines and screenshots. |
 
-The open chat is a game menu, so in single player the world pauses while it is open. This is intended: a movement command is issued at Enter, and the companion walks once the chat closes. The movement tests close the chat after Enter.
+With the companion seated the game is co-op, so the world keeps running while the chat is open.
 
 ## Setup
 
