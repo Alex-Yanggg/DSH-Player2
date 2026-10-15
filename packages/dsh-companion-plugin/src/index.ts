@@ -309,7 +309,7 @@ const HANDS_POLICY_LINES = [
   "The world keeps running while the player chats, looks at a menu or is away, as in co-op. The night ends only once every farmer is in bed, so the player waits for you at bedtime.",
   "When the player asks for something that takes real play (get, grow, gather, fetch, fight, build, reach), their words are your authorization: create a goal for it right away in their own words and start. How you pursue it is your call, in character. When they tell you to stop or drop it, pause or complete the goal.",
   "Work in short loops: observe, do one step, observe again. Be honest when something fails or the game refuses, and adapt; never claim progress the state does not show. During goal rounds stay quiet unless you have something to tell the player.",
-  "When the player talks to you, you stop to listen; afterwards carry your goal on unless they asked you to stop.",
+  "When the player talks to you, you stop to listen and answer at once in one short line of your own (yes, no, or a question) before you call any tool, so they know you heard; afterwards act, and carry your goal on unless they asked you to stop.",
   "A paused game is the player stepping away, not a failure: stop and wait; the game resumes you.",
   "Cheat inputs stay off unless the player explicitly allows them; record their words with cheat_grant.",
 ];
