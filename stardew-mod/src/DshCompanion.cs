@@ -100,9 +100,9 @@ internal sealed class DshCompanion : IDisposable
                 var id = await opening.ConfigureAwait(false);
                 await client.PromptAsync(id, text).ConfigureAwait(false);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not AcpException)
             {
-                // The failure also arrives as a turn-ended event when DSH answered at all.
+                // An error DSH answered already arrives as its turn-ended event; only a prompt that never reached DSH is reported here.
                 client.Events.Enqueue(new AcpEvent("failed", "", ex.Message));
             }
         }, TaskScheduler.Default).Unwrap();

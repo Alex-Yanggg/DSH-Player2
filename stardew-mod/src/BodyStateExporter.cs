@@ -156,10 +156,12 @@ internal sealed class BodyStateExporter
     {
         ResetCaches();
         var locations = new List<BodyWorldLocation>();
-        foreach (var location in Game1.locations)
+        // Building interiors (cabins, sheds) included: a farmer's own cabin is a place like any other.
+        Utility.ForEachLocation(location =>
         {
             locations.Add(new BodyWorldLocation(location.NameOrUniqueName, Clip(location.DisplayName ?? location.NameOrUniqueName), location.IsOutdoors, Warps(location)));
-        }
+            return true;
+        });
         return new BodyWorld(BodyChannel.ProtocolVersion, BodyWire.Now(), locations);
     }
 
