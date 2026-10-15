@@ -1,6 +1,6 @@
 # Real-game end-to-end tests
 
-These tests drive the real Stardew Valley game the way a player does, with keyboard, mouse and screen. They judge the result from the mod's own `Player2 ...` lines in the SMAPI log and from screenshots. They use no SMAPI API and no in-process hooks, and the mod is not changed for testing. A log line alone never proves in-game behaviour, so the behaviour tests also save screenshots of what the player saw.
+These tests drive the real Stardew Valley game the way a player does, with keyboard, mouse and screen. They judge the result from the mod's own `Player2 ...` lines in the SMAPI log, from the mod's game endpoint, and from screenshots. They use no SMAPI API and no in-process hooks, and the mod is not changed for testing. A log line alone never proves in-game behaviour, so the behaviour tests also save screenshots of what the player saw.
 
 They run only on a local Windows machine with a display, the game, and a DSH runtime with a working model key. They are not part of CI.
 
@@ -16,6 +16,8 @@ The mod starts `dsh --profile acp` as its own child process, with one DSH sessio
 | `Player2 turn ended: <stopReason>` | The prompt's turn ended. A chat turn runs from its `sent:` line to the next `turn ended:` line. |
 | `Player2 <CODE>: <detail>` | An error: `DSH_START_FAILED`, `DSH_NOT_RUNNING`, `DSH_TURN_FAILED` or `DSH_EXITED`. |
 
+The mod's game endpoint is the second oracle. The tests read its URL and bearer token from `player2.patch.yml` in the bridge directory, the file the mod hands DSH, and call only `world_state`: the host, the companion's farmer (location, tile, inventory, open menu, active input) and the clock. They never call the body's input tools.
+
 ## What is covered
 
 | Category | Question |
@@ -25,7 +27,8 @@ The mod starts `dsh --profile acp` as its own child process, with one DSH sessio
 | conversation | F2 chat reaches DSH and the turn ends with a spoken line, or with an error code. |
 | boundaries | Requests the companion's body cannot do (trading from the player's inventory) are not faked. |
 | feel | Time from Enter to the sent prompt, the first spoken line, and the end of the turn. |
-| bline | A goal asked in chat makes the companion work, and a stop said in chat ends it. Goals are DSH's own, so the judgement is the spoken reply, the SMAPI lines and screenshots. |
+| bline | A goal asked in chat makes the companion work, and a stop said in chat ends it. Goals are DSH's own, so the judgement is the spoken reply, the SMAPI lines, the companion's tile and screenshots. |
+| coop | S13: the companion speaks before it moves and walks to the player, keeps playing with another window in front, buys parsnip seeds at Pierre's, sleeps with the host, and rejoins after the game is quit and the save reloaded. |
 
 With the companion seated the game is co-op, so the world keeps running while the chat is open.
 
@@ -33,7 +36,7 @@ With the companion seated the game is co-op, so the world keeps running while th
 
 1. Build and deploy the mod ([stardew-mod/README.md](../stardew-mod/README.md)) and make sure `dsh` is installed with a working model key.
 2. Install Python 3.14 and the test dependencies: `python -m pip install -r e2e/requirements.txt`.
-3. Choose a template save: any untouched day-1 save folder under `%APPDATA%\StardewValley\Saves`. The template is only read, never modified.
+3. Choose a template save: an untouched day-1 save folder under `%APPDATA%\StardewValley\Saves` whose farm has a cabin, so the companion has a seat. The template is only read, never modified. Spring 1 is a Monday, so Pierre's opens at 9:00; `make_save.py` moves a copy to another date.
 4. Run the game at a 16:9 resolution. Close it before starting the tests.
 
 ## Run

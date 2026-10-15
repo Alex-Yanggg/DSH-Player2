@@ -4,17 +4,21 @@ Three channels, kept apart on purpose:
   * FIXTURE  - state we arrange before/around a run (copied test save, SMAPI console `debug ...` commands).
                Never used to produce the behaviour under test.
   * STIMULUS - what a player does: keyboard + mouse injected into the game window.
-  * ORACLE   - what we judge from: the mod's `Player2 ...` lines in the SMAPI log, and screenshots. DSH keeps its own
-               session logs; their format is DSH's business, so nothing here reads them.
+  * ORACLE   - what we judge from: the mod's `Player2 ...` lines in the SMAPI log, the read-only world_state tool of the mod's
+               game endpoint, and screenshots. DSH keeps its own session logs;
+               their format is DSH's business, so nothing here reads them.
 No SMAPI mod API and no in-process injection is involved on the test side.
 """
 from __future__ import annotations
 
+import calendar
+import json
 import os
 import re
 import shutil
 import subprocess
 import time
+import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -117,7 +121,7 @@ def copy_save(paths: Paths, source: str, save_id: int, day: int | None = None, s
     xml = re.sub(r"<uniqueIDForThisGame>\d+</uniqueIDForThisGame>", f"<uniqueIDForThisGame>{save_id}</uniqueIDForThisGame>", xml)
     # The load screen orders saves by the farmer's <saveTime> (minutes since 2012-06-22) and every day-1 save
     # looks identical on screen. A copy ties with its source, so stamp it "now + 1" to be deterministically slot 1.
-    stamp = int((time.time() - time.mktime((2012, 6, 22, 0, 0, 0, 0, 0, -1))) // 60) + 1
+    stamp = int((time.time() - calendar.timegm((2012, 6, 22, 0, 0, 0))) // 60) + 1  # the game counts in UTC
     xml, head = (re.sub(r"<saveTime>\d+</saveTime>", f"<saveTime>{stamp}</saveTime>", s) for s in (xml, head))
     if day or season or year:
         d = day or int(re.search(r"<dayOfMonth>(\d+)<", xml).group(1))
@@ -154,9 +158,10 @@ UI = {
 DIALOG_BOX = (255, 200, 120)
 DIALOG_REGION: vision.Region = (0.17, 0.65, 0.83, 0.97)
 
-CHAT_REGION: vision.Region = (0.0, 0.70, 0.40, 1.0)
-CHAT_BORDER = (189, 148, 82)  # exact border colour of the Player2 chat overlay
-CHAT_VISIBLE_MIN = 0.008      # closed: ~0.003 (HUD pixels), open: ~0.015
+CHAT_REGION: vision.Region = (0.0, 0.55, 0.55, 1.0)  # the whole panel: the game's own chat line can cover its foot
+# Exact colours of the Player2 chat overlay's three-pixel border: a bright line between two dimmed ones.
+CHAT_BORDERS = ((189, 148, 82), (157, 123, 68))
+CHAT_VISIBLE_MIN = 0.003      # closed: 0, open: ~0.007-0.014
 
 # The mod's oracle lines (ModEntry / DshCompanion).
 DSH_STARTED = r"Player2 started DSH \(acp profile\) for companion (\w+)\."
@@ -165,7 +170,6 @@ SAID = "Player2 companion said: "
 TURN_ENDED = "Player2 turn ended: "
 NO_TURN = re.compile(r"Player2 (DSH_START_FAILED|DSH_NOT_RUNNING): ")  # a send that never reached a turn
 ERROR = re.compile(r"Player2 (DSH_\w+): (.*)")
-MOVEMENT = re.compile(r"Player2 companion movement (\w+): (.*)\.$")
 
 
 @dataclass
@@ -173,11 +177,10 @@ class Exchange:
     """One chat message and everything the SMAPI log says about its turn."""
     text: str
     timeline: gp.Timeline = field(default_factory=gp.Timeline)
-    outcome: str = "timeout"           # completed | failed | timeout | not-awaited
+    outcome: str = "timeout"           # completed | failed | timeout | speaking (until_said: spoke, turn still working)
     stop_reason: str | None = None     # the `turn ended:` text
     error: str | None = None           # `DSH_<CODE>: detail` reported during the turn
     said: list[str] = field(default_factory=list)       # `companion said:` lines between send and turn end
-    movement: list[tuple[str, str]] = field(default_factory=list)  # (status, detail) seen after Enter
 
     @property
     def reply(self) -> str | None:
@@ -289,7 +292,7 @@ class StardewFlows:
     # -- chat
     def chat_visible(self, img=None) -> bool:
         img = img or self.frame()
-        return vision.color_fraction(img, CHAT_BORDER, tol=4, region=CHAT_REGION) >= CHAT_VISIBLE_MIN
+        return sum(vision.color_fraction(img, c, tol=4, region=CHAT_REGION) for c in CHAT_BORDERS) >= CHAT_VISIBLE_MIN
 
     def open_chat(self, attempts: int = 3) -> None:
         for _ in range(attempts):
@@ -324,43 +327,38 @@ class StardewFlows:
             time.sleep(0.2)
         return True
 
-    def send_chat(self, text: str, timeout: float = 90.0, wait_movement: float = 0.0, reply: bool = True,
-                  close_after_enter: bool = False) -> Exchange:
+    def send_chat(self, text: str, timeout: float = 90.0, until_said: bool = False, interrupt: bool = False) -> Exchange:
         """Type `text` into the open chat, press Enter, and follow its turn in the SMAPI log: the turn starts at
         the `sent: [chat day=N] <text>` line and ends at the next `turn ended:` line; `companion said:` lines in
-        between are the reply.
-        reply=False: an explicit movement command (it moves at submit time, independent of DSH); wait only for
-        the movement lines, up to `wait_movement` seconds, not for the reply.
-        close_after_enter: close the chat right after Enter. The open chat is a menu and pauses the world by design
-        (single-player), so a command is issued at Enter but the companion only walks once the chat is closed."""
-        if reply and not self.wait_idle(timeout):
+        between are the reply. The companion may work inside the turn after it spoke; until_said returns at the first
+        spoken line instead; interrupt sends while an earlier turn still works, and that turn's end is not ours. The
+        chat stays open; with the companion seated the world keeps running."""
+        if not interrupt and not self.wait_idle(timeout):
             raise TimeoutError(f"{self.pending_turns()} earlier turn(s) never ended")
+        ahead = self.pending_turns()
         self.open_chat()
         self.smapi.poll()
         mark = len(self.smapi.lines)
         ex = Exchange(text)
         self.kb.type_text(text)
         ex.timeline.mark("enter")
-        self.kb.tap("enter")
-        if close_after_enter:
-            time.sleep(0.2)
-            self.close_chat()
+        self.kb.tap("enter", hold=0.2)  # with the seat running, a host frame can outlast a short tap
         sent = re.compile(rf"{SENT}\[chat day=\d+\] {re.escape(text)}$")
-        deadline = time.monotonic() + (timeout if reply else max(wait_movement, 3.0))
-        movement_deadline = time.monotonic() + wait_movement
+        deadline = time.monotonic() + timeout
         start = None
-        while time.monotonic() < deadline:
+        while time.monotonic() < deadline and "result" not in ex.timeline.marks and not (until_said and ex.said):
             self.smapi.poll()
             lines = self.smapi.lines
             if start is None:
                 start = next((i for i in range(mark, len(lines)) if sent.search(lines[i][1])), None)
                 if start is not None:
                     ex.timeline.mark("published", lines[start][0])
-            ex.movement = [m.groups() for _, ln in lines[mark:] if (m := MOVEMENT.search(ln))]
-            if reply and start is not None and "result" not in ex.timeline.marks:
-                ex.said, ex.error = [], None
+            if start is not None:
+                ex.said, ex.error, skip = [], None, ahead
                 for seen, ln in lines[start + 1:]:
-                    if SAID in ln:
+                    if skip:  # lines of the turns this message interrupted, up to their ends
+                        skip -= TURN_ENDED in ln
+                    elif SAID in ln:
                         ex.said.append(ln.split(SAID, 1)[1])
                         if "said" not in ex.timeline.marks:
                             ex.timeline.mark("said", seen)
@@ -375,17 +373,29 @@ class StardewFlows:
                         ex.stop_reason = ln.split(TURN_ENDED, 1)[1]
                         ex.outcome = "failed" if ex.error or ex.stop_reason.startswith("error") else "completed"
                         break
-            moved_enough = time.monotonic() >= movement_deadline or any(s in ("completed", "failed") for s, _ in ex.movement)
-            if moved_enough and ("result" in ex.timeline.marks or not reply):
-                break
             time.sleep(0.02)
-        if not reply and ex.outcome == "timeout":
-            ex.outcome = "not-awaited"
+        if until_said and ex.said and ex.outcome == "timeout":
+            ex.outcome = "speaking"
         return ex
 
-    def movement_since(self, mark: int) -> list[tuple[str, str]]:
-        self.smapi.poll()
-        return [m.groups() for _, ln in self.smapi.lines[mark:] if (m := MOVEMENT.search(ln))]
+
+class GameEndpoint:
+    """The mod's game endpoint (GameMcpServer), read with the URL and bearer token the mod hands DSH in the patch
+    file it writes when it starts DSH. Only the read-only tools are called; the body is never driven from here."""
+
+    def __init__(self, paths: Paths):
+        plugin = json.loads((paths.bridge / "player2.patch.yml").read_text(encoding="utf-8"))[0]["insert"][0]["config"]
+        self.url, self.token = plugin["gameUrl"], plugin["gameToken"]
+
+    def call(self, tool: str) -> dict:
+        body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": tool, "arguments": {}}})
+        req = urllib.request.Request(self.url, body.encode(), {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=10) as r:
+            result = json.load(r)["result"]
+        text = result["content"][0]["text"]
+        if result["isError"]:
+            raise RuntimeError(f"{tool}: {text}")
+        return json.loads(text)
 
 
 # --------------------------------------------------------------------------------------------- game
@@ -414,7 +424,7 @@ class StardewGame(StardewFlows):
         self.paths.smapi_log.unlink(missing_ok=True)
         self.smapi = gp.TextTail(self.paths.smapi_log)
         logdir = (self.art.dir if self.art else Path.cwd())
-        self._stdout = open(logdir / "smapi-console.txt", "wb")
+        self._stdout = open(logdir / "smapi-console.txt", "ab")  # a relaunch in the same run appends
         self.proc = subprocess.Popen([str(self.paths.game / "StardewModdingAPI.exe")], cwd=self.paths.game,
                                      stdin=subprocess.PIPE, stdout=self._stdout, stderr=subprocess.STDOUT)
         self.hwnd = win.wait_for_window(self.PROCESS, self.TITLE, timeout)
@@ -448,9 +458,11 @@ class StardewGame(StardewFlows):
                 psutil.wait_procs([parent], timeout=10)
             except psutil.NoSuchProcess:
                 pass
-        for p in psutil.process_iter(["name"]):  # SMAPI hands off to the game process; make sure it is gone
-            if (p.info["name"] or "").lower() in self.PROCESS:
-                p.terminate()
+        # SMAPI hands off to the game process; make sure it is gone, so the next launch finds no window.
+        rest = [p for p in psutil.process_iter(["name"]) if (p.info["name"] or "").lower() in self.PROCESS]
+        for p in rest:
+            p.terminate()
+        psutil.wait_procs(rest, timeout=10)
         if self._stdout:
             self._stdout.close()
 
@@ -470,6 +482,10 @@ class StardewGame(StardewFlows):
         if self.art:
             self.art.shot(name, img)
         return img
+
+    def state(self) -> dict:
+        """The mod's world_state: the host (`player`), the companion's farmer (`body`), the clock, the body's menu."""
+        return GameEndpoint(self.paths).call("world_state")
 
     def click_at(self, fx: float, fy: float) -> None:
         assert self.rect
