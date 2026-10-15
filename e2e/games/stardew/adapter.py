@@ -90,27 +90,49 @@ def build_test_save(paths: Paths, source: str | None = None) -> Path:
     _forget_previous_test_save(paths)
     LAST_TEST_SAVE.parent.mkdir(parents=True, exist_ok=True)
     LAST_TEST_SAVE.write_text(str(TEST_SAVE_ID), encoding="utf-8")
-    src, dst = paths.saves / source, paths.saves / TEST_SAVE_NAME
-    if dst.exists():
-        shutil.rmtree(dst)
-    shutil.copytree(src, dst)
-    (dst / source).rename(dst / TEST_SAVE_NAME)
-    for stale in dst.glob("*_old"):
-        stale.unlink()
-    main = dst / TEST_SAVE_NAME
-    xml = main.read_text(encoding="utf-8")
-    old_id = re.search(r"<uniqueIDForThisGame>(\d+)</uniqueIDForThisGame>", xml).group(1)
-    # The load screen orders saves by the farmer's <saveTime> (minutes since 2012-06-22) and every day-1 save
-    # looks identical on screen. A copy ties with its source, so stamp it "now + 1" to be deterministically slot 1.
-    stamp = int((time.time() - time.mktime((2012, 6, 22, 0, 0, 0, 0, 0, -1))) // 60) + 1
-    retime = lambda s: re.sub(r"<saveTime>\d+</saveTime>", f"<saveTime>{stamp}</saveTime>", s)
-    main.write_text(retime(xml.replace(f"<uniqueIDForThisGame>{old_id}</uniqueIDForThisGame>",
-                                       f"<uniqueIDForThisGame>{TEST_SAVE_ID}</uniqueIDForThisGame>")), encoding="utf-8")
-    info = dst / "SaveGameInfo"
-    info.write_text(retime(info.read_text(encoding="utf-8")), encoding="utf-8")
+    dst = copy_save(paths, source, TEST_SAVE_ID)
     # Reset our bridge sessions only - the path is keyed by the test ID, never by a real save's.
     for d in paths.session_dirs():
         shutil.rmtree(d, ignore_errors=True)
+    return dst
+
+
+SEASONS = ("spring", "summer", "fall", "winter")
+
+
+def copy_save(paths: Paths, source: str, save_id: int, day: int | None = None, season: str | None = None,
+              year: int | None = None) -> Path:
+    """Copies a save to `E2E_<save_id>` under a new unique id, the source only read. The date fields are edited in
+    the save XML itself, so a copy can start on any day with whatever the source already holds (a created
+    companion farmhand, a cabin) and no day-1 creation runs."""
+    src, dst = paths.saves / source, paths.saves / f"E2E_{save_id}"
+    if dst.exists():
+        shutil.rmtree(dst)
+    shutil.copytree(src, dst)
+    (dst / source).rename(dst / dst.name)
+    for stale in dst.glob("*_old"):
+        stale.unlink()
+    main, info = dst / dst.name, dst / "SaveGameInfo"
+    xml, head = main.read_text(encoding="utf-8"), info.read_text(encoding="utf-8")
+    xml = re.sub(r"<uniqueIDForThisGame>\d+</uniqueIDForThisGame>", f"<uniqueIDForThisGame>{save_id}</uniqueIDForThisGame>", xml)
+    # The load screen orders saves by the farmer's <saveTime> (minutes since 2012-06-22) and every day-1 save
+    # looks identical on screen. A copy ties with its source, so stamp it "now + 1" to be deterministically slot 1.
+    stamp = int((time.time() - time.mktime((2012, 6, 22, 0, 0, 0, 0, 0, -1))) // 60) + 1
+    xml, head = (re.sub(r"<saveTime>\d+</saveTime>", f"<saveTime>{stamp}</saveTime>", s) for s in (xml, head))
+    if day or season or year:
+        d = day or int(re.search(r"<dayOfMonth>(\d+)<", xml).group(1))
+        s = SEASONS.index(season or re.search(r"<currentSeason>(\w+)<", xml).group(1))
+        y = year or int(re.search(r"<year>(\d+)<", xml).group(1))
+        xml = re.sub(r"<dayOfMonth>\d+<", f"<dayOfMonth>{d}<", xml, count=1)
+        xml = re.sub(r"<currentSeason>\w+<", f"<currentSeason>{SEASONS[s]}<", xml, count=1)
+        xml = re.sub(r"<year>\d+<", f"<year>{y}<", xml, count=1)
+        # The day count drives date checks such as the landslide that blocks the mines until spring 5.
+        played = f"<string>daysPlayed</string></key><value><unsignedInt>{(y - 1) * 112 + s * 28 + d}<"
+        xml = re.sub(r"<string>daysPlayed</string></key><value><unsignedInt>\d+<", played, xml)
+        for tag, value in (("dayOfMonthForSaveGame", d), ("seasonForSaveGame", s), ("yearForSaveGame", y)):
+            head = re.sub(rf"<{tag}>\d+<", f"<{tag}>{value}<", head)
+    main.write_text(xml, encoding="utf-8")
+    info.write_text(head, encoding="utf-8")
     return dst
 
 

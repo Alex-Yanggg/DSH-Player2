@@ -80,3 +80,19 @@ appearance customization stays and is applied to the farmhand.
 Added code stays under about 400 lines (seat, pad, menu export); the net
 change must be negative by at least 1,000 lines. Each PR states lines added
 and removed by kind.
+
+## A player's day, and what can break for the companion
+
+The seat is tested the way a day is played, not by feature. Each step names its risk for a hidden second farmer.
+
+| Step | What the player does | Risk for the companion |
+| --- | --- | --- |
+| Wake | Leaves the farmhouse at 6:00; the companion wakes in its cabin. | Join or creation runs again on a later day; the cabin door warp leaves it stuck at the door. |
+| Chores | Hoes, waters, opens the inventory, switches to another window. | The window loses focus or a host menu opens: the seat must keep running (it has its own screen), and a paused goal must hold. |
+| To town | Walks the farm, bus stop and town warps. | A warp mid-walk invalidates the path; the companion is in a different place from the player. |
+| Pierre's | Shop opens 9:00, closed Wednesday; talk at the counter, buy seeds. | The shop is a menu on the seat's own screen: it must be exported and driven with the same buttons; buying needs the companion's own gold. |
+| Evening | Ships, heads home. | Nothing tells the companion the day is ending. |
+| Bed | Host sleeps; the game waits for every farmer. | The host waits forever if the companion never goes to bed; at 2:00 both must pass out. |
+| Save | Sleeping saves the day for both farmers. | The save must keep the companion's farmhand; reloading lands on the next day with no creation, and the companion must rejoin as the same farmer. |
+
+Test saves are throwaway copies made with `python e2e/make_save.py <source> [--day N --season S]`, which edits the date in the save XML. Copying a save the companion already slept in skips day-1 creation.
