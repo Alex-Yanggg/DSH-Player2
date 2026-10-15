@@ -66,7 +66,7 @@ internal sealed class CompanionSeat
         harmony.Patch(AccessTools.Method(typeof(Game1), "Draw", new[] { typeof(GameTime) }), prefix: new HarmonyMethod(typeof(CompanionSeat), nameof(SeatDraws)));
         // The instance's own Update override (SMAPI's), which also gates mod input on IsActive.
         harmony.Patch(AccessTools.Method(Game1.game1.GetType(), "Update", new[] { typeof(GameTime) }),
-            prefix: new HarmonyMethod(typeof(CompanionSeat), nameof(SeatFocused)), finalizer: new HarmonyMethod(typeof(CompanionSeat), nameof(FocusRestore)));
+            prefix: new HarmonyMethod(typeof(CompanionSeat), nameof(SeatFocused)), finalizer: new HarmonyMethod(typeof(CompanionSeat), nameof(SeatUpdated)));
     }
 
     /// <summary>Host screen: seats the companion when the farm has a home for it. Returns why not, or null.</summary>
@@ -193,9 +193,15 @@ internal sealed class CompanionSeat
         if (__state) PlatformActive.SetValue(Platform.GetValue(GameRunner.instance), true);
     }
 
-    private static void FocusRestore(bool __state)
+    /// <summary>
+    /// Local co-op freezes the world while every farmer has a menu open. A friend over the
+    /// network never pauses the host, so neither does the seat: its own shop or inventory
+    /// must not freeze the world while the player has the chat open.
+    /// </summary>
+    private static void SeatUpdated(Game1 __instance, bool __state)
     {
         if (__state) PlatformActive.SetValue(Platform.GetValue(GameRunner.instance), false);
+        if (ReferenceEquals(__instance, seat)) Game1.player.requestingTimePause.Value = false;
     }
 
     /// <summary>The seat draws only while joining or saving (both menus advance only after their first draw), never while it plays.</summary>
