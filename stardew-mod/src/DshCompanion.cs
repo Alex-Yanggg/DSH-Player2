@@ -30,6 +30,7 @@ internal sealed class DshCompanion : IDisposable
     private string? sessionDirectory;
     private volatile bool initialized;
     private int promptsInFlight;
+    private volatile int earlyCancels;
     private Task prompts = Task.CompletedTask;
 
     public DshCompanion(IMonitor monitor, ModConfig config, JsonObject gameEndpoint)
@@ -93,12 +94,16 @@ internal sealed class DshCompanion : IDisposable
         var opening = this.opening;
         if (client is null || opening is null || client.HasExited) return false;
         this.promptsInFlight++;
+        var cancels = this.earlyCancels;
         this.prompts = this.prompts.ContinueWith(async _ =>
         {
             try
             {
                 var id = await opening.ConfigureAwait(false);
-                await client.PromptAsync(id, text).ConfigureAwait(false);
+                var turn = client.PromptAsync(id, text);
+                // A stop asked while the session was still opening applies to the prompts that waited for it.
+                if (this.earlyCancels != cancels) client.Cancel(id);
+                await turn.ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is not AcpException)
             {
@@ -116,6 +121,10 @@ internal sealed class DshCompanion : IDisposable
         {
             client.Cancel(opening.Result);
         }
+        else
+        {
+            this.earlyCancels++;
+        }
     }
 
     /// <summary>Game thread: what the companion said and whether something failed since the last tick.</summary>
@@ -126,6 +135,7 @@ internal sealed class DshCompanion : IDisposable
         if (this.opening is { IsFaulted: true } failed)
         {
             this.opening = null;
+            this.promptsInFlight = 0; // prompts queued behind the failed opening never reach DSH
             yield return new AcpEvent("failed", "", failed.Exception?.GetBaseException().Message ?? "the session did not open");
         }
         while (client.Events.TryDequeue(out var item))
