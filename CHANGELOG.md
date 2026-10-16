@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased - W2 under ACP (P2-0018)
+
+- the companion's words show sentence by sentence while DSH still streams the
+  rest of the turn;
+- more [world] facts it could not see in its own state: the player badly hurt
+  (cuts in at once), exhausted, a fish caught, a new mine level, a skill level
+  up; at most one an in-game hour, and none while the player is in a cutscene,
+  festival or minigame, when the companion's lines are held as well;
+- native emotes (the co-op chat's /emote) on the companion's controller
+  (`EmoteHappy`, `EmoteHeart`, ...);
+- W2's wire/WebSocket plan is superseded by ACP plus the game endpoint
+  (P2-0022), so no new dependency or lock-file change.
+
 ## Unreleased - star personas and persona packs (P2-0017)
 
 - a companion is a persona pack: `personas/<id>/persona.json` (format
