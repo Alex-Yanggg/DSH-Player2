@@ -7,21 +7,6 @@ import { z } from "zod";
  */
 
 /**
- * Player-authored stable persona commitments: the soul layer of the
- * companion's five-layer personality. Values, bonds, voice, and hard
- * boundaries travel beside the identity on every turn so the DSH side can
- * bind them into its system prompt as a constitution that turn data can
- * never rewrite.
- */
-export const companionSoulSchema = z.object({
-  values: z.array(z.string().trim().min(1).max(160)).min(1).max(8),
-  bonds: z.array(z.string().trim().min(1).max(160)).min(1).max(8),
-  voice: z.string().trim().min(1).max(240),
-  boundaries: z.array(z.string().trim().min(1).max(160)).min(1).max(8),
-});
-export type CompanionSoul = z.infer<typeof companionSoulSchema>;
-
-/**
  * Persona Ledger (P2-0016 W1). One ledger per companion person, kept by the
  * DSH-side Mind Core beside the bridge project: experience (episodes), the
  * narrative of "our story", slowly changing traits, and a four-scalar mood.
@@ -92,3 +77,4 @@ export type PersonLedger = z.infer<typeof personLedgerSchema>;
 
 export * from "./body.js";
 export * from "./knobs.js";
+export * from "./persona.js";

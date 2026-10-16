@@ -286,7 +286,7 @@ class StardewFlows:
             self.wait_title()
             self.load_test_save()
         if not self.smapi.wait_for(DSH_STARTED, 15):  # an existing companion starts DSH at day start
-            self.choose_companion(0)
+            self.choose_companion(int(os.environ.get("E2E_PERSONA", "0")))  # roster order: persona folders by name
         time.sleep(2)
 
     def sleep_night(self, day: int) -> None:

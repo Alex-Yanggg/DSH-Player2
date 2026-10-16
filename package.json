@@ -11,7 +11,8 @@
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "ledger:export": "node scripts/ledger-export.mjs",
-    "accept": "npm run build && npm run typecheck && npm test && dotnet test player2-core.tests/DSHPlayer2.Core.Tests.csproj --configuration Release"
+    "accept": "npm run build && npm run typecheck && npm test && dotnet test player2-core.tests/DSHPlayer2.Core.Tests.csproj --configuration Release",
+    "persona:check": "node scripts/persona-check.mjs"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.4",

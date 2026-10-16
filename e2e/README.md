@@ -29,6 +29,7 @@ The mod's game endpoint is the second oracle. The tests read its URL and bearer 
 | feel | Time from Enter to the sent prompt, the first spoken line, and the end of the turn. |
 | bline | A goal asked in chat makes the companion work, and a stop said in chat ends it. Goals are DSH's own, so the judgement is the spoken reply, the SMAPI lines, the companion's tile and screenshots. |
 | coop | S13: the companion speaks before it moves and walks to the player, keeps playing with another window in front, buys parsnip seeds at Pierre's, sleeps with the host, and rejoins after the game is quit and the save reloaded. |
+| persona | P2-0017: the chosen persona answers its pack's probe questions in character, with no coordinates or internal words. Run once per persona (`$env:E2E_PERSONA = "0"` 大肥鱼, `"1"` 军师) with `-m persona`, then `python e2e/blind_sheet.py` writes `artifacts/blind/sheet.md` without names and `key.md` for the H2 blind test. |
 
 With the companion seated the game is co-op, so the world keeps running while the chat is open.
 

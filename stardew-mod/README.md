@@ -46,23 +46,9 @@ Give the companion a goal in chat ("给我弄 3 根胡萝卜"): it creates a DSH
 
 ## Choosing a companion
 
-On the first day of a save the mod asks who your companion is and remembers the choice on that farmer, then opens Stardew Valley's own character-customization screen for the companion's look. **F7** (`CustomizeCompanionKey`) reopens it. Edit the roster in `config.json`:
+On the first day of a save the mod asks who your companion is and remembers the choice on that farmer, then opens Stardew Valley's own character-customization screen for the companion's look. **F7** (`CustomizeCompanionKey`) reopens it.
 
-```json
-{
-  "CompanionChoices": [{
-    "Name": "Mira",
-    "Role": "the player's candid farm partner",
-    "SoulValues": ["curiosity, kindness, and finding one small delight in each farm day"],
-    "SoulBonds": ["the player, as a trusted friend and equal partner"],
-    "SoulVoice": "Bright, gently playful, and honest about uncertainty.",
-    "SoulBoundaries": ["never invents a fact, memory, or completed action"],
-    "Knobs": { "Talkativeness": 0.5, "HelpSeeking": 0.5, "Risk": 0.5, "Obedience": 0.5, "Skill": 0.5 }
-  }]
-}
-```
-
-The soul becomes the persona constitution in DSH's system prompt; a soul without any commitment fails the plugin mount loudly.
+The roster is the persona packs in the mod's `personas/` folder, one folder with a `persona.json` each (format `player2.persona/0`, P2-0017). Two official personas ship: 大肥鱼 and 军师. To add your own, copy a folder, change `id` and `name`, and edit the rest; check it with `npm run persona:check <folder>`. A pack describes a person (soul, voice samples, catchphrases, reactions, relationship arc, five knobs, probe questions) and grants nothing: unknown fields and wording that grants powers are rejected, and an invalid pack fails the companion loudly. `CompanionName` in `config.json` puts one name first in the question.
 
 ## Where things live
 

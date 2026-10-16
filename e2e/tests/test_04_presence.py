@@ -18,7 +18,7 @@ def test_companion_is_seated_as_a_hidden_farmer(world, art):
 
 def test_companion_identity_is_the_chosen_one(world):
     started = world.smapi.grep(DSH_STARTED)
-    assert started and "companion Mira." in started[-1], started
+    assert started and "companion 大肥鱼." in started[-1], started
 
 
 def test_chat_overlay_shows_the_companion_name(world):
