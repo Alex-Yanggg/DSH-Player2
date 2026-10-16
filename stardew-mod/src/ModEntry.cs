@@ -177,7 +177,7 @@ internal sealed class ModEntry : Mod
     {
         this.dayPending = false;
         if (this.ResolveCompanionChoice() is not { } companion) return;
-        var session = SessionLayout.SessionDirectory(this.config.DecisionBridgeDirectory, companion.Name, SessionLayout.SaveId(Game1.uniqueIDForThisGame));
+        var session = SessionLayout.SessionDirectory(this.config.DecisionBridgeDirectory, companion.Id, SessionLayout.SaveId(Game1.uniqueIDForThisGame));
         try
         {
             this.body.Attach(session);

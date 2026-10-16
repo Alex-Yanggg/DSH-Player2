@@ -9,10 +9,10 @@ namespace DSHPlayer2.Stardew;
 
 /// <summary>
 /// One selectable companion: a persona pack (P2-0017) under the mod's
-/// `personas/` folder. The mod reads only the name; the companion plugin
+/// `personas/` folder. The mod reads only the id (its folder key) and name; the companion plugin
 /// validates the whole pack and binds it, so the format lives in one place.
 /// </summary>
-public sealed record CompanionChoice(string Name, string PackPath)
+public sealed record CompanionChoice(string Id, string Name, string PackPath)
 {
     /// <summary>Every pack folder under <paramref name="modDirectory"/>/personas; a pack without a name stops the mod.</summary>
     public static List<CompanionChoice> LoadAll(string modDirectory)
@@ -22,7 +22,7 @@ public sealed record CompanionChoice(string Name, string PackPath)
             .Select(path =>
             {
                 using var pack = JsonDocument.Parse(File.ReadAllText(path));
-                return new CompanionChoice(pack.RootElement.GetProperty("name").GetString()!, path);
+                return new CompanionChoice(pack.RootElement.GetProperty("id").GetString()!, pack.RootElement.GetProperty("name").GetString()!, path);
             })
             .ToList();
         if (choices.Count == 0) throw new InvalidOperationException($"Player2 found no persona pack under {modDirectory}/personas.");
