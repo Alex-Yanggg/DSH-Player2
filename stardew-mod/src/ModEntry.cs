@@ -53,6 +53,8 @@ internal sealed class ModEntry : Mod
     private bool cancelledForPause;
     private bool noCabinShown;
     private bool sleepWaitNoted;
+    private PlayerMarks? marks;
+    private int lastWorldNoteTime;
 
     public override void Entry(IModHelper helper)
     {
@@ -155,6 +157,7 @@ internal sealed class ModEntry : Mod
 
     private void OnDayStarted(object? sender, DayStartedEventArgs e)
     {
+        this.lastWorldNoteTime = 0;
         if (!Context.IsMainPlayer) return;
         if (this.ResolveCompanionChoice() is null)
         {
@@ -229,15 +232,42 @@ internal sealed class ModEntry : Mod
 
     /// <summary>
     /// [world] prompts are plain facts about the shared world the companion could not otherwise
-    /// notice; what to do about them is its own call. The first: the player waits in bed, and in
-    /// co-op the night ends only when every farmer sleeps.
+    /// notice; what to do about them is its own call. The player waiting in bed and the player
+    /// badly hurt cut in at once (the night or a life depends on it); the rest wait their turn, at
+    /// most one an in-game hour. Nothing is noticed while the player is busy in a cutscene,
+    /// festival or minigame: the changes are told once they are back.
     /// </summary>
     private void NoticeWorld()
     {
+        var player = Game1.player;
         var waiting = Game1.activeClickableMenu is ReadyCheckDialog { checkName: "sleep" };
-        if (waiting && !this.sleepWaitNoted) this.Interrupt($"[world day={GameDay}] {Game1.player.Name} went to bed and is waiting for every farmer to sleep before the night can end.");
+        if (waiting && !this.sleepWaitNoted) this.Interrupt($"[world day={GameDay}] {player.Name} went to bed and is waiting for every farmer to sleep before the night can end.");
         this.sleepWaitNoted = waiting;
+        if (PlayerBusy) return;
+        var now = new PlayerMarks(player.health, player.exhausted.Value, player.stats.FishCaught, player.deepestMineLevel, player.newLevels.Count);
+        var was = this.marks;
+        this.marks = now;
+        if (was is null) return;
+        if (now.Health < was.Health && now.Health * 3 < player.maxHealth && was.Health * 3 >= player.maxHealth)
+        {
+            this.Interrupt($"[world day={GameDay}] {player.Name} is badly hurt ({now.Health}/{player.maxHealth} health) in {player.currentLocation.DisplayName}.");
+            return;
+        }
+        var fact = now.Exhausted && !was.Exhausted ? $"{player.Name} is exhausted (no energy left)."
+            : now.Fish > was.Fish ? $"{player.Name} just caught a fish."
+            : now.MineLevel > was.MineLevel ? $"{player.Name} reached mine level {now.MineLevel} for the first time."
+            : now.LevelUps > was.LevelUps ? $"{player.Name} just levelled up a skill."
+            : null;
+        if (fact is null || this.dsh.IsReplying || Utility.CalculateMinutesBetweenTimes(this.lastWorldNoteTime, Game1.timeOfDay) < 60) return;
+        this.lastWorldNoteTime = Game1.timeOfDay;
+        this.Send($"[world day={GameDay}] {fact}");
     }
+
+    /// <summary>The player is in a cutscene, festival or minigame: the companion neither interrupts nor speaks.</summary>
+    private static bool PlayerBusy => Game1.eventUp || Game1.currentMinigame is not null || Game1.isFestival();
+
+    /// <summary>What the companion would notice changing about the player.</summary>
+    private sealed record PlayerMarks(int Health, bool Exhausted, uint Fish, int MineLevel, int LevelUps);
 
     /// <summary>Sends one prompt; a session lost to a DSH exit is reopened once.</summary>
     private void Send(string prompt)
@@ -292,6 +322,7 @@ internal sealed class ModEntry : Mod
 
     private void ShowEvents()
     {
+        if (PlayerBusy) return; // held, not dropped: the lines show once the player is back
         foreach (var item in this.dsh.Drain())
         {
             if (item.Kind == AcpClient.TurnEnded) this.Monitor.Log($"Player2 turn ended: {item.Text}", LogLevel.Trace);
@@ -381,6 +412,7 @@ internal sealed class ModEntry : Mod
         this.chatHintPending = false;
         this.cancelledForPause = false;
         this.sleepWaitNoted = false;
+        this.marks = null;
         this.transcript = null;
     }
 

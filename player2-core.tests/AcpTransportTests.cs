@@ -51,16 +51,19 @@ public sealed class AcpClientTests : IDisposable
         var asked = await this.NextAsync("session/prompt");
         Assert.Equal("[chat] hi", asked["params"]!["prompt"]![0]!["text"]!.GetValue<string>());
         this.Update("s1", "m1", "Hello");
-        this.Update("s1", "m1", " there");
+        this.Update("s1", "m1", " there. On");
+        Assert.Equal(new[] { "said:Hello there." }, this.Drain()); // a finished sentence is said while the rest streams
+        this.Update("s1", "m1", " my way");
         this.Send(new JsonObject { ["jsonrpc"] = "2.0", ["id"] = 99, ["method"] = "session/request_permission", ["params"] = new JsonObject { ["sessionId"] = "s1" } });
         var permission = JsonNode.Parse((await this.serverIn.ReadLineAsync())!)!;
         Assert.Equal(99, permission["id"]!.GetValue<int>());
         Assert.Equal("allow-once", permission["result"]!["outcome"]!["optionId"]!.GetValue<string>());
-        this.Update("s1", "m2", "Done.");
+        this.Update("s1", "m2", "好的。「收到」");
+        this.Update("s1", "m2", "这就去！」走了");
         this.Reply(asked, new JsonObject { ["stopReason"] = "end_turn" });
         Assert.Equal("end_turn", await prompt);
 
-        Assert.Equal(new[] { "said:Hello there", "said:Done.", "turn-ended:end_turn" }, this.Drain());
+        Assert.Equal(new[] { "said:On my way", "said:好的。", "said:「收到」这就去！」", "said:走了", "turn-ended:end_turn" }, this.Drain());
     }
 
     [Fact]

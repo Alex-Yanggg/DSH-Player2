@@ -18,6 +18,9 @@ namespace DSHPlayer2.Stardew;
 /// </summary>
 internal sealed class BodyAdapter
 {
+    /// <summary>Native emote names (the co-op chat's /emote); declared first, the input list below reads them.</summary>
+    private static readonly string[] Emotes = { "happy", "sad", "heart", "exclamation", "question", "laugh", "angry", "surprised", "sleep", "music", "yes", "no", "hi" };
+
     /// <summary>The controller the game reads for the seat. Descriptions follow the game's own controller layout.</summary>
     public static readonly BodyInputDescriptor[] Inputs = new BodyInputDescriptor[]
     {
@@ -35,7 +38,9 @@ internal sealed class BodyAdapter
         new("ControllerBack", "press", "Back: the journal."),
     // No LT/RT: SMAPI sets only a trigger's analog value and the game reads trigger button flags, so they never register.
     // SlotN is the keyboard's toolbar hotkey (1-9, 0, -, =); a real key press would switch the seat out of gamepad mode.
-    }.Concat(Enumerable.Range(1, 12).Select(n => new BodyInputDescriptor($"Slot{n}", "press", $"Select toolbar slot {n} (outside menus)."))).ToArray();
+    // EmoteX is the co-op chat's /emote: an emote bubble over your head that every farmer sees, no words needed.
+    }.Concat(Enumerable.Range(1, 12).Select(n => new BodyInputDescriptor($"Slot{n}", "press", $"Select toolbar slot {n} (outside menus).")))
+     .Concat(Emotes.Select(name => new BodyInputDescriptor($"Emote{char.ToUpperInvariant(name[0])}{name[1..]}", "press", $"Show the {name} emote over your head."))).ToArray();
 
     private const int MaxSteps = 64;
     private const int MaxStepMs = 10_000;
@@ -129,6 +134,8 @@ internal sealed class BodyAdapter
         this.Play(held, pressed);
         if (farmer is not null && !farmer.UsingTool && Context.IsPlayerFree && pressed.LastOrDefault(id => id.StartsWith("Slot")) is { } slot)
             farmer.CurrentToolIndex = int.Parse(slot[4..]) - 1;
+        if (farmer is not null && pressed.LastOrDefault(id => id.StartsWith("Emote")) is { } emote)
+            farmer.netDoEmote(emote[5..].ToLowerInvariant());
         if (farmer is not null && Game1.ticks <= this.activeUntilTick) this.exporter.RefreshRow(farmer);
         if (farmer is not null && this.channel.StateWanted) this.WriteState(farmer, paused);
         if (this.runner is not null && this.runner.Update != this.lastStatusUpdate) this.WriteStatus();

@@ -6,6 +6,7 @@ using System.IO;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -35,6 +36,8 @@ public sealed class AcpClient : IDisposable
     private string? openMessageId;
     private string? openSessionId;
     private readonly StringBuilder openText = new();
+    /// <summary>Where a spoken sentence ends: CJK or Latin end marks (with closing quotes), a line break, or ". ".</summary>
+    private static readonly Regex SentenceEnd = new(@"[。！？!?\n]+[」』”""）)]*|\.\s", RegexOptions.Compiled);
     private readonly Queue<string> diagnostics = new();
 
     public AcpClient(Stream toServer, Stream fromServer, Process? process = null)
@@ -251,6 +254,15 @@ public sealed class AcpClient : IDisposable
                 this.openMessageId = messageId;
                 this.openSessionId = sessionId;
                 this.openText.Append(update["content"]!["text"]!.GetValue<string>());
+                // Each sentence is said as soon as it is complete, so the first words show while the rest streams.
+                var text = this.openText.ToString();
+                var ends = SentenceEnd.Matches(text);
+                if (ends.Count > 0)
+                {
+                    var cut = ends[^1].Index + ends[^1].Length;
+                    this.Speak(text[..cut]);
+                    this.openText.Remove(0, cut);
+                }
                 return;
             }
             this.FlushMessage();
@@ -262,13 +274,18 @@ public sealed class AcpClient : IDisposable
         }
     }
 
-    /// <summary>Reader thread only: emits the buffered assistant message as one line of speech.</summary>
+    /// <summary>Reader thread only: says what is left of the buffered assistant message.</summary>
     private void FlushMessage()
     {
-        var text = this.openText.ToString().Trim();
-        if (text.Length > 0) this.Events.Enqueue(new AcpEvent(Said, this.openSessionId ?? "", text));
+        this.Speak(this.openText.ToString());
         this.openText.Clear();
         this.openMessageId = null;
+    }
+
+    private void Speak(string text)
+    {
+        text = text.Trim();
+        if (text.Length > 0) this.Events.Enqueue(new AcpEvent(Said, this.openSessionId ?? "", text));
     }
 }
 
