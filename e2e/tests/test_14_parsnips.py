@@ -13,7 +13,7 @@ pytestmark = pytest.mark.bline
 
 PARSNIP = "(O)24"
 WANTED = 3
-DAYS = 7
+DAYS = 8
 BEDTIME = 2200
 
 

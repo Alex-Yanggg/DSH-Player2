@@ -19,7 +19,7 @@ namespace DSHPlayer2.Stardew;
 internal sealed class BodyAdapter
 {
     /// <summary>The controller the game reads for the seat. Descriptions follow the game's own controller layout.</summary>
-    public static readonly BodyInputDescriptor[] Inputs =
+    public static readonly BodyInputDescriptor[] Inputs = new BodyInputDescriptor[]
     {
         new("DPadUp", "hold", "Walk up (north) while held; in a menu, move the cursor up. A short tap turns to face up.", Role: "up"),
         new("DPadRight", "hold", "Walk right (east) while held; in a menu, move the cursor right.", Role: "right"),
@@ -27,15 +27,15 @@ internal sealed class BodyAdapter
         new("DPadLeft", "hold", "Walk left (west) while held; in a menu, move the cursor left.", Role: "left"),
         new("ControllerA", "press", "A: the action button on what you face (talk, harvest, plant the held seed, pick up, open doors and shop counters, sleep in bed); in a menu, select or buy what the cursor is on.", Role: "action"),
         new("ControllerX", "press", "X: use the selected tool or weapon on the tile you face (uses stamina)."),
-        new("ControllerB", "press", "B: open the inventory menu; in a menu, back out or close it."),
+        new("ControllerB", "press", "B: open the inventory menu; in a menu, back out or close it (the inventory will not close while an item is held on the cursor; put it down with A first)."),
         new("ControllerY", "press", "Y: the game's Y button (crafting menu; in some menus, a secondary action)."),
-        new("LeftShoulder", "press", "LB: select the previous toolbar slot."),
-        new("RightShoulder", "press", "RB: select the next toolbar slot."),
-        new("LeftTrigger", "press", "LT: in menus, the previous tab or toolbar row."),
-        new("RightTrigger", "press", "RT: in menus, the next tab or toolbar row."),
+        new("LeftShoulder", "press", "LB: rotate the backpack so the previous row of 12 becomes the toolbar (no change with a single row)."),
+        new("RightShoulder", "press", "RB: rotate the backpack so the next row of 12 becomes the toolbar (no change with a single row)."),
         new("ControllerStart", "press", "Start: the game menu."),
         new("ControllerBack", "press", "Back: the journal."),
-    };
+    // No LT/RT: SMAPI sets only a trigger's analog value and the game reads trigger button flags, so they never register.
+    // SlotN is the keyboard's toolbar hotkey (1-9, 0, -, =); a real key press would switch the seat out of gamepad mode.
+    }.Concat(Enumerable.Range(1, 12).Select(n => new BodyInputDescriptor($"Slot{n}", "press", $"Select toolbar slot {n} (outside menus)."))).ToArray();
 
     private const int MaxSteps = 64;
     private const int MaxStepMs = 10_000;
@@ -127,6 +127,8 @@ internal sealed class BodyAdapter
             }
         }
         this.Play(held, pressed);
+        if (farmer is not null && !farmer.UsingTool && Context.IsPlayerFree && pressed.LastOrDefault(id => id.StartsWith("Slot")) is { } slot)
+            farmer.CurrentToolIndex = int.Parse(slot[4..]) - 1;
         if (farmer is not null && Game1.ticks <= this.activeUntilTick) this.exporter.RefreshRow(farmer);
         if (farmer is not null && this.channel.StateWanted) this.WriteState(farmer, paused);
         if (this.runner is not null && this.runner.Update != this.lastStatusUpdate) this.WriteStatus();
