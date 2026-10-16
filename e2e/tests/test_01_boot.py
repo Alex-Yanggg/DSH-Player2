@@ -52,7 +52,7 @@ def test_first_day_companion_choice_starts_dsh(game, art):
         game.choose_companion(0)
     started = game.smapi.grep(DSH_STARTED)
     art.record("boot", dsh_started=started[-1:])
-    assert started and "companion Mira." in started[-1], f"the mod never started DSH for Mira: {started}"
+    assert started and "companion 大肥鱼." in started[-1], f"the mod never started DSH for 大肥鱼: {started}"
 
 
 def test_day_start_reaches_dsh(game, art):

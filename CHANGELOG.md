@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased - star personas and persona packs (P2-0017)
+
+- a companion is a persona pack: `personas/<id>/persona.json` (format
+  `player2.persona/0`) with soul, voice samples, catchphrases, reactions,
+  habits, relationship arc, five knobs and probe questions; the mod reads only
+  the name and hands the pack to the plugin, which validates and binds it;
+- two official personas ship, 大肥鱼 and 军师; the Mira, Rowan and Kai config
+  roster and the C# soul fields are gone;
+- validator v0 (`npm run persona:check`): strict structure, and no wording
+  that grants powers;
+- e2e `persona` category: each persona answers its probes, and
+  `blind_sheet.py` builds the H2 blind sheet.
+
 ## Unreleased - B-line close-out (P2-0021 3b)
 
 - the location graph includes building interiors, so the companion can route

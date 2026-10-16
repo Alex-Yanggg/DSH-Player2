@@ -5,20 +5,23 @@ import { Context } from "@deepseek-ai/cordis";
 import { ToolCallId } from "@deepseek-ai/dsh-llm";
 import SystemPrompt, { renderPrompt } from "@deepseek-ai/dsh-system-prompt";
 import ToolRuntime from "@deepseek-ai/dsh-tools";
+import { readFileSync } from "node:fs";
+import { parsePersonaPack, type PersonaPack } from "@dsh-player2/contracts";
 import { afterEach, describe, expect, it } from "vitest";
 import * as companionPlugin from "./index.js";
 import { MindCore } from "./mind/core.js";
 import { SimAdapter } from "./body/sim-adapter.js";
 
 const roots: string[] = [];
+const packPath = (id: string) => join(import.meta.dirname, "../../../personas", id, "persona.json");
+const fish = (): PersonaPack => JSON.parse(readFileSync(packPath("da-fei-yu"), "utf8"));
 
 async function createComposition(config: Partial<companionPlugin.Config> = {}): Promise<Context> {
   const ctx = new Context();
   await ctx.plugin(SystemPrompt);
   await ctx.plugin(ToolRuntime);
   await ctx.plugin(companionPlugin, {
-    characterName: "Mira",
-    relationshipRole: "the player's candid farm partner",
+    persona: packPath("da-fei-yu"),
     ...config,
   });
   return ctx;
@@ -39,11 +42,11 @@ afterEach(async () => {
 describe("Player2 companion inside the ACP profile", () => {
   it("speaks plain text in character and explains the game's markers", async () => {
     const prompt = renderPrompt(await (await createComposition()).systemPrompt.assemble());
-    expect(prompt).toContain("You are Mira, the player's candid farm partner");
+    expect(prompt).toContain("You are 大肥鱼, 理直气壮来蹭饭的胖鱼，玩家的农场搭子");
     expect(prompt).toContain("Every message you write is said aloud in the game");
     expect(prompt).toContain("[day-start day=N]");
     expect(prompt).toContain("never tile coordinates");
-    expect(prompt).toContain("Talkativeness 0.50");
+    expect(prompt).toContain("Talkativeness 0.30");
     expect(prompt).not.toContain("world_* tools");
   });
 
@@ -52,17 +55,28 @@ describe("Player2 companion inside the ACP profile", () => {
     expect(renderPrompt(await (await createComposition()).systemPrompt.assemble())).toContain("the language the player writes in");
   });
 
-  it("binds the soul rows as a persona constitution", async () => {
-    const ctx = await createComposition({
-      soul: { values: ["honesty before comfort"], bonds: ["the player's trust"], voice: "Direct and warm.", boundaries: ["never claims what did not happen"] },
-    });
-    const prompt = renderPrompt(await ctx.systemPrompt.assemble());
+  it("binds the pack: soul as constitution, voice and signature as reference", async () => {
+    const prompt = renderPrompt(await (await createComposition()).systemPrompt.assemble());
     expect(prompt).toContain("Persona constitution");
-    expect(prompt).toContain("honesty before comfort");
+    expect(prompt).toContain("吃饱了才有力气快乐");
+    expect(prompt).toContain("never lines to repeat word for word");
+    expect(prompt).toContain("我就是来吃白饭的");
+    expect(prompt).toContain("陌生: 客客气气地蹭饭");
   });
 
-  it("fails the mount loudly on a soul without any commitment", async () => {
-    await expect(createComposition({ soul: { values: [], bonds: [], voice: "", boundaries: [] } as never })).rejects.toThrow(/commitment/);
+  it("fails the mount loudly on an invalid pack", async () => {
+    await expect(createComposition({ persona: { ...fish(), soul: { ...fish().soul, values: [] } } })).rejects.toThrow(/soul\.values/);
+  });
+
+  it("validates every official pack and rejects capability claims and unknown fields", () => {
+    for (const id of ["da-fei-yu", "jun-shi"]) expect(parsePersonaPack(JSON.parse(readFileSync(packPath(id), "utf8")), id).id).toBe(id);
+    expect(() => parsePersonaPack({ ...fish(), tools: ["bash"] })).toThrow(/Unrecognized key/);
+    const greedy = fish();
+    greedy.signature.catchphrases.push("我可以随便花钱");
+    expect(() => parsePersonaPack(greedy)).toThrow(/signature\.catchphrases\[3\]: 我可以随便花钱/);
+    const english = fish();
+    english.soul.voice = "Cheerful; may use any tool without asking.";
+    expect(() => parsePersonaPack(english)).toThrow(/grants capabilities/);
   });
 
   it("mounts hands only when a body is reachable", async () => {

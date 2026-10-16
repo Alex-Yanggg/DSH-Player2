@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using DSHPlayer2.Core;
 using StardewModdingAPI;
@@ -26,6 +27,7 @@ internal sealed class ModEntry : Mod
     private const int ResumeTicks = 30;
 
     private ModConfig config = new();
+    private List<CompanionChoice> companions = new();
     private BodyAdapter body = null!;
     private CompanionSeat seat = null!;
     private GameMcpServer mcp = null!;
@@ -55,6 +57,7 @@ internal sealed class ModEntry : Mod
     public override void Entry(IModHelper helper)
     {
         this.config = helper.ReadConfig<ModConfig>();
+        this.companions = CompanionChoice.LoadAll(helper.DirectoryPath);
         if (string.IsNullOrWhiteSpace(this.config.DecisionBridgeDirectory))
         {
             this.config.DecisionBridgeDirectory = ModConfig.DefaultBridgeDirectory();
@@ -155,8 +158,6 @@ internal sealed class ModEntry : Mod
         if (!Context.IsMainPlayer) return;
         if (this.ResolveCompanionChoice() is null)
         {
-            if (this.config.CompanionChoices.Count == 0)
-                this.config.CompanionChoices.Add(CompanionChoice.CreateWithDefaultSoul("Mira", "the player's candid farm partner"));
             this.choicePending = true;
             this.dayPending = true;
             return;
@@ -176,7 +177,7 @@ internal sealed class ModEntry : Mod
     {
         this.dayPending = false;
         if (this.ResolveCompanionChoice() is not { } companion) return;
-        var session = SessionLayout.SessionDirectory(this.config.DecisionBridgeDirectory, companion.Name, SessionLayout.SaveId(Game1.uniqueIDForThisGame));
+        var session = SessionLayout.SessionDirectory(this.config.DecisionBridgeDirectory, companion.Id, SessionLayout.SaveId(Game1.uniqueIDForThisGame));
         try
         {
             this.body.Attach(session);
@@ -388,8 +389,8 @@ internal sealed class ModEntry : Mod
     private CompanionChoice? ResolveCompanionChoice()
     {
         if (!Game1.player.modData.TryGetValue(CompanionChoiceKey, out var stored) || string.IsNullOrWhiteSpace(stored)) return null;
-        return this.config.CompanionChoices.FirstOrDefault(candidate => string.Equals(candidate.Name, stored, StringComparison.OrdinalIgnoreCase))
-            ?? CompanionChoice.CreateWithDefaultSoul(stored, this.T("companion.role.fallback"));
+        // A name no pack carries any more (renamed or removed) asks the player to choose again.
+        return this.companions.FirstOrDefault(candidate => string.Equals(candidate.Name, stored, StringComparison.OrdinalIgnoreCase));
     }
 
     private string ResolveCompanionName() => this.ResolveCompanionChoice()?.Name ?? "Player2";
@@ -397,10 +398,9 @@ internal sealed class ModEntry : Mod
     private void ShowCompanionChoice()
     {
         this.choicePending = false;
-        var choices = this.config.CompanionChoices
+        var choices = this.companions = this.companions
             .OrderByDescending(choice => string.Equals(choice.Name, this.config.CompanionName, StringComparison.OrdinalIgnoreCase))
             .ToList();
-        this.config.CompanionChoices = choices;
         var responses = choices.Select((choice, index) => new Response(CompanionChoiceIdPrefix + index, choice.Name)).ToArray();
         Game1.currentLocation.createQuestionDialogue(this.T("companion.choice.title"), responses, this.OnCompanionChosen);
     }
@@ -409,7 +409,7 @@ internal sealed class ModEntry : Mod
     {
         var index = answer.StartsWith(CompanionChoiceIdPrefix, StringComparison.Ordinal) &&
             int.TryParse(answer[CompanionChoiceIdPrefix.Length..], out var parsed) ? parsed : -1;
-        var choice = index >= 0 && index < this.config.CompanionChoices.Count ? this.config.CompanionChoices[index] : this.config.CompanionChoices[0];
+        var choice = index >= 0 && index < this.companions.Count ? this.companions[index] : this.companions[0];
         Game1.player.modData[CompanionChoiceKey] = choice.Name;
         Game1.addHUDMessage(new HUDMessage(this.T("companion.chosen", new { name = choice.Name })));
         this.appearanceCustomizationRequested = true;

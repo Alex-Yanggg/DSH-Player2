@@ -31,6 +31,7 @@ APPDATA = Path(os.environ.get("APPDATA", ""))
 USERPROFILE = Path(os.environ.get("USERPROFILE", ""))
 
 LAST_TEST_SAVE = Path(__file__).resolve().parents[2] / "artifacts" / "last-test-save.txt"
+PERSONAS = Path(__file__).resolve().parents[3] / "personas"
 
 
 def _test_save_id() -> int:
@@ -151,7 +152,7 @@ TITLE_WOOD = (220, 150, 90)                        # its plank colour; ~27 % of 
 UI = {
     "title_load": (835, 960),
     "load_slot_1": (950, 300),       # body of slot 1, clear of the delete icon at the right edge
-    "companion_answer_0": (405, 841),  # answers are 68 px apart
+    "companion_answer_last": (405, 977),  # the box grows upward from the bottom; answers are 68 px apart
     "companion_answer_step": 68,
     "customizer_ok": (1228, 840),
 }
@@ -256,8 +257,9 @@ class StardewFlows:
         mod logs neither step; the day (and DSH) starts once the customizer closes, which is the confirmation."""
         mark = len(self.smapi.lines)
         deadline = time.monotonic() + timeout
-        ax, ay = UI["companion_answer_0"]
-        target = _frac((ax, ay + UI["companion_answer_step"] * index))
+        ax, ay = UI["companion_answer_last"]
+        roster = len(list(PERSONAS.glob("*/persona.json")))
+        target = _frac((ax, ay - UI["companion_answer_step"] * (roster - 1 - index)))
         while not self.dialog_visible():  # the question needs a free player; click only once it is on screen
             if time.monotonic() > deadline:
                 raise TimeoutError("companion question never appeared")
@@ -286,7 +288,7 @@ class StardewFlows:
             self.wait_title()
             self.load_test_save()
         if not self.smapi.wait_for(DSH_STARTED, 15):  # an existing companion starts DSH at day start
-            self.choose_companion(0)
+            self.choose_companion(int(os.environ.get("E2E_PERSONA", "0")))  # roster order: persona folders by name
         time.sleep(2)
 
     def sleep_night(self, day: int) -> None:

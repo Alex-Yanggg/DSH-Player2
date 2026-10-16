@@ -47,7 +47,7 @@ Goals are DSH's own goal feature; Player2 keeps no goal lane.
 
 ## Persona knobs
 
-Five knobs per companion, each 0–1, configured per persona in the mod (`CompanionChoices[].Knobs`) and passed to the plugin: talkativeness, help-seeking, risk, obedience, skill. [`knobs.ts`](../packages/dsh-companion-plugin/src/body/knobs.ts):
+Five knobs per companion, each 0–1, set per persona in its pack (`personas/<id>/persona.json`, `knobs`; P2-0017): talkativeness, help-seeking, risk, obedience, skill. [`knobs.ts`](../packages/dsh-companion-plugin/src/body/knobs.ts):
 
 - dice only decide "does this turn consider doing X" (speak up, use own judgment over the exact wording, take the bolder option, ask for help when stuck); what to say and do stays with the model;
 - `p = 0.05 + 0.9 × knob`; rolls are `sha256(seed, turn, question)` with the session id as seed, so a run can be replayed;

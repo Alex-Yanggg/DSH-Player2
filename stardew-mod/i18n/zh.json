@@ -7,7 +7,6 @@
   "chat.host-only": "Player2 聊天属于主机农夫；农场帮工无法打开。",
   "companion.choice.title": "谁将成为你的同伴？这个选择会记在这位农夫身上。",
   "companion.chosen": "{{name}}从今天起就是你的同伴了。",
-  "companion.role.fallback": "玩家亲自选定的农场伙伴",
   "appearance.choose-first": "请先选择同伴，再为其捏脸。",
   "appearance.saved": "已保存{{name}}的外观。",
   "appearance.failed": "Player2 无法打开星露谷原生捏脸界面，请查看 SMAPI 日志。",

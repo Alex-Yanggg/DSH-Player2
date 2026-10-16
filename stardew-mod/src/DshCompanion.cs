@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using DSHPlayer2.Core;
@@ -174,16 +173,8 @@ internal sealed class DshCompanion : IDisposable
     {
         var plugin = new JsonObject
         {
-            ["characterName"] = companion.Name,
-            ["relationshipRole"] = companion.Role,
-            ["soul"] = new JsonObject
-            {
-                ["values"] = JsonSerializer.SerializeToNode(companion.SoulValues),
-                ["bonds"] = JsonSerializer.SerializeToNode(companion.SoulBonds),
-                ["voice"] = companion.SoulVoice.Trim(),
-                ["boundaries"] = JsonSerializer.SerializeToNode(companion.SoulBoundaries),
-            },
-            ["knobs"] = JsonSerializer.SerializeToNode(companion.Knobs.ToWire()),
+            // The plugin validates and binds the whole pack; an invalid one fails DSH loudly.
+            ["persona"] = companion.PackPath,
             // The day's first line has no player words to take the language from.
             ["responseLanguage"] = LocalizedContentManager.CurrentLanguageCode == LocalizedContentManager.LanguageCode.zh ? "简体中文" : "English",
             ["gameUrl"] = this.gameEndpoint["url"]!.GetValue<string>(),
