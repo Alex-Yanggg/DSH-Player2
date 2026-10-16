@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased - B-line close-out (P2-0021 3b)
+
+- the location graph includes building interiors, so the companion can route
+  out of its own cabin;
+- a turn DSH rejects is reported once, not twice;
+- plugin test files run one at a time (the body simulator ticks on wall-clock
+  timers).
+
 ## Unreleased - independent body (P2-0022)
 
 - the companion is a real co-op farmer: a hidden second local player in the

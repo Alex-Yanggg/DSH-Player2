@@ -160,10 +160,10 @@ describe("walk helper over raw input", () => {
   });
 });
 
-/** Walks next to a tile, cycles the toolbar to a slot (0-based) and presses one button, as the model would. */
+/** Walks next to a tile, selects a toolbar slot (0-based) and presses one button, as the model would. */
 async function act(x: number, y: number, button: string, slot?: number): Promise<string> {
   expect(await tool(BODY_TOOL_NAMES.walk).execute({ x, y, mode: "adjacent" })).toMatch(/^OK/);
-  const cycle = slot === undefined ? [] : Array.from({ length: (slot - sim.body.slot + 12) % 12 }, () => ({ press: ["RightShoulder"], ms: 0 }));
+  const cycle = slot === undefined ? [] : [{ press: [`Slot${slot + 1}`], ms: 0 }];
   return tool(BODY_TOOL_NAMES.input).execute({ steps: [...cycle, { press: [button], ms: 0 }] });
 }
 

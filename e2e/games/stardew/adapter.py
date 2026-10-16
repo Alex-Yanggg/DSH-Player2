@@ -289,6 +289,38 @@ class StardewFlows:
             self.choose_companion(0)
         time.sleep(2)
 
+    def sleep_night(self, day: int) -> None:
+        """The host, at home, gets into bed; the night ends once the companion sleeps too (or passes out at 2:00), and
+        the next day starts. Raises at the first stage that never happens."""
+        in_bed = rf"{re.escape(SENT)}\[world day={day}\] .* went to bed"
+        self.smapi.poll()
+        mark = len(self.smapi.lines)
+        for _ in range(3):  # step out of bed and back in; the game asks only after the farmer has moved
+            self.refocus()
+            self.kb.hold("a", 0.4)
+            self.kb.hold("d", 0.5)
+            if self._wait_dialog(3):
+                self.kb.tap("y")  # the sleep question's Yes
+                if self.smapi.wait_for(in_bed, 5, since=mark):
+                    break
+        self.shot(f"host_in_bed_day{day}")
+        if not self.smapi.wait_for(in_bed, 0, since=mark):
+            raise TimeoutError("the host never got into bed")
+        if not self.smapi.wait_for(r"screen_0 SMAPI\] Context: before save", 720, since=mark):
+            raise TimeoutError("the night never ended: the companion did not go to bed")
+        lines = [ln for _, ln in self.smapi.lines]
+        start = max(i for i, ln in enumerate(lines) if "Context: before save" in ln)
+        if not self.smapi.wait_for(rf"Player2 sent: \[day-start day={day + 1}\]", 120, since=start):
+            raise TimeoutError("the next day never started")
+
+    def _wait_dialog(self, timeout: float) -> bool:
+        deadline = time.monotonic() + timeout
+        while not self.dialog_visible():
+            if time.monotonic() > deadline:
+                return False
+            time.sleep(0.3)
+        return True
+
     # -- chat
     def chat_visible(self, img=None) -> bool:
         img = img or self.frame()

@@ -87,7 +87,7 @@ export class SimAdapter implements BodyPort {
       state: { file: "world_state", world: "world_map", description: "Simulated body.", fields: [{ name: "map", description: "rows" }], legend: { ".": "walkable", "#": "blocked", "~": "water", W: "walk warp", D: "door" } },
       inputs: [
         ...Object.entries(DIRS).map(([id, [, , role]]) => ({ id, kind: "hold" as const, description: id, role })),
-        { ...press("ControllerA"), role: "action" as const }, press("ControllerX"), press("ControllerB"), press("LeftShoulder"), press("RightShoulder"),
+        { ...press("ControllerA"), role: "action" as const }, press("ControllerX"), press("ControllerB"), ...Array.from({ length: 12 }, (_, i) => press(`Slot${i + 1}`)),
         { id: "NoClip", kind: "modifier" as const, description: "cheat", cheat: true },
       ],
       limits: { maxSteps: 64, maxStepMs: 10_000, tickMs: TICK_MS, walkPxPerTick: SPEED, tilePx: 64 },
@@ -187,7 +187,7 @@ export class SimAdapter implements BodyPort {
   private press(id: string, task: NonNullable<SimAdapter["task"]>): void {
     const note = (kind: string, detail: string) => { task.events.push({ tick: this.tick, kind, detail }); task.update++; };
     if (this.menu !== undefined && (id === "ControllerA" || id === "ControllerB")) return this.pressMenu(id, note);
-    if (id === "LeftShoulder" || id === "RightShoulder") { this.body.slot = (this.body.slot + (id === "LeftShoulder" ? 11 : 1)) % 12; return; }
+    if (id.startsWith("Slot")) { this.body.slot = Number(id.slice(4)) - 1; return; }
     const t = this.faced();
     const location = this.location();
     const at = location.objects.find((o) => o.x === t.x && o.y === t.y);

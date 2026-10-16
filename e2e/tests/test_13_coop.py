@@ -2,7 +2,6 @@
 endpoint (world_state); the turn order from the SMAPI `Player2 ...` lines; screenshots are the evidence. The run
 starts on spring 1 (a Monday, so Pierre's opens at 9:00) with the save's own gold, which co-op farmers share. The
 errand (b, c) runs first, while the shop is open; the trip to the player (a) can take most of a day's afternoon."""
-import re
 import subprocess
 import threading
 import time
@@ -11,7 +10,7 @@ import pytest
 
 from conftest import require_dsh
 from gamepilot import win
-from games.stardew.adapter import DSH_STARTED, SENT
+from games.stardew.adapter import DSH_STARTED
 
 pytestmark = pytest.mark.coop
 
@@ -146,24 +145,7 @@ def test_d_sleeps_with_the_host_and_rejoins_after_reload(world, art):
     s = world.state()
     day, host = s["time"]["day"], s["player"]
     assert host["location"] == "FarmHouse", f"the host is not at home: {host}"
-    in_bed = re.compile(rf"{re.escape(SENT)}\[world day={day}\] .* went to bed")
-    world.smapi.poll()
-    mark = len(world.smapi.lines)
-    for _ in range(3):  # step out of bed and back in; the game asks only after the farmer has moved
-        world.refocus()
-        world.kb.hold("a", 0.4)
-        world.kb.hold("d", 0.5)
-        if _wait(world.dialog_visible, 3, every=0.3):
-            world.kb.tap("y")  # the sleep question's Yes
-            if world.smapi.wait_for(in_bed.pattern, 5, since=mark):
-                break
-    world.shot("coop_d_host_in_bed")
-    assert world.smapi.wait_for(in_bed.pattern, 0, since=mark), "the host never got into bed"
-    saving = world.smapi.wait_for(r"screen_0 SMAPI\] Context: before save", 720, since=mark)
-    assert saving, "the night never ended: the companion did not go to bed"
-    lines = [ln for _, ln in world.smapi.lines]
-    start = max(i for i, ln in enumerate(lines) if "Context: before save" in ln)
-    assert world.smapi.wait_for(rf"Player2 sent: \[day-start day={day + 1}\]", 120, since=start), "the next day never started"
+    world.sleep_night(day)
     world.shot("coop_d_next_morning")
 
     world.quit()

@@ -156,10 +156,12 @@ internal sealed class BodyStateExporter
     {
         ResetCaches();
         var locations = new List<BodyWorldLocation>();
-        foreach (var location in Game1.locations)
+        // Building interiors (cabins, sheds) included: a farmer's own cabin is a place like any other.
+        Utility.ForEachLocation(location =>
         {
             locations.Add(new BodyWorldLocation(location.NameOrUniqueName, Clip(location.DisplayName ?? location.NameOrUniqueName), location.IsOutdoors, Warps(location)));
-        }
+            return true;
+        });
         return new BodyWorld(BodyChannel.ProtocolVersion, BodyWire.Now(), locations);
     }
 
@@ -339,8 +341,9 @@ internal sealed class BodyStateExporter
     private static BodyMenu? Menu(IClickableMenu? menu, Farmer actor)
     {
         if (menu is null) return null;
-        var focus = menu.currentlySnappedComponent;
-        var options = (menu.allClickableComponents ?? new List<ClickableComponent>())
+        var page = menu is GameMenu game ? game.GetCurrentPage() : menu; // the game menu's cursor lives on its open tab
+        var focus = page.currentlySnappedComponent;
+        var options = (page.allClickableComponents ?? new List<ClickableComponent>())
             .Where(c => c.visible).Select(Label).Where(label => label != "?").Distinct().Take(60).ToList();
         List<BodyMenuItem>? stock = null;
         string? focused = focus is null ? null : Label(focus);
@@ -358,6 +361,9 @@ internal sealed class BodyStateExporter
             var row = focus is null ? -1 : shop.forSaleButtons.IndexOf(focus);
             if (row >= 0 && shop.currentItemIndex + row < shop.forSale.Count) focused = $"#{shop.currentItemIndex + row} {Clip(shop.forSale[shop.currentItemIndex + row].DisplayName)}";
         }
+        if (page is InventoryPage inventory && focus is not null && inventory.inventory.inventory.IndexOf(focus) is >= 0 and var slot)
+            focused = $"slot {slot + 1}: {(actor.Items[slot] is { } item ? Clip(item.DisplayName) : "empty")}";
+        if (actor.CursorSlotItem is { } held) focused = $"{focused ?? "nothing"}, holding {Clip(held.DisplayName)}";
         return new BodyMenu(menu.GetType().Name, focused, options, actor.Money, stock);
     }
 
