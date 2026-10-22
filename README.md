@@ -34,13 +34,9 @@ DSH-Player2 is a game companion built on [DeepSeek Harness](https://github.com/d
 | Memory | Episodes the companion chooses to remember, a story rewritten by the end-of-day dream, traits and mood; a readable `remember.md`. |
 | Movement commands | "come here", "follow me", "stay" move the companion at once through native pathfinding. |
 
-## What It Is Not
+## Scope
 
-- Not an unattended farming bot.
-- Not a cheat layer or save editor.
-- Not a second DeepSeek Harness runtime.
-- Not a place to patch Harness as a side effect of game work.
-- Not a claim that every Stardew mechanic is already supported.
+The one hard non-goal: Player2 is not a second DeepSeek Harness runtime, and Harness is never patched as a side effect of game work. Everything else (unattended farming, cheat-style abilities, broader game mechanics) is simply not the current focus; the slice above is what is proven today, and it does not claim that every Stardew mechanic is supported.
 
 ## Quick Start
 
