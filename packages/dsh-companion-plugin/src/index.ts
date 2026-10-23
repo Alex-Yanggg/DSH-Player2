@@ -25,6 +25,8 @@ import { readFileSync } from "node:fs";
 import { parsePersonaPack, type PersonaPack } from "@dsh-player2/contracts";
 import { GameBody, type BodyPort } from "./body/port.js";
 import { PersonaDice, tendencyLines, turnNudges } from "./body/knobs.js";
+import { loadReflexTable, ReflexBody } from "./body/reflex.js";
+import { createSkillRunner, skillHands, SkillStore, type PtcLike } from "./body/skills.js";
 import { createBodyTools } from "./body/tools.js";
 import { DEFAULT_GAME, MindCore, type PreparedDream, type PreparedMind } from "./mind/core.js";
 import { DREAM_LEDGER_INSTRUCTIONS } from "./mind/dream-ledger.js";
@@ -34,6 +36,8 @@ export * from "./mind/index.js";
 export { GameBody, sleep, type BodyPort, type BodyRun, type RunOptions } from "./body/port.js";
 export { PersonaDice, tendencyLines, turnNudges } from "./body/knobs.js";
 export { SimAdapter, type SimLocation, type SimOptions } from "./body/sim-adapter.js";
+export { ReflexBody, ReflexEngine, loadReflexTable, nearestMonster, renderFact, roleButtons } from "./body/reflex.js";
+export { createSkillRunner, InProcessRunner, PtcRunner, skillHands, SkillStore, type PtcLike, type SkillHands, type SkillRecord, type SkillRunner } from "./body/skills.js";
 export { createBodyTools, BODY_TOOL_NAMES, renderObservation, inventoryDiff, type BodyContext } from "./body/tools.js";
 
 declare module "@deepseek-ai/dsh-llm" {
@@ -89,6 +93,7 @@ export function readMarker(text: string): TurnMarker | null {
 /** What one save's session carries between hooks and tools. */
 interface SaveState {
   readonly mind: MindCore | null;
+  skills: SkillStore | null;
   day: number | null;
   attendedTurn: number;
   lastText: string;
@@ -110,8 +115,25 @@ export function apply(ctx: Context, config: Config): void {
     : parsePersonaPack(config.persona);
   const knobs = persona.knobs;
   const game = config.gameId ?? DEFAULT_GAME;
-  const body: BodyPort | undefined = config.body ?? ((config.gameUrl ?? "") !== "" ? new GameBody(config.gameUrl!, config.gameToken ?? "") : undefined);
+  const rawBody: BodyPort | undefined = config.body ?? ((config.gameUrl ?? "") !== "" ? new GameBody(config.gameUrl!, config.gameToken ?? "") : undefined);
+  // The reflex tier wraps the body when the game ships a table; without one the
+  // mind stays alone. Fired rows are queued for the next step of any session.
+  const reflexFacts: string[] = [];
+  const reflexTable = rawBody === undefined ? null : loadReflexTable(game);
+  const body: BodyPort | undefined = rawBody === undefined || reflexTable === null ? rawBody
+    : new ReflexBody(rawBody, {
+      table: reflexTable,
+      onFact: (fact) => { reflexFacts.push(fact); },
+      onError: (error) => console.error(`player2-companion: reflex state poll failed: ${messageOf(error)}`),
+    });
   const saves = new Map<string, SaveState>();
+  let skillsOf: ((agent: Agent | undefined) => SkillStore | undefined) | undefined;
+  if (body instanceof ReflexBody) {
+    ctx.effect(() => {
+      body.start();
+      return () => body.stop();
+    }, "player2-companion.reflexes");
+  }
 
   const stateOf = (agent: Agent | undefined): SaveState | undefined => {
     if (agent === undefined) return undefined;
@@ -124,7 +146,7 @@ export function apply(ctx: Context, config: Config): void {
       } catch (error) {
         console.error(`player2-companion: no memory for session ${id}: ${messageOf(error)}`);
       }
-      state = { mind, day: null, attendedTurn: -1, lastText: "" };
+      state = { mind, skills: null, day: null, attendedTurn: -1, lastText: "" };
       saves.set(id, state);
     }
     return state;
@@ -134,6 +156,45 @@ export function apply(ctx: Context, config: Config): void {
     for (const tool of createBodyTools({ body })) {
       ctx.effect(() => ctx.tools.register(tool), `player2-companion.tool.${tool.name}`);
     }
+    // The skill tier: DSH's own PTC seam runs the programs when the profile
+    // composes one; otherwise the plugin's in-process runner does. The chosen
+    // path is logged once at mount.
+    const skillRunner = createSkillRunner(ptcOf(ctx), skillHands(body), (line) => console.log(line));
+    skillsOf = (agent: Agent | undefined): SkillStore | undefined => {
+      const state = stateOf(agent);
+      if (state === undefined) return undefined;
+      state.skills ??= new SkillStore(agent!.session.header.cwd ?? "", skillRunner);
+      return state.skills;
+    };
+    ctx.effect(() => ctx.tools.register(defineTool({
+      name: "skill_save",
+      description: `Save a reusable skill from body work you just did: a small JS program (the body of an async function) that calls the hands helpers — hands.observe(), hands.find({kind,name}), hands.map({x,y,radius}), hands.locations(), hands.walkTo({x,y,location,mode}), hands.controls(), hands.input({steps,until}). It runs once against the body right now; only a clean replay is saved. In skill_run, your args object arrives as args.`,
+      parameters: {
+        name: { type: "string", required: true, description: "Lowercase letters, digits and dashes, e.g. water-the-crops." },
+        purpose: { type: "string", required: true, description: "One line saying when this skill helps, 3-160 characters." },
+        code: { type: "string", required: true, description: "The program; return a short string summary of what it did." },
+      },
+      output: textOutput,
+      execute: async (args, exec) => {
+        const store = skillsOf?.(exec.agent);
+        if (store === undefined) throw new Error("no session folder for this save; skills cannot be stored");
+        return store.save(String(args.name), String(args.purpose), String(args.code));
+      },
+    })), "player2-companion.tool.skill_save");
+    ctx.effect(() => ctx.tools.register(defineTool({
+      name: "skill_run",
+      description: "Run one of your saved skills by name, passing args as JSON. A skill that fails is reported with its error and marked stale; repair it by saving the same name again with skill_save.",
+      parameters: {
+        name: { type: "string", required: true },
+        args: { type: "object", additionalProperties: true, description: "Values the skill's code reads as args." },
+      },
+      output: textOutput,
+      execute: async (args, exec) => {
+        const store = skillsOf?.(exec.agent);
+        if (store === undefined) throw new Error("no session folder for this save; skills cannot be stored");
+        return store.run(String(args.name), args.args ?? {}, exec.signal);
+      },
+    })), "player2-companion.tool.skill_run");
     ctx.effect(() => ctx.tools.register(defineTool({
       name: "cheat_grant",
       description: "Record the player's own words allowing (granted true) or taking back (granted false) cheat inputs in this save. Only when the player clearly said so; never on your own initiative.",
@@ -202,6 +263,15 @@ export function apply(ctx: Context, config: Config): void {
       }
       if (marker?.day != null) state.day = marker.day;
       const lines: string[] = [];
+      if (reflexFacts.length > 0) {
+        // The reflex tier always tells the mind what fired; this is that telling.
+        lines.push("Your body acted on reflex (instincts you did not choose in this moment):", ...reflexFacts.splice(0).map((fact) => `- ${fact}`));
+      }
+      const store = skillsOf?.(payload.agent);
+      const skills = store === undefined ? [] : await store.list().catch(() => []);
+      if (skills.length > 0) {
+        lines.push("Your saved skills, distilled from your own past work (skill_run by name, with args):", ...skills.map((skill) => `- ${skill.name}${skill.stale !== null ? " (stale: repair with skill_save or stop using it)" : ""}: ${skill.purpose}`));
+      }
       if (state.mind !== null && (marker?.kind === "chat" || marker?.kind === "day-start")) {
         const prepared = await state.mind.prepareTurn(marker.kind, marker.text, game, state.day, new Date());
         state.open = { occasion: marker.kind, turn: payload.turn, prepared };
@@ -248,6 +318,12 @@ export function apply(ctx: Context, config: Config): void {
     text: [...COMPANION_POLICY_LINES, ...(body === undefined ? [] : HANDS_POLICY_LINES), "Your tendencies:", ...tendencyLines(knobs), languageLine(config.responseLanguage)].join("\n"),
   }), "player2-companion.policy");
   ctx.effect(() => ctx.systemPrompt.section({ name: "player2:companion-soul", order: 0, text: personaText(persona) }), "player2-companion.soul");
+}
+
+/** DSH's own PTC execution seam, when the running profile composes one; absent under a bare mount. */
+function ptcOf(ctx: Context): PtcLike | undefined {
+  const ptc = (ctx as unknown as { get(name: string): unknown }).get("ptcRuntime") as PtcLike | undefined;
+  return ptc !== undefined && typeof ptc.resolve === "function" && typeof ptc.run === "function" ? ptc : undefined;
 }
 
 /** Re-arms a goal the paused game stopped; the player unpausing is the human edge. */
@@ -304,6 +380,8 @@ const HANDS_POLICY_LINES = [
   "When the player talks to you, you stop to listen and answer at once in one short line of your own (yes, no, or a question) before you call any tool, so they know you heard; afterwards act, and carry your goal on unless they asked you to stop.",
   "A paused game is the player stepping away, not a failure: stop and wait; the game resumes you.",
   "Cheat inputs stay off unless the player explicitly allows them; record their words with cheat_grant.",
+  "Your body has instincts of its own: when something urgent happens (you are hurt, cornered or stuck) it acts on reflex before you can think, and a note tells you what it did. Take that as fact and carry on from where your body now stands.",
+  "Work you have already done through your body does not need redoing call by call: once a way of doing something has worked, save it as a skill (skill_save, which rehearses it once and keeps only what worked) and next time one skill_run does the whole thing. A skill that fails is marked stale; fix it by saving the same name again.",
 ];
 
 function messageText(message: UserMessage): string {
