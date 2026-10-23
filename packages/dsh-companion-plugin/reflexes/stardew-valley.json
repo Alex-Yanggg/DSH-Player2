@@ -1,0 +1,64 @@
+{
+  "version": "1",
+  "game": "stardew-valley",
+  "rows": [
+    {
+      "id": "eat-when-hurt",
+      "when": {
+        "all": [
+          { "kind": "healthBelow", "value": 35 },
+          { "kind": "hasItem", "category": "Food" }
+        ]
+      },
+      "do": {
+        "kind": "useItem",
+        "match": { "category": "Food" },
+        "steps": [{ "press": ["ControllerX"], "ms": 400 }]
+      },
+      "cooldownMs": 5000,
+      "fact": "acted on reflex (eat-when-hurt): ate {item} with health at {health}"
+    },
+    {
+      "id": "swing-when-cornered",
+      "when": {
+        "all": [
+          { "kind": "monsterWithin", "tiles": 1.5 },
+          { "kind": "hasItem", "category": "Weapon" }
+        ]
+      },
+      "do": {
+        "kind": "swingAtMonster",
+        "match": { "category": "Weapon" },
+        "steps": [{ "press": ["ControllerX"], "ms": 150 }]
+      },
+      "cooldownMs": 800,
+      "fact": "acted on reflex (swing-when-cornered): swung {item} at the {monster} {distance} tiles away"
+    },
+    {
+      "id": "step-away-when-cornered",
+      "when": {
+        "all": [{ "kind": "monsterWithin", "tiles": 1.5 }],
+        "none": [{ "kind": "hasItem", "category": "Weapon" }]
+      },
+      "do": { "kind": "stepAway", "ms": 400 },
+      "cooldownMs": 600,
+      "fact": "acted on reflex (step-away-when-cornered): stepped away from the {monster} {distance} tiles away"
+    },
+    {
+      "id": "unstick",
+      "when": {
+        "all": [{ "kind": "stuckFor", "ms": 1500 }]
+      },
+      "do": {
+        "kind": "steps",
+        "steps": [
+          { "hold": ["DPadLeft"], "ms": 250 },
+          { "hold": ["DPadDown"], "ms": 250 },
+          { "hold": ["DPadUp"], "ms": 250 }
+        ]
+      },
+      "cooldownMs": 4000,
+      "fact": "acted on reflex (unstick): was stuck walking, wriggled free"
+    }
+  ]
+}

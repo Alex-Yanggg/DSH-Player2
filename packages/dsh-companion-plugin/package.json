@@ -10,7 +10,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "reflexes"
   ],
   "scripts": {
     "prebuild": "node -e \"for (const path of ['dist', 'tsconfig.tsbuildinfo']) require('node:fs').rmSync(path, { recursive: true, force: true })\"",

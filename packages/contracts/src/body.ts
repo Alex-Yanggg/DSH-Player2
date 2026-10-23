@@ -176,6 +176,8 @@ export const bodyStateSchema = z.object({
     present: z.boolean(),
     moving: z.boolean(),
     selectedSlot: z.number().int().nonnegative(),
+    /** The body's own health, when the game exports it (a reflex row reads it). */
+    health: z.number().optional(),
     stamina: z.number(),
     /** Its own gold; co-op farmers share one purse unless the farm splits wallets. */
     money: z.number().int(),

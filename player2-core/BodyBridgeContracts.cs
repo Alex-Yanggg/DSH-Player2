@@ -53,7 +53,7 @@ public sealed record BodyPlayerState(
 
 public sealed record BodyActorState(
     string Location, int X, int Y, double Px, double Py, string Facing,
-    bool Present, bool Moving, int SelectedSlot, double Stamina, int Money, IReadOnlyList<BodyItem> Items, int? ActiveTask,
+    bool Present, bool Moving, int SelectedSlot, double Health, double Stamina, int Money, IReadOnlyList<BodyItem> Items, int? ActiveTask,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] BodyMenu? Menu = null);
 
 /// <summary>One line of an open shop menu: what it is, what it costs, how many are left.</summary>
