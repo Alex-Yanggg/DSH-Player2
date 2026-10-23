@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.2.0 - behavior layer and mine goal (P2-0019)
+
+- reflex tier: a per-game data table of sub-second interrupts evaluated
+  against the raw body state between and during body calls. Stardew ships a
+  hand-checked table (eat-when-hurt, swing or step away when cornered,
+  unstick); rows are validated data, never code, and every firing is reported
+  to the mind as a fact before its next turn;
+- skill tier: `skill_save` distills a way of working the mind just did into a
+  small program over the same hands (replayed once before it is kept;
+  refused on failure), `skill_run` replays it for one tool call; a failing
+  run reports the error and marks the skill stale for the mind to repair or
+  drop. Programs run through DSH's own PTC seam when the profile composes
+  one, otherwise in-process; the chosen path is logged at mount;
+- the mod exports the body farmer's health, a raw field the reflex rows read;
+- mine goal: "给我挖 10 块铜矿" — down the mountain mine with its own
+  pickaxe, reflexes keeping it alive, home before 2 a.m. (e2e `mine`
+  category, from a save natively re-dated past the spring-5 landslide with
+  `E2E_DAY`);
+- second-game smoke: the debate bench's toy2 ("Keycraft") runs on the sim
+  engine as one 57-line data port; the Crown goal plays through the plugin's
+  unchanged body tools, lock-and-key chain included;
+- goal-run metrics in the e2e harness (P2-0019 G1-G3): idle ratio, skill-gap
+  P95 between body actions, stuck events per game hour with recovery, from
+  the state export and the run's own windows — no new request logs;
+- the mod package builds a SMAPI zip (`EnableModZip`), the repository is MIT
+  licensed, and versions are 0.2.0.
+
 ## Unreleased - W2 under ACP (P2-0018)
 
 - the companion's words show sentence by sentence while DSH still streams the
