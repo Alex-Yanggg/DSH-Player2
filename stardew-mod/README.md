@@ -43,7 +43,7 @@ What the companion says appears in the game's chat box sentence by sentence as D
 
 Press **F2** (`ChatKey`) to open or close the chat window. Recent lines stay visible, the mouse wheel and PageUp/PageDown scroll, **Up** recalls your last line, and **Enter** sends. The history (50 lines) persists per save.
 
-Give the companion a goal in chat ("给我弄 3 根胡萝卜"): it creates a DSH goal, plays with its own body over the following days, and says how it went. It plays as its own co-op farmer with its own inventory, which needs a cabin on the farm. Design: [docs/p2-0022-independent-body.md](../docs/p2-0022-independent-body.md).
+Give the companion a goal in chat ("给我弄 3 根防风草"; spring has no carrots): it creates a DSH goal, plays with its own body over the following days, and says how it went. It plays as its own co-op farmer with its own inventory, which needs a cabin on the farm. Design: [docs/p2-0022-independent-body.md](../docs/p2-0022-independent-body.md).
 
 ## Choosing a companion
 
@@ -64,7 +64,7 @@ With Generic Mod Config Menu installed, the chat and re-customize keys and **All
 1. Load a save. The SMAPI console shows `Player2 started DSH (acp profile) for companion <name>.`, the companion joins as a co-op farmer (`Player2 seated <name> as a hidden co-op farmer`) and greets you in the chat box without any input.
 2. Press F2, say hello, and confirm the reply appears in the chat window in the game's language. Send two more lines quickly; both are answered in order.
 3. Type "过来找我" and confirm the companion answers in one line, then walks to you; it keeps walking with the game window in the background.
-4. Ask for 3 carrots. Confirm the companion acts on its own, keeps going across days, and ends with a line about how it went. Open the inventory mid-goal for a few seconds, close it, and confirm the goal continues.
+4. In spring, ask for 3 parsnips. Confirm the companion acts on its own, keeps going across days, and ends with a line about how it went. Open the inventory mid-goal for a few seconds, close it, and confirm the goal continues.
 5. Type "停下" during a goal and confirm the companion stops.
 6. Sleep, then open `projects/<person>/ledger/remember.md` and confirm the day is in its story.
 7. Close the game and confirm no `dsh` process is left running.

@@ -1,52 +1,93 @@
-<svg width="1280" height="520" viewBox="0 0 1280 520" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
-  <title id="title">DSH-Player2 product flow</title>
-  <desc id="desc">A stylized diagram showing game facts, consent, receipt memory, and native companion presence.</desc>
+<svg width="1280" height="560" viewBox="0 0 1280 560" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">DSH-Player2: an AI second player for Stardew Valley</title>
+  <desc id="desc">You give the companion a goal in chat; its mind is one DeepSeek Harness session per save, it plays as a hidden co-op farmer, and it remembers the days you spent together.</desc>
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1280" y2="520" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#101820"/>
-      <stop offset="0.55" stop-color="#17231f"/>
-      <stop offset="1" stop-color="#241a12"/>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="560" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#14202a"/>
+      <stop offset="0.7" stop-color="#1b2a22"/>
+      <stop offset="1" stop-color="#2a1f14"/>
     </linearGradient>
-    <linearGradient id="gold" x1="162" y1="90" x2="1117" y2="420" gradientUnits="userSpaceOnUse">
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="0">
       <stop stop-color="#f2c46d"/>
       <stop offset="1" stop-color="#f47f45"/>
     </linearGradient>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
-      <feDropShadow dx="0" dy="18" stdDeviation="20" flood-color="#000000" flood-opacity="0.32"/>
-    </filter>
+    <g id="parsnip">
+      <rect x="-3" y="-22" width="6" height="12" rx="2" fill="#7fbf5a"/>
+      <rect x="-10" y="-18" width="7" height="5" rx="2" fill="#5fa04a"/>
+      <rect x="3" y="-20" width="7" height="5" rx="2" fill="#5fa04a"/>
+      <rect x="-6" y="-10" width="12" height="9" rx="3" fill="#efe1b8"/>
+    </g>
+    <g id="sprout">
+      <rect x="-2" y="-12" width="4" height="10" rx="2" fill="#7fbf5a"/>
+      <rect x="-8" y="-12" width="6" height="4" rx="2" fill="#5fa04a"/>
+      <rect x="2" y="-14" width="6" height="4" rx="2" fill="#5fa04a"/>
+    </g>
   </defs>
-  <rect width="1280" height="520" rx="30" fill="url(#bg)"/>
-  <rect x="36" y="36" width="1208" height="448" rx="26" fill="#0b0f12" fill-opacity="0.42" stroke="#f2c46d" stroke-opacity="0.22"/>
-  <g filter="url(#shadow)">
-    <rect x="90" y="82" width="1100" height="356" rx="24" fill="#12191d" stroke="#f2c46d" stroke-opacity="0.18"/>
+
+  <rect width="1280" height="560" rx="28" fill="url(#sky)"/>
+  <g fill="#fff7df" fill-opacity="0.55">
+    <rect x="140" y="44" width="3" height="3"/><rect x="420" y="70" width="2" height="2"/><rect x="610" y="36" width="3" height="3"/>
+    <rect x="860" y="58" width="2" height="2"/><rect x="1010" y="30" width="3" height="3"/><rect x="1180" y="80" width="2" height="2"/>
   </g>
-  <text x="130" y="154" fill="#fff7df" font-family="Segoe UI, Arial, sans-serif" font-size="56" font-weight="700">DSH-Player2</text>
-  <text x="132" y="198" fill="#d9c7a5" font-family="Segoe UI, Arial, sans-serif" font-size="24">A trustworthy AI second player for real games</text>
-  <g transform="translate(130 252)">
-    <rect x="0" y="0" width="202" height="92" rx="18" fill="#1d2a2e" stroke="#5fb3a2" stroke-opacity="0.75"/>
-    <text x="24" y="38" fill="#e9fff9" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="700">Game facts</text>
-    <text x="24" y="66" fill="#a9c9c1" font-family="Segoe UI, Arial, sans-serif" font-size="16">bounded observations</text>
+  <circle cx="1170" cy="62" r="20" fill="#f2c46d" fill-opacity="0.85"/>
+  <circle cx="1180" cy="56" r="18" fill="#14202a"/>
+
+  <text x="80" y="128" fill="#fff7df" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="58" font-weight="700">DSH-Player2</text>
+  <rect x="82" y="146" width="132" height="5" rx="2.5" fill="url(#gold)"/>
+  <text x="82" y="190" fill="#d9c7a5" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="24">An AI second player for Stardew Valley</text>
+  <text x="82" y="222" fill="#a99f8a" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17">its own persona · its own co-op farmer · built on DeepSeek Harness</text>
+
+  <g font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, Segoe UI, sans-serif">
+    <rect x="250" y="262" width="330" height="54" rx="14" fill="#2c3a44" stroke="#9fc3d6" stroke-opacity="0.45"/>
+    <path d="M556 316l14 14l-2 -14z" fill="#2c3a44"/>
+    <text x="272" y="296" fill="#e9f4fa" font-size="20">You: 给我弄 3 根防风草</text>
+    <rect x="82" y="338" width="430" height="54" rx="14" fill="#33281c" stroke="#f2c46d" stroke-opacity="0.55"/>
+    <path d="M104 392l-6 14l18 -14z" fill="#33281c"/>
+    <text x="104" y="372" fill="#fff1d2" font-size="20">大肥鱼: 行吧……干完能开饭吗？</text>
   </g>
-  <g transform="translate(390 252)">
-    <rect x="0" y="0" width="202" height="92" rx="18" fill="#2c2420" stroke="#f2c46d" stroke-opacity="0.8"/>
-    <text x="24" y="38" fill="#fff6dd" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="700">Consent</text>
-    <text x="24" y="66" fill="#ddc599" font-family="Segoe UI, Arial, sans-serif" font-size="16">player-owned authority</text>
+
+  <g font-family="Segoe UI, Helvetica, Arial, sans-serif">
+    <g transform="translate(700 104)">
+      <rect width="500" height="62" rx="14" fill="#1d2a2e" stroke="#5fb3a2" stroke-opacity="0.7"/>
+      <text x="22" y="28" fill="#e9fff9" font-size="19" font-weight="700">Your words</text>
+      <text x="22" y="49" fill="#a9c9c1" font-size="15">chat in the native game UI, give it a goal, change your mind</text>
+    </g>
+    <g transform="translate(700 186)">
+      <rect width="500" height="62" rx="14" fill="#2c2420" stroke="#f2c46d" stroke-opacity="0.75"/>
+      <text x="22" y="28" fill="#fff6dd" font-size="19" font-weight="700">One mind per save</text>
+      <text x="22" y="49" fill="#ddc599" font-size="15">a DeepSeek Harness session plans, acts and replans on its own</text>
+    </g>
+    <g transform="translate(700 268)">
+      <rect width="500" height="62" rx="14" fill="#212437" stroke="#9aa7ff" stroke-opacity="0.7"/>
+      <text x="22" y="28" fill="#eef0ff" font-size="19" font-weight="700">Its own body</text>
+      <text x="22" y="49" fill="#bbc2ec" font-size="15">a hidden co-op farmer with its own inventory and controller</text>
+    </g>
+    <g transform="translate(700 350)">
+      <rect width="500" height="62" rx="14" fill="#2f1f25" stroke="#ff8b9b" stroke-opacity="0.7"/>
+      <text x="22" y="28" fill="#fff0f2" font-size="19" font-weight="700">Memory and dreams</text>
+      <text x="22" y="49" fill="#e6b7bf" font-size="15">each night it rewrites the story of the days you shared</text>
+    </g>
+    <g stroke="url(#gold)" stroke-width="4" stroke-linecap="round">
+      <path d="M950 168v16"/><path d="M950 250v16"/><path d="M950 332v16"/>
+    </g>
   </g>
-  <g transform="translate(650 252)">
-    <rect x="0" y="0" width="202" height="92" rx="18" fill="#212437" stroke="#9aa7ff" stroke-opacity="0.75"/>
-    <text x="24" y="38" fill="#eef0ff" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="700">Receipts</text>
-    <text x="24" y="66" fill="#bbc2ec" font-family="Segoe UI, Arial, sans-serif" font-size="16">auditable memory</text>
+
+  <path d="M0 452H1280V532a28 28 0 0 1-28 28H28a28 28 0 0 1-28-28z" fill="#3a2a1a"/>
+  <path d="M0 452h1280" stroke="#5c4128" stroke-width="4"/>
+  <g fill="#4a3522">
+    <rect x="60" y="476" width="1160" height="14" rx="7"/>
+    <rect x="60" y="514" width="1160" height="14" rx="7"/>
   </g>
-  <g transform="translate(910 252)">
-    <rect x="0" y="0" width="202" height="92" rx="18" fill="#2f1f25" stroke="#ff8b9b" stroke-opacity="0.78"/>
-    <text x="24" y="38" fill="#fff0f2" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="700">Presence</text>
-    <text x="24" y="66" fill="#e6b7bf" font-family="Segoe UI, Arial, sans-serif" font-size="16">native companion body</text>
+  <g>
+    <use href="#parsnip" x="120" y="488"/><use href="#parsnip" x="200" y="488"/><use href="#parsnip" x="280" y="488"/>
+    <use href="#sprout" x="360" y="488"/><use href="#sprout" x="440" y="488"/><use href="#sprout" x="520" y="488"/>
+    <use href="#sprout" x="600" y="488"/><use href="#parsnip" x="680" y="488"/><use href="#sprout" x="760" y="488"/>
+    <use href="#sprout" x="840" y="488"/><use href="#parsnip" x="920" y="488"/><use href="#sprout" x="1000" y="488"/>
+    <use href="#sprout" x="1080" y="488"/><use href="#parsnip" x="1160" y="488"/>
+    <use href="#sprout" x="160" y="526"/><use href="#sprout" x="240" y="526"/><use href="#parsnip" x="320" y="526"/>
+    <use href="#sprout" x="400" y="526"/><use href="#parsnip" x="480" y="526"/><use href="#sprout" x="560" y="526"/>
+    <use href="#sprout" x="640" y="526"/><use href="#sprout" x="720" y="526"/><use href="#parsnip" x="800" y="526"/>
+    <use href="#sprout" x="880" y="526"/><use href="#sprout" x="960" y="526"/><use href="#parsnip" x="1040" y="526"/>
+    <use href="#sprout" x="1120" y="526"/>
   </g>
-  <path d="M344 298H376" stroke="url(#gold)" stroke-width="5" stroke-linecap="round"/>
-  <path d="M604 298H636" stroke="url(#gold)" stroke-width="5" stroke-linecap="round"/>
-  <path d="M864 298H896" stroke="url(#gold)" stroke-width="5" stroke-linecap="round"/>
-  <circle cx="640" cy="120" r="34" fill="#f2c46d" fill-opacity="0.12" stroke="#f2c46d" stroke-opacity="0.56"/>
-  <circle cx="640" cy="120" r="14" fill="#f2c46d"/>
-  <path d="M640 72V50M640 190V168M688 120H710M570 120H592" stroke="#f2c46d" stroke-width="5" stroke-linecap="round" stroke-opacity="0.8"/>
-  <text x="132" y="390" fill="#c5b99f" font-family="Segoe UI, Arial, sans-serif" font-size="18">DeepSeek Harness composition + Stardew SMAPI adapter + receipt-backed game semantics</text>
 </svg>
