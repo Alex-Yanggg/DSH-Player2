@@ -7,6 +7,7 @@ import time
 import pytest
 
 from conftest import require_dsh
+from gamepilot.metrics import GoalMetrics
 from games.stardew.adapter import SAID, SENT, GameEndpoint
 
 pytestmark = pytest.mark.bline
@@ -30,29 +31,30 @@ def test_three_parsnips_from_scratch(world, hello, art):
     world.close_chat()
     assert ex.reply, ex.error or ex.stop_reason
     days, s = [], world.state()
-    while True:
-        day, woke = s["time"]["day"], s["body"]["location"]
-        places = {l["name"]: l for l in GameEndpoint(world.paths).call("world_map")["locations"]}
-        mark, money, route = len(world.smapi.lines), s["player"]["money"], [woke]
-        while s["time"]["timeOfDay"] < BEDTIME and _parsnips(s) < WANTED:
-            time.sleep(2)
+    with GoalMetrics(world) as metrics:
+        while True:
+            day, woke = s["time"]["day"], s["body"]["location"]
+            places = {l["name"]: l for l in GameEndpoint(world.paths).call("world_map")["locations"]}
+            mark, money, route = len(world.smapi.lines), s["player"]["money"], [woke]
+            while s["time"]["timeOfDay"] < BEDTIME and _parsnips(s) < WANTED:
+                time.sleep(2)
+                s = world.state()
+                if s["body"]["location"] != route[-1]:
+                    route.append(s["body"]["location"])
+            world.smapi.poll()
+            said = [ln.split(SAID, 1)[1] for _, ln in world.smapi.lines[mark:] if SAID in ln]
+            days.append({"day": s["time"]["dayOfMonth"], "said": said, "route": route, "gold": (money, s["player"]["money"]),
+                         "woke_in": woke, "cabin_exits": [w["to"] for w in places[woke]["warps"]] if woke in places else None,
+                         "parsnips": _parsnips(s)})
+            world.shot(f"parsnips_day{day - first_day + 1}")
+            art.record("parsnips", ask_reply=ex.reply, days=days)
+            assert woke in places, f"the companion woke in {woke}, which world_map does not know"
+            if _parsnips(s) >= WANTED or day - first_day + 1 >= DAYS:
+                break
+            world.sleep_night(day)
             s = world.state()
-            if s["body"]["location"] != route[-1]:
-                route.append(s["body"]["location"])
-        world.smapi.poll()
-        said = [ln.split(SAID, 1)[1] for _, ln in world.smapi.lines[mark:] if SAID in ln]
-        days.append({"day": s["time"]["dayOfMonth"], "said": said, "route": route, "gold": (money, s["player"]["money"]),
-                     "woke_in": woke, "cabin_exits": [w["to"] for w in places[woke]["warps"]] if woke in places else None,
-                     "parsnips": _parsnips(s)})
-        world.shot(f"parsnips_day{day - first_day + 1}")
-        art.record("parsnips", ask_reply=ex.reply, days=days)
-        assert woke in places, f"the companion woke in {woke}, which world_map does not know"
-        if _parsnips(s) >= WANTED or day - first_day + 1 >= DAYS:
-            break
-        world.sleep_night(day)
-        s = world.state()
     world.smapi.poll()
     errors = [ln for _, ln in world.smapi.lines if "Player2 DSH_" in ln]
-    art.record("parsnips", ask_reply=ex.reply, days=days, errors=errors[-20:],
+    art.record("parsnips", ask_reply=ex.reply, days=days, errors=errors[-20:], metrics=metrics.summary(),
                prompts=sum(SENT in ln for _, ln in world.smapi.lines))
     assert _parsnips(s) >= WANTED, f"{_parsnips(s)} parsnips after {len(days)} days"
