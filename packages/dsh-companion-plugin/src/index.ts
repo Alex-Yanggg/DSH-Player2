@@ -129,6 +129,8 @@ export function apply(ctx: Context, config: Config): void {
     });
   const saves = new Map<string, SaveState>();
   let skillsOf: ((agent: Agent | undefined) => SkillStore | undefined) | undefined;
+  /** Where skill programs execute (PTC seam or in-process), for the mind's skills note. */
+  let skillPath = "in-process";
   if (body instanceof ReflexBody) {
     ctx.effect(() => {
       body.start();
@@ -161,6 +163,7 @@ export function apply(ctx: Context, config: Config): void {
     // composes one; otherwise the plugin's in-process runner does. The chosen
     // path is logged once at mount.
     const skillRunner = createSkillRunner(ptcOf(ctx), skillHands(body), (line) => console.log(line));
+    skillPath = skillRunner.path;
     skillsOf = (agent: Agent | undefined): SkillStore | undefined => {
       const state = stateOf(agent);
       if (state === undefined) return undefined;
@@ -271,7 +274,7 @@ export function apply(ctx: Context, config: Config): void {
       const store = skillsOf?.(payload.agent);
       const skills = store === undefined ? [] : await store.list().catch(() => []);
       if (skills.length > 0) {
-        lines.push("Your saved skills, distilled from your own past work (skill_run by name, with args):", ...skills.map((skill) => `- ${skill.name}${skill.stale !== null ? " (stale: repair with skill_save or stop using it)" : ""}: ${skill.purpose}`));
+        lines.push(`Your saved skills, distilled from your own past work (skill_run by name, with args; they execute via ${skillPath}):`, ...skills.map((skill) => `- ${skill.name}${skill.stale !== null ? " (stale: repair with skill_save or stop using it)" : ""}: ${skill.purpose}`));
       }
       if (state.mind !== null && (marker?.kind === "chat" || marker?.kind === "day-start")) {
         const prepared = await state.mind.prepareTurn(marker.kind, marker.text, game, state.day, new Date());
