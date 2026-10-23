@@ -38,6 +38,7 @@ export { PersonaDice, tendencyLines, turnNudges } from "./body/knobs.js";
 export { SimAdapter, type SimLocation, type SimOptions } from "./body/sim-adapter.js";
 export { ReflexBody, ReflexEngine, loadReflexTable, nearestMonster, renderFact, roleButtons } from "./body/reflex.js";
 export { createSkillRunner, InProcessRunner, PtcRunner, skillHands, SkillStore, type PtcLike, type SkillHands, type SkillRecord, type SkillRunner } from "./body/skills.js";
+export { Toy2Adapter, TOY2_GOAL } from "./body/toy2.js";
 export { createBodyTools, BODY_TOOL_NAMES, renderObservation, inventoryDiff, type BodyContext } from "./body/tools.js";
 
 declare module "@deepseek-ai/dsh-llm" {

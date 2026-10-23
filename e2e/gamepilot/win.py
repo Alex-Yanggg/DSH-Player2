@@ -92,32 +92,48 @@ def client_rect(hwnd: int) -> Rect:
     return Rect(pt.x, pt.y, rc.right - rc.left, rc.bottom - rc.top)
 
 
-def focus(hwnd: int, attempts: int = 5) -> bool:
-    SW_RESTORE = 9
-    if user32.IsIconic(hwnd):
-        user32.ShowWindow(hwnd, SW_RESTORE)
-    for _ in range(attempts):
-        # A lone Alt tap lifts Windows' foreground lock so SetForegroundWindow is honoured.
+def focus(hwnd: int, attempts: int = 8) -> bool:
+    """Brings the window to the foreground. A fresh game window may not accept focus for a few
+    seconds, so several Windows mechanisms are tried in a loop before giving up."""
+    import ctypes
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    SW_RESTORE, SW_MINIMIZE = 9, 6
+    this_thread = kernel32.GetCurrentThreadId()
+    deadline = time.monotonic() + attempts * 1.5
+    tried_restore = False
+    while time.monotonic() < deadline:
+        if user32.IsIconic(hwnd):
+            user32.ShowWindow(hwnd, SW_RESTORE)
+            time.sleep(0.2)
+        # 1. A lone Alt tap lifts Windows' foreground lock so SetForegroundWindow is honoured.
         user32.keybd_event(0x12, 0, 0, 0)
         user32.keybd_event(0x12, 0, 2, 0)
         user32.SetForegroundWindow(hwnd)
-        time.sleep(0.15)
         if user32.GetForegroundWindow() == hwnd:
             return True
-    # Another process holds the foreground lock (the Alt tap did not lift it): share the
-    # foreground thread's input queue for the duration of the call, which Windows honours.
-    import ctypes
-    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-    this_thread = kernel32.GetCurrentThreadId()
-    fg_thread = user32.GetWindowThreadProcessId(user32.GetForegroundWindow(), None)
-    attached = user32.AttachThreadInput(this_thread, fg_thread, True)
-    try:
-        user32.SetForegroundWindow(hwnd)
-        user32.BringWindowToTop(hwnd)
-        time.sleep(0.15)
-    finally:
-        if attached:
-            user32.AttachThreadInput(this_thread, fg_thread, False)
+        # 2. Share the foreground thread's input queue for the duration of the call.
+        fg_thread = user32.GetWindowThreadProcessId(user32.GetForegroundWindow(), None)
+        attached = user32.AttachThreadInput(this_thread, fg_thread, True)
+        try:
+            user32.SetForegroundWindow(hwnd)
+            user32.BringWindowToTop(hwnd)
+        finally:
+            if attached:
+                user32.AttachThreadInput(this_thread, fg_thread, False)
+        if user32.GetForegroundWindow() == hwnd:
+            return True
+        # 3. The undocumented switch, and a minimize/restore cycle, which Windows also honours.
+        user32.SwitchToThisWindow(hwnd, True)
+        if user32.GetForegroundWindow() == hwnd:
+            return True
+        if not tried_restore:
+            user32.ShowWindow(hwnd, SW_MINIMIZE)
+            time.sleep(0.4)
+            user32.ShowWindow(hwnd, SW_RESTORE)
+            tried_restore = True
+            if user32.GetForegroundWindow() == hwnd:
+                return True
+        time.sleep(0.5)
     return user32.GetForegroundWindow() == hwnd
 
 
