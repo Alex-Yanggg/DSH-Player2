@@ -1,0 +1,1 @@
+{"content":"Tile (7,3) done. Next (8,3).","toolCalls":[{"id":"call_00_vUEFylYLwKeElQftOC9Y9177","name":"body_walk_to","args":{"mode":"adjacent","x":8,"y":3}}],"ms":911,"cached":false,"usage":{"prompt":2464,"completion":85}}

@@ -1,0 +1,1 @@
+{"content":"A slime is on my tile and my health is down to 10. I'll step away and fight it with the sword.","toolCalls":[{"id":"call_00_XCCFHDWHev5zEVV88TwX2539","name":"body_input","args":{"steps":[{"hold":["left"],"ms":400},{"press":["action"],"ms":200}]}}],"ms":959,"cached":false,"usage":{"prompt":2573,"completion":87}}

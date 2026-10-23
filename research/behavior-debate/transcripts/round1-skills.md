@@ -1,0 +1,24 @@
+# Round 1 — advocate-skills: attacks and standing answers
+
+## Attack on advocate-fsm
+
+Claim quoted: "Extensibility across games... is a real but bounded per-game cost (a leaf-node pack plus tree data files)" — "roughly 10–20 leaf implementations" per game, "the same class of work as the per-game SMAPI adapter." Wrong equivalence: the adapter is unavoidable game I/O every architecture pays identically; the leaf pack is optional decision-code only yours pays. Each pack is reviewed, released code — game #2 starts with an engineering backlog, and their own "graceful degradation" concedes the alternative is the slow baseline on everything the pack lacks: per-leg model latency *forever* on novelty. A skill library pays novelty *once per capability, as data the model writes* — Voyager's library transferred to a new world where baselines failed (arxiv.org/abs/2305.16291); no leaf pack transfers anywhere. And the audit absolutism ("every possible input press... enumerated before the companion ever moves") is not unique: a stored skill is exactly such a static artifact — enumerable inputs, declared postcondition, revocable file.
+
+## Attack on advocate-llm-bt
+
+Claim quoted: this "gives the model 100% of the 'how'" with "maximum extensibility-per-line-of-code." The "how" is capped by their closed grammar: their own farm tree hard-codes `{x: 4, y: 6}` per tile. Loops over *found* tiles, parameterized plots, computed recovery logic — the actual farm work — need either a grammar extension (fixed code change) or a freshly generated tree per goal variant: per-goal code generation in a hobbled language. The action-representation question is measured: executable code beat JSON/text-style actions by up to 20% across 17 LLMs (arxiv.org/abs/2402.01030), and Code as Policies attributes code's power precisely to loops, libraries, and hierarchical function definition (arxiv.org/abs/2209.07753) — all absent from a tree JSON. Their compounding claim ("a library of the model's own corrected trees... becomes few-shot material") is my skill library without storage, retrieval, or validation; and their flagship PORTAL regenerates policies per game via a dual-feedback loop, with no persistent library or reuse mechanism in the abstract (arxiv.org/abs/2503.13356) — iteration, not accumulation.
+
+## Attack on advocate-modes
+
+Claim quoted: "LLM-as-author is safe exactly where LLM-as-executor is not," with extensibility = "author one JSON file in the adapter's declared vocabulary." Their own existence proof refutes the sufficiency half: Mindcraft ships `modes.js` *and* `coder.js` — when the hand-written library and mode table can't cover a situation, the LLM writes JavaScript, lint-checked, skill-name-checked, interrupt-guarded, executed in a restricted compartment (github.com/mindcraft-bots/mindcraft/blob/main/src/agent/coder.js; README: "This project allows an LLM to write/execute code on your computer"). The shipped system keeps a code-skill escape hatch because bounded predicate tables cannot absorb novelty. Also, "one JSON file" hides fixed predicate/macro code — `monsterWithinTiles` is not universal; their own porting test (`toy2`, keys, no tiles) breaks the predicate library, which is product code.
+
+## Attack on advocate-llm
+
+Claim quoted: "an LLM-written skill library needs a verification harness per game." False as stated: my validation ladder checks postconditions against body-protocol state (object `extra` flags, inventory diffs, arrival reasons) — all game-agnostic; the harness ships once, and only the skill files are per-game data. Their per-leg round-trip loop pays their own quoted 15-second turns on every repeated chore, every day; a stored skill deletes that cost from the steady state (one call to compose, then local execution).
+
+## Standing answers
+
+- **"Unauditable code vs. a closed artifact" (fsm, llm-bt).** A saved skill is static, enumerable, and diffable like a tree; unlike a tree it carries a machine-checkable postcondition. First execution is the audit; DSH logs every sub-call. "Inspectable only by reading code" — yes: reading is the inspection, the same reading a 60-node JSON tree needs.
+- **Latency (modes, fsm: ~0.8 s monster vs model seconds).** Stored skills execute with *zero* model calls inside; `until` tripwires arm in every `submitInput`, same as everyone's. Authoring latency is paid once, amortized by reuse (SkillWeaver: +31.8% from small libraries, arxiv.org/abs/2504.07079).
+- **"Unsandboxed model code" (hybrid).** Not Mindcraft's host eval: DSH's own PTC seam — fresh managed process, resolved file policy, bindings-only, per-sub-call session logging (node_modules/@deepseek-ai/dsh-ptc-runtime/README.md). The gate already exists.
+- **Model-level agents' 4–23.7 s/step frontier numbers** indict the per-step LLM loop, not skills; a future policy chunk can even become one more binding a skill composes.

@@ -1,0 +1,1 @@
+{"content":"I'm standing on the ladder tile. Let me use it to descend.","toolCalls":[{"id":"call_00_A8B2UKHknvBqtdeD445y8118","name":"body_input","args":{"steps":[{"ms":300,"press":["action"]}]}}],"ms":924,"cached":false,"usage":{"prompt":2085,"completion":64}}

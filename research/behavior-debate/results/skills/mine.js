@@ -1,0 +1,4 @@
+{
+  "skill": "async (b) => { const target = {x: 11, y: 1}; const isAt = (p) => p && p.x === target.x && p.y === target.y; let me = await b.body(); if (isAt(me)) return true; const r = await b.walkTo(target.x, target.y, 'stand'); me = await b.body(); if (isAt(me)) return true; const r2 = await b.walkTo(target.x, target.y, 'adjacent'); me = await b.body(); if (isAt(me)) return true; const obs = await b.observe(); b.log('walk result: ' + JSON.stringify(r) + ' / ' + JSON.stringify(r2)); return isAt(await b.body()); }",
+  "check": "async (b) => { const p = await b.body(); if (!p) return {ok: false, detail: 'no body'}; const ok = p.x === 11 && p.y === 1; return {ok, detail: 'player at ' + p.x + ',' + p.y}; }"
+}

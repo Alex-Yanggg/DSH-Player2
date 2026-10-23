@@ -1,0 +1,87 @@
+[
+  {
+    "url": "https://arxiv.org/abs/2305.16291",
+    "fetchedAt": "2026-10-24",
+    "note": "Voyager paper: skill library of executable code, 3.3x unique items, 15.3x faster tech-tree milestones, library transfers to new worlds."
+  },
+  {
+    "url": "https://voyager.minedojo.org/",
+    "fetchedAt": "2026-10-24",
+    "note": "Voyager project page: skills indexed by embedding of GPT-4-written description, top-5 retrieval, self-verification critic gate before a skill is added."
+  },
+  {
+    "url": "https://github.com/MineDojo/Voyager",
+    "fetchedAt": "2026-10-24",
+    "note": "Voyager repo: skill_library/ stored as on-disk code, decompose_task then inference(sub_goals) usage pattern."
+  },
+  {
+    "url": "https://arxiv.org/abs/2402.01030",
+    "fetchedAt": "2026-10-24",
+    "note": "CodeAct (ICML 2024): executable code actions up to 20% higher success than JSON/text baselines across 17 LLMs; interpreter loop enables self-debug."
+  },
+  {
+    "url": "https://arxiv.org/abs/2209.07753",
+    "fetchedAt": "2026-10-24",
+    "note": "Code as Policies: LLMs re-compose API calls into policy code with loops/feedback on real robots; hierarchical code generation by recursively defining functions."
+  },
+  {
+    "url": "https://arxiv.org/abs/2504.07079",
+    "fetchedAt": "2026-10-24",
+    "note": "SkillWeaver 2025: agents synthesizing skills as APIs gain 31.8% (WebArena) / 39.8% (real sites); skills transfer to weaker agents up to 54.3%."
+  },
+  {
+    "url": "https://github.com/kolbytn/mindcraft",
+    "fetchedAt": "2026-10-24",
+    "note": "Mindcraft README: code_model for newAction coding, allow_insecure_coding flag, Docker recommended, 'LLM writes/executes code on your computer... vulnerable to injection attacks' security caution."
+  },
+  {
+    "url": "https://github.com/mindcraft-bots/mindcraft/tree/main",
+    "fetchedAt": "2026-10-24",
+    "note": "Mindcraft current repo layout (stable): src/, profiles/, tasks/; andy.json profile with ollama local models including sweaterdog/andy-4."
+  },
+  {
+    "url": "https://github.com/mindcraft-bots/mindcraft/tree/main/src/agent",
+    "fetchedAt": "2026-10-24",
+    "note": "Mindcraft agent modules: coder.js, modes.js, self_prompter.js, memory_bank.js, library/ — i.e. LLM coder + hand-written library + modes coexist."
+  },
+  {
+    "url": "https://github.com/mindcraft-bots/mindcraft/tree/main/src/agent/library",
+    "fetchedAt": "2026-10-24",
+    "note": "Mindcraft library folder: skills.js (hand-written), skill_library.js (retrieval), world.js, lockdown.js."
+  },
+  {
+    "url": "https://github.com/mindcraft-bots/mindcraft/blob/main/src/agent/library/skill_library.js",
+    "fetchedAt": "2026-10-24",
+    "note": "skill_library.js is in-memory embedding (first two lines of docs) or word-overlap retrieval with always-show skills; no persistence — informs our small-scale index design."
+  },
+  {
+    "url": "https://github.com/mindcraft-bots/mindcraft/blob/main/FAQ.md",
+    "fetchedAt": "2026-10-24",
+    "note": "Mindcraft FAQ: connection/ops issues, pathfinder imperfect and patched; no skill-library history documented (removal claim left as speculation)."
+  },
+  {
+    "url": "https://arxiv.org/abs/2506.03610",
+    "fetchedAt": "2026-10-24",
+    "note": "Orak benchmark (KRAFTON): 12 games behind a plug-and-play MCP interface plus expert LLM gameplay-trajectory fine-tuning dataset — protocol+code-actions converging across games."
+  },
+  {
+    "url": "https://huggingface.co/Sweaterdog/Andy-3.5",
+    "fetchedAt": "2026-10-24",
+    "note": "Andy local model family: fine-tuned on ~12k Minecraft Mindcraft prompts; 360M-7B variants run locally via Ollama for in-game play — code/command traces as distillation substrate."
+  },
+  {
+    "url": "https://github.com/mindcraft-bots/mindcraft/blob/main/src/agent/coder.js",
+    "fetchedAt": "2026-10-24",
+    "note": "Mindcraft coder.js: !newAction generates JS, lint + skill-name checks, interrupt guards injected, executed in a restricted SES-style compartment — the code-skill escape hatch shipped beside modes."
+  },
+  {
+    "url": "https://arxiv.org/abs/2503.13356",
+    "fetchedAt": "2026-10-24",
+    "note": "PORTAL (Xu et al. 2025): LLMs generate DSL behavior trees per game with dual-feedback (metrics + VLM) iteration; abstract mentions no persistent skill library or cross-game reuse mechanism."
+  },
+  {
+    "url": "https://arxiv.org/html/2610.28698",
+    "fetchedAt": "2026-10-24",
+    "note": "GameScaling (miHoYo): raw pixels in (no structured state), ~45,000 H200 GPU-hours for the 120-run grid; interface vs world phase; Minecraft-only 27B degrades OOD (~-17 points on GameWorld)."
+  }
+]

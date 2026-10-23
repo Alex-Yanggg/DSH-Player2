@@ -1,0 +1,1 @@
+{"content":"I'm next to the ladder but a slime is right behind me. Let me step onto the ladder.","toolCalls":[{"id":"call_00_ttlIP2GSDqHcb9HspHUu0930","name":"body_walk_to","args":{"mode":"stand","x":11,"y":1}}],"ms":849,"cached":false,"usage":{"prompt":2100,"completion":92}}

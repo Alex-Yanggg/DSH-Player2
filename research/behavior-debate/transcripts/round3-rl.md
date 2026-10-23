@@ -1,0 +1,25 @@
+# Round 3 — advocate-rl (final answers, final attacks, closing position)
+
+## Answers
+
+**To advocate-fsm** ("a policy trained there overfits toy physics and proves nothing about Stardew"; my answer "confirms the per-game loop they deny me, at GPU prices"). Both points partially stand. Sim-toy transfer is exactly what the bench must measure, and I accept the standard: my artifact ships with an eval report quantifying success across seeds — a tree ships with no measured competence at all, only review. And I do not deny your per-game loop; I deny it *improves with data*. Yours never does. The GPU price is real and mine; scoped grid skills are nowhere near DreamerV3's 9 GPU-days for diamond-from-scratch (https://arxiv.org/html/2301.04104), but I have no fetched number for that cost — [speculation].
+
+**To advocate-llm-bt** ("neural nodes are optional — the 2026 construction trees were pure rule-based XML"; "rl's policy becomes one `act` leaf of mine"). Two answers. The construction domain is deterministic industrial sequencing — your own opening records that even there, "small open models failed exactly at the synchronization-heavy scenarios": competence cracking under *timing* pressure, which is all combat is. And "my policy becomes one act leaf" is capitulation dressed as composition — you concede the dexterity tier is learned and offer JSON scaffolding around it. The model advocate called this "my architecture with extra JSON"; they were describing you too.
+
+**To advocate-modes** ("thresholds are authored — the cheapest per-game artifact here: one number in diffable JSON"). Cheapest artifact, zero feedback: "the model proposes params" for physics it never played is a guess whose only correction path is another authoring event. The MineRL record is interaction data carrying hard tasks, not declaration-reading (https://arxiv.org/abs/1904.10079). Cheap-and-unverified per game is not extensibility; it is liability at scale.
+
+**To advocate-llm** ("moving where? … game #2 first needs a run-and-fight checkpoint"). Direct concession: yes — on a new game before training exists, there is no fight skill, and the loop degrades to exactly your baseline plus `until`. That was my opening's stated degradation path, not a round-3 discovery. "Cannot say why it died": the trace gives the full *what* (every obs, action, health sample); nobody gets a narrative — conceded since round 0.
+
+**To advocate-utility** ("reward functions are authored objectives too; training-time folklore paid in GPU-days"). True and reciprocal: your curves are the human-authored objectives that Eureka's loop *replaced* with better ones — and note where Eureka's loop terminates: a trained policy, not JSON read at runtime (https://arxiv.org/abs/2310.12931). Your citation is my mechanism tier with the optimizer deleted.
+
+## Attacks
+
+**On advocate-llm-bt's round-2 defense.** "The one-hit rule is sim-specific, which is the point of per-goal authoring" abandons your own position: if combat competence is re-authored per goal, you pay an LLM round-trip mid-fight — the baseline's latency hole — for dexterity your own fetched numbers say re-authoring rarely fixes (iterative regeneration flat at 12/17; your citation). Per-goal authoring is a strength for chores, not for survival.
+
+**On advocate-utility's round-2 position**, sharpened: Eureka's 83%-of-tasks / +52% result *is* LLM-above, learned-policy-below — trained skills called by a symbolic layer. You cited the strongest published evidence for my tier and shipped only its top half. RAMP reached the same shape in Minecraft in 2025: RL policies under a planner beat pure RL (https://arxiv.org/abs/2502.13006). The field's convergent result is a hybrid with my tier at the bottom; three advocates now place something learned-shaped there in spirit while refusing the mechanism that makes it competent.
+
+**On advocate-modes' concession chain.** Round 2 conceded thresholds are authored guesses; your fallback is "the model proposes params via `modes_set`" — which you attacked me for in round 1 as [speculation] when I claimed adaptation. A rule for thee: your repair path has no more fetched evidence than mine, and mine at least has a defined update rule.
+
+## Closing position
+
+My strongest case after three rounds: the reflex tier must be fast, competent, and game-portable, and a small trained policy is the only candidate where competence is earned from consequences (VPT's human-level fine-tunes, DreamerV3's sparse-reward diamonds), runs at zero model latency in-process, and ships as versioned data behind one game-agnostic tool — the exact bottom tier the field's hybrids keep re-inventing (Eureka, RAMP). My weakest point, stated plainly: day one on a new game has no skills — per-game training cost is real, unquantified for scoped skills, and until the artifact exists my architecture is everyone else's baseline with extra infrastructure. I am the high-risk, high-ceiling candidate: judge me on whether learned dexterity is worth paying for in compute instead of code.

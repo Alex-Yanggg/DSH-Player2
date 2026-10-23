@@ -1,0 +1,67 @@
+[
+  {
+    "url": "https://arxiv.org/abs/2210.03629",
+    "fetchedAt": "2026-10-24",
+    "note": "ReAct (Yao et al., ICLR 2023): interleaved reasoning traces + environment actions beat acting-only and CoT baselines; +34% absolute success on ALFWorld, +10% on WebShop with 1-2 in-context examples; readable trajectories."
+  },
+  {
+    "url": "https://arxiv.org/abs/2307.13854",
+    "fetchedAt": "2026-10-24",
+    "note": "WebArena: realistic long-horizon agent benchmark; best GPT-4 agent 14.41% success vs human 78.24% — honest evidence of LLM long-horizon unreliability, cited in my weakness section."
+  },
+  {
+    "url": "https://www.anthropic.com/engineering/building-effective-agents",
+    "fetchedAt": "2026-10-24",
+    "note": "Anthropic engineering guidance: use 'the simplest solution possible'; agents = LLMs dynamically directing their own tool usage; invest in agent-computer interfaces (tool descriptions) as much as HCI."
+  },
+  {
+    "url": "https://modelcontextprotocol.io/introduction",
+    "fetchedAt": "2026-10-24",
+    "note": "MCP: open standard connecting AI apps to data/tools/workflows; supported by Claude, ChatGPT, VS Code, Cursor — evidence that tool-declaration is the durable industry interchange for agent capabilities."
+  },
+  {
+    "url": "https://arxiv.org/abs/2411.13543",
+    "fetchedAt": "2026-10-24",
+    "note": "BALROG (ICLR 2025): agentic LLM/VLM benchmark on games (NetHack tier hardest); models get partial success on easy games and 'struggle significantly' on hard ones; vision input can hurt vs text-only."
+  },
+  {
+    "url": "https://developer.nvidia.com/blog/benchmarking-agentic-llm-and-vlm-reasoning-for-gaming-with-nvidia-nim/",
+    "fetchedAt": "2026-10-24",
+    "note": "BALROG run with DeepSeek-R1 via NVIDIA NIM (Apr 2025): 34.9% average across six game environments, beating Claude 3.5 Sonnet 32.6%; natural-language action interface; no latency numbers reported."
+  },
+  {
+    "url": "https://arxiv.org/abs/2310.01557",
+    "fetchedAt": "2026-10-24",
+    "note": "SmartPlay (Microsoft): LLM-as-agent benchmark over 6 games diagnosing capabilities (planning ahead, spatial reasoning, learning from history); roadmap for exposing LLM agent capability gaps."
+  },
+  {
+    "url": "https://artificialanalysis.ai/methodology/performance-benchmarking",
+    "fetchedAt": "2026-10-24",
+    "note": "Artificial Analysis performance methodology: median TTFT, output speed (tokens/s), total response time; reasoning models can emit ~2k reasoning tokens before answering; longer prompts raise TTFT. No concrete values on the page itself."
+  },
+  {
+    "url": "https://clickhouse.com/resources/engineering/llm-inference-latency",
+    "fetchedAt": "2026-10-24",
+    "note": "Concrete LLM latency numbers: latency = TTFT + (tokens-1) x TPOT; TTFT 200-500ms well-tuned (multi-second on long contexts); TPOT 10-50ms (20-100 tok/s); 500 output tokens > 15s example."
+  },
+  {
+    "url": "https://arxiv.org/abs/2404.02039",
+    "fetchedAt": "2026-10-24",
+    "note": "Survey on LLM-based game agents (ACM CSUR 2026): unified reference architecture = memory, reasoning, and perception-action interfaces — matching tools + prompt + ledger with no intermediate behavior formalism."
+  },
+  {
+    "url": "https://arxiv.org/abs/2503.13657",
+    "fetchedAt": "2026-10-24",
+    "note": "MAST (UC Berkeley): taxonomy of 14 LLM agent-system failure modes in 3 categories (system design, inter-agent misalignment, task verification) from 1,600+ traces — cited to argue fewer architectural layers means fewer failure classes."
+  },
+  {
+    "url": "https://arxiv.org/abs/2503.13356",
+    "fetchedAt": "2026-10-24",
+    "note": "PORTAL abstract: LLMs generate behavior trees as DSL for thousands of FPS games; policies 'instantaneously deployable, human-interpretable'. Abstract contains no latency figures; fetched to verify rivals' use."
+  },
+  {
+    "url": "https://arxiv.org/html/2503.13356v1",
+    "fetchedAt": "2026-10-24",
+    "note": "PORTAL full text: LLM latency called 'impractical for real-time applications' with prior plain-LLM agents' gameplay 'extending to seven hours per match' (StarCraft-style) — those agents complete matches slowly rather than fail; also notes Claude 3.7 beating Pokémon Gym Leaders zero-shot; authors never ran plain LLM agents in their own FPS suite."
+  }
+]

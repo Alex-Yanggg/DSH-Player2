@@ -1,0 +1,1 @@
+{"content":"I'm standing at (11,2) facing the ladder at (11,1). Now I'll step onto it.","toolCalls":[{"id":"call_00_VPtWFO4wdGn5rUcu6ou49151","name":"body_input","args":{"steps":[{"hold":["up"],"ms":400}]}}],"ms":959,"cached":false,"usage":{"prompt":2100,"completion":73}}

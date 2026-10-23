@@ -1,0 +1,1 @@
+{"content":"A slime is on my tile. I'll kill it with the sword (facing right), then move.","toolCalls":[{"id":"call_00_b2Gfb6z3QKXjvHEDGIHG8511","name":"body_input","args":{"steps":[{"press":["Slot1"],"ms":100},{"press":["Action"],"ms":300}]}}],"ms":1087,"cached":false,"usage":{"prompt":2261,"completion":84}}

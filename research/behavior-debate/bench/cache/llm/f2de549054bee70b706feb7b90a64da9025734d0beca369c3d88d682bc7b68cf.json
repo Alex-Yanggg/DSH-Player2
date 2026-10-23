@@ -1,0 +1,1 @@
+{"content":"Tool use is ControllerX, planting is ControllerA.","toolCalls":[{"id":"call_00_b1DKGMT9ux23BDO1cf0O0889","name":"body_input","args":{"steps":[{"press":["Slot1"],"ms":100},{"press":["ControllerX"],"ms":400}]}}],"ms":1189,"cached":false,"usage":{"prompt":2263,"completion":73}}

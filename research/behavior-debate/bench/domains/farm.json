@@ -1,0 +1,18 @@
+{
+  "name": "farm",
+  "predicates": {
+    "tile_open(x,y)": { "legend": ".", "noObject": true },
+    "tilled(x,y)": { "objectKind": "dirt" },
+    "planted(x,y)": { "objectKind": "dirt", "extraKey": "crop", "test": "present" },
+    "watered(x,y)": { "objectKind": "dirt", "extraKey": "watered", "test": "==", "value": true }
+  },
+  "actions": [
+    { "id": "TillTile", "cost": 1, "pre": ["tile_open(x,y)"], "add": ["tilled(x,y)"], "del": ["tile_open(x,y)"],
+      "operator": { "type": "workTile", "slot": 0, "button": "ControllerX" } },
+    { "id": "PlantTile", "cost": 1, "pre": ["tilled(x,y)", "not_planted(x,y)"], "add": ["planted(x,y)"],
+      "operator": { "type": "workTile", "slot": 2, "button": "ControllerA" } },
+    { "id": "WaterTile", "cost": 1, "pre": ["planted(x,y)", "not_watered(x,y)"], "add": ["watered(x,y)"],
+      "operator": { "type": "workTile", "slot": 1, "button": "ControllerX" } }
+  ],
+  "goalChain": ["tilled(x,y)", "planted(x,y)", "watered(x,y)"]
+}

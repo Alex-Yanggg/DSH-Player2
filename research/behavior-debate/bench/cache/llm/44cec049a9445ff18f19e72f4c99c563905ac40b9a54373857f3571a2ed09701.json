@@ -1,0 +1,1 @@
+{"content":"I'll start by looking around to understand my situation.","toolCalls":[{"id":"call_00_xHvWyIvQNRPoNXZ6uyCS9031","name":"world_observe","args":{}},{"id":"call_01_ueEWhHb7k7MzUbX1V8ZU9221","name":"world_map","args":{}}],"ms":1175,"cached":false,"usage":{"prompt":1402,"completion":45}}

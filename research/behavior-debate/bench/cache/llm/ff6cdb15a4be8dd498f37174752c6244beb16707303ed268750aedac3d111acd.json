@@ -1,0 +1,1 @@
+{"content":"Now the blue door at (8,6).","toolCalls":[{"id":"call_00_oa1EXs8a9smPwnDKAFQi5798","name":"body_walk_to","args":{"mode":"adjacent","x":8,"y":6}}],"ms":976,"cached":false,"usage":{"prompt":4156,"completion":81}}

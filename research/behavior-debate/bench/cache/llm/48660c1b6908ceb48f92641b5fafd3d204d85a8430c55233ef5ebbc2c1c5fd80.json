@@ -1,0 +1,1 @@
+{"content":"3 Wood now. Next, the blue door at (8,6) to reach the stone room.","toolCalls":[{"id":"call_00_CGHn9wntP9OFrFIMtUlO6558","name":"body_walk_to","args":{"mode":"adjacent","x":8,"y":6}}],"ms":1126,"cached":false,"usage":{"prompt":4023,"completion":92}}

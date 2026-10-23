@@ -1,0 +1,1 @@
+{"content":"Now (8,4).","toolCalls":[{"id":"call_00_j8dAcGZQzwqBhxge3skr9921","name":"body_walk_to","args":{"mode":"adjacent","x":8,"y":4}}],"ms":889,"cached":false,"usage":{"prompt":3438,"completion":77}}

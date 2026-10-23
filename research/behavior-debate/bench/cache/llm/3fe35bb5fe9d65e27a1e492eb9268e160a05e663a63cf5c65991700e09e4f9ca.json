@@ -1,0 +1,1 @@
+{"content":"I'm facing right; the ladder is under me. Let me face down and try again.","toolCalls":[{"id":"call_00_QMJZPWOc2mzzXE8NjCQK5446","name":"body_input","args":{"steps":[{"hold":["DPadDown"],"ms":150},{"press":["ControllerA"],"ms":300}]}}],"ms":1062,"cached":false,"usage":{"prompt":2498,"completion":82}}

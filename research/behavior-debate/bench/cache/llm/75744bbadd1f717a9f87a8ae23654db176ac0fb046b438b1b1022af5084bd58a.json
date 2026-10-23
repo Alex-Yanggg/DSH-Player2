@@ -1,0 +1,1 @@
+{"content":"I'm at (10,2) facing down. Let me move to face the wood at (10,1).","toolCalls":[{"id":"call_00_niW3Udm0d4jIMgTLVrnU7247","name":"body_walk_to","args":{"mode":"adjacent","x":10,"y":1}}],"ms":807,"cached":false,"usage":{"prompt":3784,"completion":95}}

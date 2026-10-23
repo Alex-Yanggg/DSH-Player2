@@ -1,0 +1,51 @@
+{
+ "llm": {
+  "loc_core": 83,
+  "loc_data": 0,
+  "toy2_changed": 0,
+  "toy2_added": 0,
+  "toy2_note": "identical approach code runs against toy2's declaration; per-game data is model-authored at runtime"
+ },
+ "llm-bt": {
+  "loc_core": 333,
+  "loc_data": 0,
+  "toy2_changed": 0,
+  "toy2_added": 0,
+  "toy2_note": "identical approach code runs against toy2's declaration; per-game data is model-authored at runtime"
+ },
+ "modes": {
+  "loc_core": 366,
+  "loc_data": 0,
+  "toy2_changed": 0,
+  "toy2_added": 0,
+  "toy2_note": "identical approach code runs against toy2's declaration; per-game data is model-authored at runtime"
+ },
+ "skills": {
+  "loc_core": 217,
+  "loc_data": 0,
+  "toy2_changed": 0,
+  "toy2_added": 0,
+  "toy2_note": "identical approach code runs against toy2's declaration; per-game data is model-authored at runtime"
+ },
+ "goap": {
+  "loc_core": 340,
+  "loc_data": 39,
+  "toy2_changed": 0,
+  "toy2_added": 218,
+  "toy2_note": "fixed-stack additions between [toy2-port] sentinels in approach-goap.ts (132 code lines: itemAtLeast/noObjectKind predicate kinds, haveItems goal kind + reachability-checked BFS planner, pressAt operator, doorKeys field, goal grammar) + domains/toy2.json (86 data lines)"
+ },
+ "hybrid": {
+  "loc_core": 208,
+  "loc_data": 0,
+  "toy2_changed": 0,
+  "toy2_added": 0,
+  "toy2_note": "identical approach code runs against toy2's declaration; per-game data is model-authored at runtime"
+ },
+ "handcoded": {
+  "loc_core": 115,
+  "loc_data": 0,
+  "toy2_changed": 0,
+  "toy2_added": 49,
+  "toy2_note": "the toy2 controller is new code; none of the farm/mine controller logic transfers"
+ }
+}

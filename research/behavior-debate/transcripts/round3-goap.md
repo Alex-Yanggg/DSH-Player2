@@ -1,0 +1,23 @@
+# Cross-examination round 3 — advocate-goap (final)
+
+## Answers
+
+**To fsm and utility (the extractor charge: "per-game code, silently outside the 'all game specificity is data' bill"; "sound checker over facts nobody guarantees… a third of environments unsolved").** Conceded, and restated honestly: game one ships *one small extractor plus a data domain*; the extractor is one-time code over the declaration's mandated semantics (legend record, per-kind `extra`), CI-tested like `navigation.ts`. But the bill is universal: utility reads `waterRemaining` off `extra`, modes' predicates are `monsterWithinTiles`/`healthBelowPct`, llm-bt's conds address `objects[4,6].extra.watered` — every rival ships a grounding tier; mine is one named, unit-tested module, not literals scattered through artifacts. On the 66% residual (Mahdavi, fetched): that is the *LLM-authoring* rate under environment feedback — the loop validates and improves; soundness is conditional on the model in every architecture, theirs included. The difference is failure behavior: a wrong fact fails a precondition loudly; a wrong curve silently misorders actions — and extractor-domain agreement is tested on the sim before anything binds to a goal.
+
+**To llm-bt ("your per-step re-check is my cond-after-act; saved trees amortize like a domain").** The re-check is the cheap half — Humphreys' plan runner did it in production (fetched); I claim no novelty. What a cond lacks is the *other* half: a reason the sequence exists. A failed tree retries or escalates; a planner re-derives the remainder from the goal — GOAP plans only for unsatisfied literals, so partial progress is absorbed free. And few-shot tree reuse is *unvalidated* reuse: nothing distinguishes a tree that worked from one that was lucky; a domain is re-verified by search against every new problem — reuse with a checker, not recall with hope.
+
+**To llm ("farm-paced world; PORTAL is pace, not capability").** True for the farm loop; the brief's mine scenario is not farm-paced, and their round-2 math — "a 50–100 token decision runs ~1–5 s" — prices every surprise. Verification in tool results is detection *after* the press; precondition checks are prevention *before* it. Pace-free capability is measurable: 14.41% WebArena is their own citation.
+
+**To modes ("`unstuck` plus digest escalation is replanning-with-failure-facts").** `unstuck` handles one named failure. Orkin's mechanism is general: any failure's cause becomes a fact the *next search* avoids (blocked door → kick → window); a digest routes the same surprise back through a model round trip.
+
+## Attacks
+
+**On advocate-utility's round-2 defense** ("refill is a candidate whose `waterRemaining` consideration reads the level — refill wins as the level falls"): that is my attack restated as a feature. The scorer reacts when the can is *already* low — tile 9, mid-plot — then re-walks; scheduling refill *before* exhaustion requires projecting effects forward, which their own answer disclaims ("argmax… decides *now*, every tick"). Hysteresis damps oscillation; it cannot schedule. The Sims is needs-driven choice with no instrumental order; SayCan's value functions score next-skill feasibility — still not lookahead.
+
+**On advocate-fsm's round-2 position** ("mine is pre-reviewed, theirs post-hoc… a planner can be a leaf in my tree"): their own concession — "parameters (plot, thresholds) are what the preview shows" — requires a per-goal preview artifact; that artifact *is* a plan, produced per goal instead of reviewed per game. And "planner as a leaf" concedes the division: the leaf does the multi-step reasoning; the tree above it is scaffolding around my engine.
+
+**On advocate-llm's round-2 defense** ("interrupt → arm next leg paces any pursuer no faster"): pre-arming retreat legs is a fixed reflex layer — the architecture they refuse to name, paid one model turn at a time, with their conceded gap ("caught with nothing armed, the body hesitates visibly") as the failure mode in the brief's mine scenario.
+
+## Closing position
+
+Three rounds sharpened, not moved, the case: the planner is the only candidate separating what the game affords (domain as validated data) from what to do now (exact, millisecond search), with a machine checker on the seam — and the measured model-alone vs model-plus-sound-search gap (LLM+P; 66% vs 29%) is the panel's most direct evidence for a fixed layer. The honest weakest point: the grounding extractor and domain-authoring loop are real per-game engineering, only partly automated, and mine tactics rest on cost-model craft — the bench's replan counts and porting diff must bear that out, or the trust story outruns the numbers.

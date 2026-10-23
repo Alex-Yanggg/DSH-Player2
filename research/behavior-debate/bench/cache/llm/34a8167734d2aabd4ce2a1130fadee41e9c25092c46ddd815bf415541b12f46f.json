@@ -1,0 +1,1 @@
+{"content":"I'm standing on the ladder tile at (11,1). Let me confirm it's usable by interacting with it.","toolCalls":[{"id":"call_00_T5mp0uvYyTjSF3Kf5vty6499","name":"body_input","args":{"steps":[{"press":["ControllerA"],"ms":300}]}}],"ms":1120,"cached":false,"usage":{"prompt":2819,"completion":73}}

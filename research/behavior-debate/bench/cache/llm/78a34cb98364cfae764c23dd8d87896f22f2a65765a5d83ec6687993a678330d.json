@@ -1,0 +1,1 @@
+{"content":"The slime is on my tile and I lost health. I'll step away and strike it.","toolCalls":[{"id":"call_00_ODd52UuJHQy3pDrF2WOd4060","name":"body_input","args":{"steps":[{"hold":["DPadRight"],"ms":150},{"press":["ControllerX"],"ms":200}]}}],"ms":915,"cached":false,"usage":{"prompt":2837,"completion":83}}

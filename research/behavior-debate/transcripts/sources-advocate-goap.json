@@ -1,0 +1,67 @@
+[
+  {
+    "url": "https://www.gamedevs.org/uploads/three-states-plan-ai-of-fear.pdf",
+    "fetchedAt": "2026-10-24",
+    "note": "Jeff Orkin's GDC 2006 'Three States and a Plan: The A.I. of F.E.A.R.' paper, downloaded and read in full: GOAP mechanics (A* over world states, per-action costs, procedural preconditions/effects), replanning from failure facts, goals/actions decoupling, new enemy built late from existing actions."
+  },
+  {
+    "url": "https://www.gameaipro.com/GameAIPro/GameAIPro_Chapter12_Exploring_HTN_Planners_through_Example.pdf",
+    "fetchedAt": "2026-10-24",
+    "note": "Troy Humphreys, Game AI Pro ch.12 'Exploring HTN Planners through Example', downloaded and read in full: production HTN in Transformers: Fall of Cybertron, decomposition algorithm, plan-runner precondition validation, MTR replan hysteresis, HTN faster than their prior GOAP, HTN vs behavior trees."
+  },
+  {
+    "url": "https://arxiv.org/abs/2304.11477",
+    "fetchedAt": "2026-10-24",
+    "note": "LLM+P (Liu et al. 2023) abstract: LLM translates NL to PDDL, classical planner solves, LLM translates back; LLMs alone cannot reliably solve long-horizon planning problems."
+  },
+  {
+    "url": "https://arxiv.org/abs/2402.01817",
+    "fetchedAt": "2026-10-24",
+    "note": "Kambhampati et al., 'Position: LLMs Can't Plan, But Can Help Planning in LLM-Modulo Frameworks' (ICML 2024) abstract: LLMs as knowledge/model generators inside loops with external sound verifiers."
+  },
+  {
+    "url": "https://arxiv.org/abs/2305.14909",
+    "fetchedAt": "2026-10-24",
+    "note": "Guan et al. (NeurIPS 2023) abstract: GPT-4 authored PDDL models for 40+ actions; validator/human-corrected domains solved 48 challenging tasks; corrections once per domain, not per plan."
+  },
+  {
+    "url": "https://arxiv.org/abs/2407.12979",
+    "fetchedAt": "2026-10-24",
+    "note": "Mahdavi et al. (NeurIPS 2024) abstract: environment-feedback refinement of LLM-written PDDL; 66% average solve rate over 10 environments vs 29% for GPT-4 intrinsic chain-of-thought planning."
+  },
+  {
+    "url": "https://say-can.github.io/",
+    "fetchedAt": "2026-10-24",
+    "note": "SayCan project page: 101 real-world tasks, 84% plan success and 74% execution success; affordance value function overrides infeasible LLM-preferred actions."
+  },
+  {
+    "url": "https://arxiv.org/abs/2204.01691",
+    "fetchedAt": "2026-10-24",
+    "note": "SayCan/'Do As I Can, Not As I Say' arXiv abstract: robot as the LLM's hands and eyes; grounding language via learned affordance value functions (no numbers on this page)."
+  },
+  {
+    "url": "https://arxiv.org/abs/2206.10498",
+    "fetchedAt": "2026-10-24",
+    "note": "PlanBench (Valmeekam et al.) arXiv abstract: LLM performance on plan generation 'falls quite short' even for SOTA models (qualitative claim only; solve-rate tables are in the PDF, not this page)."
+  },
+  {
+    "url": "https://www.guerrilla-games.com/read/htn-planning-in-decima",
+    "fetchedAt": "2026-10-24",
+    "note": "Guerrilla Games article: HTN planner drives NPC high-level decisions in Decima (Killzone, Horizon Zero Dawn/Forbidden West); Prolog-like backtracking over preconditions; in-game HTN decomposition debugging."
+  },
+  {
+    "url": "https://github.com/dananau/GTPyhop",
+    "fetchedAt": "2026-10-24",
+    "note": "Dana Nau's GTPyhop repository: maintained open-source HTN + goal planner with single-file core, BSD-3-Clause-Clear license, Run-Lazy-Lookahead integrated planning and acting — evidence the fixed planner is a library, not a runtime."
+  },
+  {
+    "url": "https://excaliburjs.com/blog/goal-oriented-action-planning",
+    "fetchedAt": "2026-10-24",
+    "note": "Excalibur.js blog (Apr 2024): working GOAP planner in TypeScript with action costs, precondition/effect chaining, Dijkstra plan selection and cancel-and-replan on world change — evidence of library-scale implementation effort in our language."
+  },
+  {
+    "url": "https://arxiv.org/abs/2210.03629",
+    "fetchedAt": "2026-10-24",
+    "note": "ReAct abstract (Yao et al., ICLR 2023), fetched in round 2: its +34%/+10% ALFWorld/WebShop gains are over 'imitation and reinforcement learning methods' — no classical planner or LLM+P-style solver among the baselines, so it is not counter-evidence to LLM+planner comparisons."
+  }
+]

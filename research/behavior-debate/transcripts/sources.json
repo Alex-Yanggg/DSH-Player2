@@ -1,0 +1,1101 @@
+[
+ {
+  "url": "http://export.arxiv.org/api/query?search_query=all:%22behavior%20tree%22%20AND%20au:Park&start=0&max_results=20",
+  "fetchedAt": "2026-10-24",
+  "note": "Verification fetch: zero arXiv papers combining 'behavior tree' with author Park - the brief's 'PORTAL (Park et al.)' premise is unverifiable; only match was an unrelated 2021 TAMP paper.",
+  "advocates": [
+   "llm-bt"
+  ]
+ },
+ {
+  "url": "http://export.arxiv.org/api/query?search_query=ti:%22PORTAL%22&start=0&max_results=30",
+  "fetchedAt": "2026-10-24",
+  "note": "Verification fetch: 869 arXiv papers titled 'PORTAL' are physics/grid-computing; none about LLMs, behavior trees, or robot APIs. The real, relevant PORTAL is Xu et al. 2503.13356.",
+  "advocates": [
+   "llm-bt"
+  ]
+ },
+ {
+  "url": "http://export.arxiv.org/api/query?search_query=ti:%22behavior%20trees%22%20AND%20ti:survey&start=0&max_results=10",
+  "fetchedAt": "2026-10-24",
+  "note": "arXiv API lookup that identified the Iovino survey as arXiv:2005.05842.",
+  "advocates": [
+   "llm-bt"
+  ]
+ },
+ {
+  "url": "http://www.gameaipro.com/",
+  "fetchedAt": "2026-10-24",
+  "note": "Game AI Pro chapter index verifying shipped utility canon: DA:I utility-scoring BDS (GAP3 ch31, Hanlon & Watts), Dill Dual-Utility (GAP2 ch3), Graham Intro Utility Theory (GAP1 ch9), Merrill BT+utility (GAP1 ch10), Lewis considerations (GAP3 ch13).",
+  "advocates": [
+   "utility"
+  ]
+ },
+ {
+  "url": "http://www.gameaipro.com/GameAIPro3/GameAIPro3_Chapter31_Behavior_Decision_System_Dragon_Age_Inquisition%E2%80%99s_Utility_Scoring_Architecture.pdf",
+  "fetchedAt": "2026-10-24",
+  "note": "FETCH FAILED (not a citation): WebFetch refuses application/pdf content type; chapter existence/authors verified via the fetched gameaipro.com index.",
+  "advocates": [
+   "utility"
+  ]
+ },
+ {
+  "url": "https://36kr.com/p/4038036364317824",
+  "fetchedAt": "2026-10-24",
+  "note": "FETCH FAILED: Volcano Engine security-check placeholder; no article content retrievable.",
+  "advocates": [
+   "model"
+  ]
+ },
+ {
+  "url": "https://aarmstrong.org/journal/2008/03/02/gdc08-notes-building-a-better-battle-halo-3-ai-objectives",
+  "fetchedAt": "2026-10-24",
+  "note": "Attendee notes of Damian Isla's GDC 2008 Halo 3 AI talk: behavior trees run the individual AI under a declarative task/objectives layer; also records the talk's honest drawbacks.",
+  "advocates": [
+   "fsm"
+  ]
+ },
+ {
+  "url": "https://api.github.com/repos/mindcraft-bots/mindcraft",
+  "fetchedAt": "2026-10-24",
+  "note": "Repo metadata: default branch is 'develop', 5,917 stars, MIT license, description 'Minecraft AI with LLMs+Mineflayer'.",
+  "advocates": [
+   "modes"
+  ]
+ },
+ {
+  "url": "https://api.github.com/repos/mindcraft-bots/mindcraft/git/trees/develop?recursive=1",
+  "fetchedAt": "2026-10-24",
+  "note": "Tree listing used to locate the current modes implementation at src/agent/modes.js (older docs reference a mindcraft/modes.json that no longer exists).",
+  "advocates": [
+   "modes"
+  ]
+ },
+ {
+  "url": "https://api.semanticscholar.org/graph/v1/paper/search?query=robot+task+planning+large+language+models+behavior+tree+generation&fields=title,authors,year,venue,externalIds&limit=10",
+  "fetchedAt": "2026-10-24",
+  "note": "Attempted lookup for the supposed Park et al. paper; HTTP 429 twice, no content retrieved; nothing cited from it.",
+  "advocates": [
+   "llm-bt"
+  ]
+ },
+ {
+  "url": "https://ar5iv.labs.arxiv.org/html/2005.05842",
+  "fetchedAt": "2026-10-24",
+  "note": "Iovino et al. 'A Survey of Behavior Trees in Robotics and AI' (2020): BTs' modularity+reactivity vs FSM n^2 transitions; 'BTs have been successfully used as a policy representation for both learning and planning approaches'; py_trees/BehaviorTree.CPP among libraries.",
+  "advocates": [
+   "llm-bt"
+  ]
+ },
+ {
+  "url": "https://ar5iv.labs.arxiv.org/html/2206.11795",
+  "fetchedAt": "2026-10-24",
+  "note": "VPT full text: ~270k hours scraped filtered to ~70k clean; IDM trained on 1,962 labeled hours (~100h may suffice, ~$2k); BC zero-shot crafting table 0.19 vs 5.44 contractors per 60min; RL fine-tune >80% iron pickaxe / ~20% diamond / 2.5% diamond pickaxe vs humans 57/15/12; PPO ~1.3M episodes, ~1.4e10 frames with KL to frozen prior; BC fine-tune 213x crafting tables.",
+  "advocates": [
+   "rl"
+  ]
+ },
+ {
+  "url": "https://ar5iv.labs.arxiv.org/html/2301.04104",
+  "fetchedAt": "2026-10-24",
+  "note": "FETCH FAILED (HTML conversion fatal error); not used \u2014 replaced by arxiv.org/html/2301.04104.",
+  "advocates": [
+   "rl"
+  ]
+ },
+ {
+  "url": "https://ar5iv.labs.arxiv.org/html/2302.12927",
+  "fetchedAt": "2026-10-24",
+  "note": "Cao & Lee full text: Phase-Step textual BT encoding parsed to 3-layer trees; USE-similarity verb matching (threshold 0.5) against robot capability list; source-tree retrieval by BT embedding; ablation numbers (structure ratio R, N_total, N_mate for davinci-003 and ChatGPT) but no success rates.",
+  "advocates": [
+   "llm-bt"
+  ]
+ },
+ {
+  "url": "https://artificialanalysis.ai/methodology/performance-benchmarking",
+  "fetchedAt": "2026-10-24",
+  "note": "Artificial Analysis performance methodology: median TTFT, output speed (tokens/s), total response time; reasoning models can emit ~2k reasoning tokens before answering; longer prompts raise TTFT. No concrete values on the page itself.",
+  "advocates": [
+   "llm"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/1904.10079",
+  "fetchedAt": "2026-10-24",
+  "note": "MineRL 2019 competition: ObtainDiamond task, 60M+ state-action pairs of human demonstrations, 4-day fixed-hardware training from scratch, sample-efficiency motivation (RL's sample requirements limit real-world applicability).",
+  "advocates": [
+   "rl"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/1912.06680",
+  "fetchedAt": "2026-10-24",
+  "note": "OpenAI Five paper abstract: self-play RL consuming batches of ~2M frames every 2 seconds, 10 months of continual training, first AI system to defeat esports world champions (April 13, 2019) \u2014 the cost ceiling for full-game RL.",
+  "advocates": [
+   "rl"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/2202.10583",
+  "fetchedAt": "2026-10-24",
+  "note": "MineRL Diamond 2021 retrospective: participants in the permissive any-solution track obtained diamonds; harder restricted track 'progressed the generalizable solutions' \u2014 evidence on limits of sample-budget RL.",
+  "advocates": [
+   "rl"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/2203.13083",
+  "fetchedAt": "2026-10-24",
+  "note": "Ogren & Sprague, 'Behavior Trees in Robot Control Systems' (Annual Review of Control, Robotics, and Autonomous Systems 2022): modularity, hierarchies, and feedback as the control-theoretic foundations of BTs.",
+  "advocates": [
+   "fsm"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/2204.01691",
+  "fetchedAt": "2026-10-24",
+  "note": "Round 3: SayCan (Ahn et al.) abstract verified \u2014 grounding comes from 'pretrained skills' and their 'value functions', i.e. learned competence, not authored response curves; used against the utility advocate's citation of SayCan as 'their exact shape'.",
+  "advocates": [
+   "fsm",
+   "utility",
+   "goap"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/2206.04615",
+  "fetchedAt": "2026-10-24",
+  "note": "FETCHED but wrong paper (BIG-bench, not VPT \u2014 mis-guessed arXiv id); not used; correct VPT id is 2206.11795.",
+  "advocates": [
+   "rl"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/2206.10498",
+  "fetchedAt": "2026-10-24",
+  "note": "PlanBench (Valmeekam et al.) arXiv abstract: LLM performance on plan generation 'falls quite short' even for SOTA models (qualitative claim only; solve-rate tables are in the PDF, not this page).",
+  "advocates": [
+   "goap"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/2206.11795",
+  "fetchedAt": "2026-10-24",
+  "note": "VPT abstract: inverse dynamics model labels unlabeled Minecraft video; native 20Hz mouse-keyboard interface; first reported agents crafting diamond tools (proficient humans: upwards of 20 minutes / 24,000 actions).",
+  "advocates": [
+   "rl"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/2209.07753",
+  "fetchedAt": "2026-10-24",
+  "note": "Code as Policies: LLMs re-compose API calls into policy code with loops/feedback on real robots; hierarchical code generation by recursively defining functions.",
+  "advocates": [
+   "skills"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/2210.03629",
+  "fetchedAt": "2026-10-24",
+  "note": "ReAct abstract (Yao et al., ICLR 2023), fetched in round 2: its +34%/+10% ALFWorld/WebShop gains are over 'imitation and reinforcement learning methods' \u2014 no classical planner or LLM+P-style solver among the baselines, so it is not counter-evidence to LLM+planner comparisons.",
+  "advocates": [
+   "goap",
+   "llm"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/2301.04104",
+  "fetchedAt": "2026-10-24",
+  "note": "Round 1: DreamerV3 abstract verified by own fetch - first to collect Minecraft diamonds from scratch without human data (abstract states no GPU-day figures; cost attribution in round1 text is to advocate-rl's transcript).",
+  "advocates": [
+   "utility",
+   "rl"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/2302.12927",
+  "fetchedAt": "2026-10-24",
+  "note": "Cao & Lee (AAAI-MAKE 2023) abstract page: founding LLM->BT paper; Phase-Step prompt design; BT-embedding-based search; verified title/authors (not 'PORTAL/Park').",
+  "advocates": [
+   "llm-bt"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/2304.11477",
+  "fetchedAt": "2026-10-24",
+  "note": "LLM+P (Liu et al. 2023) abstract: LLM translates NL to PDDL, classical planner solves, LLM translates back; LLMs alone cannot reliably solve long-horizon planning problems.",
+  "advocates": [
+   "goap"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/2305.14909",
+  "fetchedAt": "2026-10-24",
+  "note": "Guan et al. (NeurIPS 2023) abstract: GPT-4 authored PDDL models for 40+ actions; validator/human-corrected domains solved 48 challenging tasks; corrections once per domain, not per plan.",
+  "advocates": [
+   "goap"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/2305.16291",
+  "fetchedAt": "2026-10-24",
+  "note": "Voyager paper: skill library of executable code, 3.3x unique items, 15.3x faster tech-tree milestones, library transfers to new worlds.",
+  "advocates": [
+   "skills",
+   "hybrid"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/2305.17390",
+  "fetchedAt": "2026-10-24",
+  "note": "SwiftSage (NeurIPS 2023 spotlight): dual-process agent \u2014 small fast module (behavior-cloned) for routine steps, LLM 'Sage' invoked only on hard states via arbitration heuristic; outperforms SayCan/ReAct/Reflexion on ScienceWorld.",
+  "advocates": [
+   "modes",
+   "hybrid"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/2307.13854",
+  "fetchedAt": "2026-10-24",
+  "note": "WebArena: realistic long-horizon agent benchmark; best GPT-4 agent 14.41% success vs human 78.24% \u2014 honest evidence of LLM long-horizon unreliability, cited in my weakness section.",
+  "advocates": [
+   "llm"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/2309.02427",
+  "fetchedAt": "2026-10-24",
+  "note": "CoALA (Sumers et al., TMLR): language agents framed as modular memory (incl. procedural), structured action space, generalized decision cycle \u2014 the cognitive-architecture backbone of the hybrid.",
+  "advocates": [
+   "hybrid"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/2310.01557",
+  "fetchedAt": "2026-10-24",
+  "note": "SmartPlay (Microsoft): LLM-as-agent benchmark over 6 games diagnosing capabilities (planning ahead, spatial reasoning, learning from history); roadmap for exposing LLM agent capability gaps.",
+  "advocates": [
+   "llm"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/2310.06796",
+  "fetchedAt": "2026-10-24",
+  "note": "Verification fetch: this id (given by a citation trail for the supposed 'Park et al.' PORTAL paper) is an exoplanet-atmospheres paper (Soni & Acharyya) - disproves the garbled citation; no LLM/BT content.",
+  "advocates": [
+   "llm-bt"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/2310.12931",
+  "fetchedAt": "2026-10-24",
+  "note": "Eureka (Ma et al., ICLR 2024): GPT-4-written numeric objectives beat expert humans on 83% of 29 RL environments (+52% normalized) with outcome feedback; evidence LLMs can author the numeric utility layer.",
+  "advocates": [
+   "utility",
+   "rl",
+   "model"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/2402.01030",
+  "fetchedAt": "2026-10-24",
+  "note": "CodeAct (ICML 2024): executable code actions up to 20% higher success than JSON/text baselines across 17 LLMs; interpreter loop enables self-debug.",
+  "advocates": [
+   "skills"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/2402.01817",
+  "fetchedAt": "2026-10-24",
+  "note": "Kambhampati et al., 'Position: LLMs Can't Plan, But Can Help Planning in LLM-Modulo Frameworks' (ICML 2024) abstract: LLMs as knowledge/model generators inside loops with external sound verifiers.",
+  "advocates": [
+   "goap",
+   "hybrid"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/2404.02039",
+  "fetchedAt": "2026-10-24",
+  "note": "Survey on LLM-based game agents (ACM CSUR 2026): unified reference architecture = memory, reasoning, and perception-action interfaces \u2014 matching tools + prompt + ledger with no intermediate behavior formalism.",
+  "advocates": [
+   "llm",
+   "hybrid"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/2404.10179",
+  "fetchedAt": "2026-10-24",
+  "note": "SIMA 1 paper abstract: image observations + language instructions in, keyboard-and-mouse actions out, real-time interaction across research environments and commercial video games.",
+  "advocates": [
+   "model"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/2407.12979",
+  "fetchedAt": "2026-10-24",
+  "note": "Round 2: Mahdavi et al. abstract verified by own fetch - LLM-generated PDDL domains with environment feedback reach 66% average solve rate vs 29% for GPT-4 chain-of-thought alone; used to show even validated LLM domain authoring leaves a residual gap (attack on advocate-goap).",
+  "advocates": [
+   "utility",
+   "goap"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/2410.08328",
+  "fetchedAt": "2026-10-24",
+  "note": "'Agents Thinking Fast and Slow: A Talker-Reasoner Architecture' (Christakopoulou, Mourad, Mataric, 2024): Talker (System 1, fast conversational) + Reasoner (System 2, planning/tools/actions); cites modularity and decreased latency.",
+  "advocates": [
+   "modes"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/2411.13543",
+  "fetchedAt": "2026-10-24",
+  "note": "BALROG (ICLR 2025): agentic LLM/VLM benchmark on games (NetHack tier hardest); models get partial success on easy games and 'struggle significantly' on hard ones; vision input can hurt vs text-only.",
+  "advocates": [
+   "llm"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/2502.11882",
+  "fetchedAt": "2026-10-24",
+  "note": "DPT-Agent (ACL 2025 main): System 1 = FSM + code-as-policy for fast controllable decisions, System 2 = LLM with Theory of Mind and asynchronous reflection; claims first autonomous success at real-time simultaneous human-AI collaboration.",
+  "advocates": [
+   "modes",
+   "hybrid"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/2502.13006",
+  "fetchedAt": "2026-10-24",
+  "note": "2025 RAMP/NSAM(+p): integrates RL policies, numeric action-model learning, and planning in Minecraft; RAMP solves more problems and finds more efficient plans than several RL baselines \u2014 recent hybrid convergence of trained skills under a symbolic planner.",
+  "advocates": [
+   "rl"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/2503.13356",
+  "fetchedAt": "2026-10-24",
+  "note": "PORTAL paper (Xu et al. 2025) abstract: LLMs generate 'behavior trees represented in domain-specific language (DSL)', hybrid rule+neural nodes, validated across thousands of FPS games; policies 'instantaneously deployable, human-interpretable'.",
+  "advocates": [
+   "llm-bt",
+   "skills",
+   "llm",
+   "model"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/2503.13657",
+  "fetchedAt": "2026-10-24",
+  "note": "MAST (UC Berkeley): taxonomy of 14 LLM agent-system failure modes in 3 categories (system design, inter-agent misalignment, task verification) from 1,600+ traces \u2014 cited to argue fewer architectural layers means fewer failure classes.",
+  "advocates": [
+   "llm"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/2504.07079",
+  "fetchedAt": "2026-10-24",
+  "note": "SkillWeaver 2025: agents synthesizing skills as APIs gain 31.8% (WebArena) / 39.8% (real sites); skills transfer to weaker agents up to 54.3%.",
+  "advocates": [
+   "skills"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/2506.03610",
+  "fetchedAt": "2026-10-24",
+  "note": "Orak benchmark (KRAFTON): 12 games behind a plug-and-play MCP interface plus expert LLM gameplay-trajectory fine-tuning dataset \u2014 protocol+code-actions converging across games.",
+  "advocates": [
+   "skills"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/2511.08892",
+  "fetchedAt": "2026-10-24",
+  "note": "Lumine paper: VLM agent processing raw pixels at 5 Hz producing 30 Hz keyboard-mouse actions; trained in Genshin Impact; full ~5-hour Mondstadt storyline at human-level efficiency; zero-shot missions in Wuthering Waves and Honkai: Star Rail; CC BY 4.0 paper.",
+  "advocates": [
+   "model"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/abs/2608.03502",
+  "fetchedAt": "2026-10-24",
+  "note": "FETCHED but paper is WITHDRAWN (v2, Aug 2026); not used as evidence for LLM+RL hybrids.",
+  "advocates": [
+   "rl"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/html/2005.05842v2",
+  "fetchedAt": "2026-10-24",
+  "note": "Iovino et al. BT survey: Halo 2 among first BT papers; FSM n^2 transition blowup vs BT function-call-like modularity; BTs in Nav2, ABB/KUKA/UR industrial robots; BT+planner hybrids for long-horizon tasks.",
+  "advocates": [
+   "fsm"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/html/2301.04104",
+  "fetchedAt": "2026-10-24",
+  "note": "DreamerV3 full text: 1 A100 GPU for 9 days, 100M env steps to diamonds; contrasts VPT at 720 GPUs for 9 days; DMLab >1000% data-efficiency gain; benchmark list (Atari, ProcGen, DMLab, Atari100k, DMC, BSuite).",
+  "advocates": [
+   "rl"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/html/2403.12761v1",
+  "fetchedAt": "2026-10-24",
+  "note": "BTGenBot (Izzo, Bardaro, Matteucci; PoliMi 2024): <=7B LLMs generate XML behavior trees for BehaviorTree.CPP; syntactic correctness up to 100% base one-shot, 86-88.9% fine-tuned; execution 7/9 tasks with one-shot + static analysis; failure causes are parameter-format mismatches.",
+  "advocates": [
+   "llm-bt"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/html/2404.02039v5",
+  "fetchedAt": "2026-10-24",
+  "note": "LLM game-agent survey: real-time games require hybrid architectures reconciling LLM reasoning with frame-level responsiveness; low-level control typically delegated to non-LLM layers (heuristic planners, learned controllers).",
+  "advocates": [
+   "utility"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/html/2404.05134v1",
+  "fetchedAt": "2026-10-24",
+  "note": "Round 1: LLM-BT (Zhou et al. 2024) verified \u2014 ~85% cargo / ~75% household success, 5 cases x 20 users, with random external disturbances; in-place tree expansion on failure.",
+  "advocates": [
+   "fsm",
+   "llm-bt"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/html/2409.10444",
+  "fetchedAt": "2026-10-24",
+  "note": "Round 1: LLM-as-BT-Planner (Ao et al.) verified \u2014 GPT-4 12/17 one-step and iterative, 16/17 only human-in-the-loop, recursive 13/17 at ~50k tokens; non-specific feedback gives no improvement.",
+  "advocates": [
+   "fsm",
+   "llm-bt",
+   "utility"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/html/2501.03968v2",
+  "fetchedAt": "2026-10-24",
+  "note": "VLM-driven BT (Wake, Kanehira, Takamatsu, Sasabuchi, Ikeuchi; Microsoft 2025): GPT-4o emits JSON compiled to BT; conversational full-regeneration editing; 10/10 valid BT generation, 8/10 end-to-end success on SEED-noid.",
+  "advocates": [
+   "llm-bt"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/html/2501.10106v1",
+  "fetchedAt": "2026-10-24",
+  "note": "Puerta-Merino & Sabater-Mir 2025 (LLM reasoner + automated planner NPCs): defines utility decision-making in related work; field converging on LLM-above/classical-executor-below; utility layer fills its execution-latency gap.",
+  "advocates": [
+   "utility"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/html/2503.13356v1",
+  "fetchedAt": "2026-10-24",
+  "note": "PORTAL (Agents Play Thousands of 3D Video Games): states 'the inherent latency of LLM inference renders them impractical for real-time applications'; generates BTs in a DSL executed at runtime, 'eliminating inference latency during gameplay' \u2014 a rival paper confirming the BT runtime architecture.",
+  "advocates": [
+   "fsm",
+   "llm"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/html/2602.01041v1",
+  "fetchedAt": "2026-10-24",
+  "note": "LLM-based BT generation for construction machinery (Tsutsumi et al., Kyushu Univ., 2026): LLM plan -> XML BTs run by fixed BehaviorTree.CPP scheduler; GPT-5 4/4 scenarios, small open models fail synchronization-heavy ones; real ZX200 excavator + dump truck validation.",
+  "advocates": [
+   "llm-bt"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/html/2602.03433v1",
+  "fetchedAt": "2026-10-24",
+  "note": "'When control meets large language models' survey (Nosrati et al. 2026): fetched portion contained no behavior-tree content; not used as evidence.",
+  "advocates": [
+   "llm-bt"
+  ]
+ },
+ {
+  "url": "https://arxiv.org/html/2610.28698",
+  "fetchedAt": "2026-10-24",
+  "note": "GameScaling (miHoYo): raw pixels in (no structured state), ~45,000 H200 GPU-hours for the 120-run grid; interface vs world phase; Minecraft-only 27B degrades OOD (~-17 points on GameWorld).",
+  "advocates": [
+   "skills",
+   "model"
+  ]
+ },
+ {
+  "url": "https://ceur-ws.org/Vol-3433/paper4.pdf",
+  "fetchedAt": "2026-10-24",
+  "note": "Attempted full-text fetch of Cao & Lee CEUR version; fetch failed (unsupported PDF content type); nothing cited from it.",
+  "advocates": [
+   "llm-bt"
+  ]
+ },
+ {
+  "url": "https://clickhouse.com/resources/engineering/llm-inference-latency",
+  "fetchedAt": "2026-10-24",
+  "note": "Fetched in round 1: LLM latency figures \u2014 TTFT 200-500 ms well-tuned (multi-second on long contexts), 10-50 ms per output token, and a 300 ms/30 ms turn 'still takes over 15 seconds' at 500 output tokens; used to quantify the baseline's interrupt-then-redecide gap in the mine scenario.",
+  "advocates": [
+   "modes",
+   "llm",
+   "hybrid"
+  ]
+ },
+ {
+  "url": "https://danijar.com/dreamerv3/",
+  "fetchedAt": "2026-10-24",
+  "note": "FETCH FAILED (HTTP 525); not used \u2014 DreamerV3 facts taken from arXiv abstract + full HTML text.",
+  "advocates": [
+   "rl"
+  ]
+ },
+ {
+  "url": "https://deepmind.google/blog/sima-2-an-agent-that-plays-reasons-and-learns-with-you-in-virtual-3d-worlds/",
+  "fetchedAt": "2026-10-24",
+  "note": "SIMA 2 announcement (round 2): zero-shot success on untrained games (ASKA, MineDojo), concept transfer across games, Genie-3-world play \u2014 but a limited research preview for a small cohort, no API or weights; grounds both the concession to advocate-model and the availability counterattack.",
+  "advocates": [
+   "hybrid",
+   "model"
+  ]
+ },
+ {
+  "url": "https://deepmind.google/blog/sima-2-technical-report/",
+  "fetchedAt": "2026-10-24",
+  "note": "FETCH FAILED: HTTP 404; guessed URL for the SIMA 2 technical report, does not exist at this path.",
+  "advocates": [
+   "model"
+  ]
+ },
+ {
+  "url": "https://deepmind.google/blog/sima-generalist-ai-agent-for-3d-virtual-environments/",
+  "fetchedAt": "2026-10-24",
+  "note": "SIMA 1 announcement: no game source code or APIs needed; nine commercial games (No Man's Sky, Teardown, Valheim, Satisfactory, Goat Simulator 3, Hydroneer, Space Engineers, Wobbly Life, Eco) + 4 research envs; ~600 basic skills; multi-game agents beat single-game specialists; withheld-game agent nearly matched specialist; trained on human demonstration pairs with language labels.",
+  "advocates": [
+   "model"
+  ]
+ },
+ {
+  "url": "https://deepmind.google/blog/specification-gaming-the-flip-side-of-ai-ingenuity",
+  "fetchedAt": "2026-10-24",
+  "note": "DeepMind specification gaming post: CoastRunners boat loops a lagoon farming target bonuses instead of racing; ~60 collected examples; causes (shaped rewards, broad outcome specs, learned reward models, simulator bugs) \u2014 my reward-hacking counter-evidence.",
+  "advocates": [
+   "rl"
+  ]
+ },
+ {
+  "url": "https://deepmind.google/discover/blog/genie-3-a-new-frontier-for-world-models/",
+  "fetchedAt": "2026-10-24",
+  "note": "Genie 3 world model: prompt-generated interactive 3D worlds at 24 fps 720p, minutes-long consistency; SIMA agents ran inside Genie 3 worlds pursuing goals; limited research preview; unlimited-training-gym argument for agents.",
+  "advocates": [
+   "model"
+  ]
+ },
+ {
+  "url": "https://developer.nvidia.com/blog/benchmarking-agentic-llm-and-vlm-reasoning-for-gaming-with-nvidia-nim/",
+  "fetchedAt": "2026-10-24",
+  "note": "BALROG run with DeepSeek-R1 via NVIDIA NIM (Apr 2025): 34.9% average across six game environments, beating Claude 3.5 Sonnet 32.6%; natural-language action interface; no latency numbers reported.",
+  "advocates": [
+   "llm"
+  ]
+ },
+ {
+  "url": "https://developer.nvidia.com/blog/build-on-device-ai-companions-with-the-nvidia-ace-game-agent-sdk-and-unreal-engine-5-plugins/",
+  "fetchedAt": "2026-10-24",
+  "note": "NVIDIA ACE Game Agent SDK: open-source C/C++ on-device agent framework (beta) with UE5 plugins; Agent/Chat/RAG APIs; Qwen 3.5 4B SLM for reasoning and function calling; shipped in PUBG Ally and Total War: PHARAOH; acting layer is integration code, not a learned policy.",
+  "advocates": [
+   "model"
+  ]
+ },
+ {
+  "url": "https://developer.nvidia.com/blog/how-krafton-built-pubg-ally-a-co-playable-character-powered-by-nvidia-ace",
+  "fetchedAt": "2026-10-24",
+  "note": "Round 2: KRAFTON PUBG Ally (NVIDIA ACE) \u2014 'A System 1 layer, implemented as a behavior tree, handles... movement, aiming, and immediate combat responses at game tick rate'; 'Reflex-level actions never have to wait for the model'; authored BT reflexes in a shipped co-op companion.",
+  "advocates": [
+   "fsm",
+   "modes",
+   "hybrid"
+  ]
+ },
+ {
+  "url": "https://dl.acm.org/doi/10.1145/3696630.3728553",
+  "fetchedAt": "2026-10-24",
+  "note": "Attempted fetch of 'Enhancing Game AI Behaviors with Large Language Models' (ACM 2025); HTTP 403 Forbidden, no content retrieved; not cited.",
+  "advocates": [
+   "llm-bt"
+  ]
+ },
+ {
+  "url": "https://docs.nav2.org/rolling/getting_started/navigation_concepts/behavior_trees",
+  "fetchedAt": "2026-10-24",
+  "note": "Nav2 official docs: behavior trees give navigation logic a formal structure that is verifiable and validated; reusable primitives and subtree composition; chosen over FSMs for scalability.",
+  "advocates": [
+   "fsm"
+  ]
+ },
+ {
+  "url": "https://docs.unity3d.com/Packages/com.unity.behavior@1.0/manual/index.html",
+  "fetchedAt": "2026-10-24",
+  "note": "Unity Behavior package docs: official visual behavior-authoring tool for NPCs and gameplay logic with graph authoring and blackboard variables \u2014 BT authoring as engine-grade commodity.",
+  "advocates": [
+   "fsm"
+  ]
+ },
+ {
+  "url": "https://en.wikipedia.org/wiki/Behavior_tree_(artificial_intelligence,_robotics_and_control)",
+  "fetchedAt": "2026-10-24",
+  "note": "BT overview article: extensive use in high-profile games such as Halo, Bioshock, and Spore; task-not-state building block; robotics uptake (UAVs, manipulation, multi-robot).",
+  "advocates": [
+   "fsm"
+  ]
+ },
+ {
+  "url": "https://en.wikipedia.org/wiki/Subsumption_architecture",
+  "fetchedAt": "2026-10-24",
+  "note": "Brooks 1986 subsumption architecture: layered competencies, higher layers subsume lower via inhibition/suppression, parallel AFSMs, 'the world is its own best model'; weaknesses (no memory/learning) are what the LLM system 2 adds.",
+  "advocates": [
+   "modes",
+   "hybrid"
+  ]
+ },
+ {
+  "url": "https://en.wikipedia.org/wiki/Utility_system",
+  "fetchedAt": "2026-10-24",
+  "note": "Utility-system overview: Sims 1/3 shipped uses incl. Richard Evans' Boltzmann softmax; behaviors 'sort themselves by score' vs BT priority order; Merrill hybrid; Mark & Lewis IAUS GDC 2015.",
+  "advocates": [
+   "utility"
+  ]
+ },
+ {
+  "url": "https://excaliburjs.com/blog/goal-oriented-action-planning",
+  "fetchedAt": "2026-10-24",
+  "note": "Excalibur.js blog (Apr 2024): working GOAP planner in TypeScript with action costs, precondition/effect chaining, Dijkstra plan selection and cancel-and-replan on world change \u2014 evidence of library-scale implementation effort in our language.",
+  "advocates": [
+   "goap"
+  ]
+ },
+ {
+  "url": "https://github.com/BehaviorTree/BehaviorTree.CPP",
+  "fetchedAt": "2026-10-24",
+  "note": "BehaviorTree.CPP repo (~4.3k stars, MIT, 2014-2026): C++17 BT engine with runtime-loaded XML trees, async actions, reactive/concurrent execution, logging to record and replay state transitions.",
+  "advocates": [
+   "fsm"
+  ]
+ },
+ {
+  "url": "https://github.com/MineDojo/Voyager",
+  "fetchedAt": "2026-10-24",
+  "note": "Voyager repo: skill_library/ stored as on-disk code, decompose_task then inference(sub_goals) usage pattern.",
+  "advocates": [
+   "skills"
+  ]
+ },
+ {
+  "url": "https://github.com/apoch/curvature",
+  "fetchedAt": "2026-10-24",
+  "note": "Open-source IAUS editor/sandbox (Guild Wars 2: Heart of Thorns lineage), fully data-driven authoring of considerations and curves; evidence utility middleware/data packs are practical.",
+  "advocates": [
+   "utility"
+  ]
+ },
+ {
+  "url": "https://github.com/dananau/GTPyhop",
+  "fetchedAt": "2026-10-24",
+  "note": "Dana Nau's GTPyhop repository: maintained open-source HTN + goal planner with single-file core, BSD-3-Clause-Clear license, Run-Lazy-Lookahead integrated planning and acting \u2014 evidence the fixed planner is a library, not a runtime.",
+  "advocates": [
+   "goap"
+  ]
+ },
+ {
+  "url": "https://github.com/danijar/dreamerv3",
+  "fetchedAt": "2026-10-24",
+  "note": "DreamerV3 repo (JAX, MIT): fixed hyperparameters across applications; actor-critic trained from imagined rollouts.",
+  "advocates": [
+   "rl"
+  ]
+ },
+ {
+  "url": "https://github.com/kolbytn/mindcraft",
+  "fetchedAt": "2026-10-24",
+  "note": "Mindcraft README: code_model for newAction coding, allow_insecure_coding flag, Docker recommended, 'LLM writes/executes code on your computer... vulnerable to injection attacks' security caution.",
+  "advocates": [
+   "skills"
+  ]
+ },
+ {
+  "url": "https://github.com/limbonaut/limboai",
+  "fetchedAt": "2026-10-24",
+  "note": "LimboAI (~3.1k stars, MIT): Godot 4 C++ plugin combining behavior trees and hierarchical state machines, with editor, visual debugger, blackboard, and BT/HSM integration.",
+  "advocates": [
+   "fsm"
+  ]
+ },
+ {
+  "url": "https://github.com/microsoft/onnxruntime",
+  "fetchedAt": "2026-10-24",
+  "note": "ONNX Runtime (MIT, 22.2k stars): JS bindings, hardware-accelerated execution of PyTorch/TensorFlow-exported models \u2014 supports in-process inference of a small policy checkpoint in the plugin with no side runtime.",
+  "advocates": [
+   "rl"
+  ]
+ },
+ {
+  "url": "https://github.com/microsoft/onnxruntime-node",
+  "fetchedAt": "2026-10-24",
+  "note": "FETCH FAILED (HTTP 404); not used \u2014 replaced by the microsoft/onnxruntime monorepo page.",
+  "advocates": [
+   "rl"
+  ]
+ },
+ {
+  "url": "https://github.com/mindcraft-bots/mindcraft",
+  "fetchedAt": "2026-10-24",
+  "note": "Mindcraft README: LLM-driven Minecraft bots via Mineflayer; profiles define models/prompts/examples; insecure-coding warning (LLM writes/executes code).",
+  "advocates": [
+   "modes"
+  ]
+ },
+ {
+  "url": "https://github.com/mindcraft-bots/mindcraft/blob/main/FAQ.md",
+  "fetchedAt": "2026-10-24",
+  "note": "Mindcraft FAQ: connection/ops issues, pathfinder imperfect and patched; no skill-library history documented (removal claim left as speculation).",
+  "advocates": [
+   "skills"
+  ]
+ },
+ {
+  "url": "https://github.com/mindcraft-bots/mindcraft/blob/main/src/agent/coder.js",
+  "fetchedAt": "2026-10-24",
+  "note": "Mindcraft coder.js: !newAction generates JS, lint + skill-name checks, interrupt guards injected, executed in a restricted SES-style compartment \u2014 the code-skill escape hatch shipped beside modes.",
+  "advocates": [
+   "skills"
+  ]
+ },
+ {
+  "url": "https://github.com/mindcraft-bots/mindcraft/blob/main/src/agent/library/skill_library.js",
+  "fetchedAt": "2026-10-24",
+  "note": "skill_library.js is in-memory embedding (first two lines of docs) or word-overlap retrieval with always-show skills; no persistence \u2014 informs our small-scale index design.",
+  "advocates": [
+   "skills"
+  ]
+ },
+ {
+  "url": "https://github.com/mindcraft-bots/mindcraft/tree/develop/src/agent/commands",
+  "fetchedAt": "2026-10-24",
+  "note": "Commands are only actions.js/queries.js/index.js \u2014 no modes command, so the LLM cannot toggle modes in current Mindcraft; my proposal extends exactly here.",
+  "advocates": [
+   "modes"
+  ]
+ },
+ {
+  "url": "https://github.com/mindcraft-bots/mindcraft/tree/main",
+  "fetchedAt": "2026-10-24",
+  "note": "Mindcraft current repo layout (stable): src/, profiles/, tasks/; andy.json profile with ollama local models including sweaterdog/andy-4.",
+  "advocates": [
+   "skills"
+  ]
+ },
+ {
+  "url": "https://github.com/mindcraft-bots/mindcraft/tree/main/mindcraft",
+  "fetchedAt": "2026-10-24",
+  "note": "404 probe: old mindcraft/ folder layout no longer exists on the default branch.",
+  "advocates": [
+   "modes"
+  ]
+ },
+ {
+  "url": "https://github.com/mindcraft-bots/mindcraft/tree/main/src/agent",
+  "fetchedAt": "2026-10-24",
+  "note": "Mindcraft agent modules: coder.js, modes.js, self_prompter.js, memory_bank.js, library/ \u2014 i.e. LLM coder + hand-written library + modes coexist.",
+  "advocates": [
+   "skills"
+  ]
+ },
+ {
+  "url": "https://github.com/mindcraft-bots/mindcraft/tree/main/src/agent/library",
+  "fetchedAt": "2026-10-24",
+  "note": "Mindcraft library folder: skills.js (hand-written), skill_library.js (retrieval), world.js, lockdown.js.",
+  "advocates": [
+   "skills"
+  ]
+ },
+ {
+  "url": "https://github.com/openai/video-pre-training",
+  "fetchedAt": "2026-10-24",
+  "note": "OpenAI VPT repo (MIT, 1.8k stars): released BC weights (1x/2x/3x), RL-fine-tuned 2x weights (diamond-pickaxe reward), 4x IDM weights and demo scripts; MineRL dependency; foundation policies as reusable artifacts.",
+  "advocates": [
+   "rl"
+  ]
+ },
+ {
+  "url": "https://github.com/sjtu-marl/DPT-Agent",
+  "fetchedAt": "2026-10-24",
+  "note": "Official DPT-Agent implementation (MIT): Overcooked Challenge environment, ReAct/Reflexion baselines, webapp for human experiments; System 1/System 2 runnable independently.",
+  "advocates": [
+   "modes"
+  ]
+ },
+ {
+  "url": "https://gmtk.substack.com/p/the-genius-ai-behind-the-sims",
+  "fetchedAt": "2026-10-24",
+  "note": "GMTK deep-dive: The Sims' needs/utility AI - eight motives, object advertisements weighted by per-motive curves and personality, proximity, random-among-top selection; existence proof at product scale.",
+  "advocates": [
+   "utility"
+  ]
+ },
+ {
+  "url": "https://huggingface.co/Sweaterdog/Andy-3.5",
+  "fetchedAt": "2026-10-24",
+  "note": "Andy local model family: fine-tuned on ~12k Minecraft Mindcraft prompts; 360M-7B variants run locally via Ollama for in-game play \u2014 code/command traces as distillation substrate.",
+  "advocates": [
+   "skills"
+  ]
+ },
+ {
+  "url": "https://huggingface.co/THUSI-Lab/GameScaling",
+  "fetchedAt": "2026-10-24",
+  "note": "GameScaling weights and client: Apache 2.0 code+weights; 0.8B-27B checkpoints (0.8B = 2.2 GB bf16, 1 GPU); vLLM >= 0.17 serving; policy.act(frame) returns 200 ms of keyboard/mouse actions over a 74-token key vocabulary; training data not released; not on HF Inference Providers.",
+  "advocates": [
+   "model"
+  ]
+ },
+ {
+  "url": "https://icaps24.icaps-conference.org/program/workshops/prl-papers/6.pdf",
+  "fetchedAt": "2026-10-24",
+  "note": "FETCH FAILED (unsupported content type application/pdf); Benyamin et al. ICAPS24 PRL Minecraft goal-conditioned RL paper \u2014 replaced by its 2025 follow-up arXiv:2502.13006.",
+  "advocates": [
+   "rl"
+  ]
+ },
+ {
+  "url": "https://m.36kr.com/p/4038036364317824",
+  "fetchedAt": "2026-10-24",
+  "note": "FETCH FAILED: 301 redirect. Second-hand search snippet (not counted as evidence) said miHoYo + Tsinghua/Peking teams open-sourced a game-operation model on Qwen3.5; superseded by the direct arXiv/HuggingFace fetches above.",
+  "advocates": [
+   "model"
+  ]
+ },
+ {
+  "url": "https://modelcontextprotocol.io/introduction",
+  "fetchedAt": "2026-10-24",
+  "note": "MCP: open standard connecting AI apps to data/tools/workflows; supported by Claude, ChatGPT, VS Code, Cursor \u2014 evidence that tool-declaration is the durable industry interchange for agent capabilities.",
+  "advocates": [
+   "llm"
+  ]
+ },
+ {
+  "url": "https://openai.com/index/vpt",
+  "fetchedAt": "2026-10-24",
+  "note": "FETCH FAILED (HTTP 403); not used as evidence \u2014 VPT facts taken from the arXiv abstract, ar5iv full text, and the GitHub repo instead.",
+  "advocates": [
+   "rl"
+  ]
+ },
+ {
+  "url": "https://people.csail.mit.edu/brooks/papers/AIM-864.pdf",
+  "fetchedAt": "2026-10-24",
+  "note": "Brooks' original 1986 'A Robust Layered Control System for a Mobile Robot' \u2014 fetch failed (WebFetch unsupported content type application/pdf); used the subsumption overview page instead, so no direct quotes from the PDF.",
+  "advocates": [
+   "modes"
+  ]
+ },
+ {
+  "url": "https://press.krafton.com/KRAFTON-UNVEILED-CO-PLAYABLE-CHARACTER-BUILT-WITH-NVIDIA-ACE",
+  "fetchedAt": "2026-10-24",
+  "note": "KRAFTON CES 2025 announcement of the Co-Playable Character (CPC)/PUBG Ally: AI companion enabled by an on-device SLM built with NVIDIA ACE, planned for PUBG IP and inZOI.",
+  "advocates": [
+   "modes"
+  ]
+ },
+ {
+  "url": "https://raw.githubusercontent.com/kolbytn/mindcraft/main/mindcraft/modes.json",
+  "fetchedAt": "2026-10-24",
+  "note": "404 probe: repo moved from kolbytn/mindcraft to mindcraft-bots/mindcraft.",
+  "advocates": [
+   "modes"
+  ]
+ },
+ {
+  "url": "https://raw.githubusercontent.com/mindcraft-bots/mindcraft/develop/README.md",
+  "fetchedAt": "2026-10-24",
+  "note": "Mindcraft README: LLM-written skills (newAction) exist but are gated behind allow_insecure_coding, off by default \u2014 the cautionary pattern my validated-declarative-skills default avoids.",
+  "advocates": [
+   "hybrid"
+  ]
+ },
+ {
+  "url": "https://raw.githubusercontent.com/mindcraft-bots/mindcraft/develop/mindcraft/agent/prompting.js",
+  "fetchedAt": "2026-10-24",
+  "note": "404 probe: old prompting.js path; the file now lives at src/models/prompter.js.",
+  "advocates": [
+   "modes"
+  ]
+ },
+ {
+  "url": "https://raw.githubusercontent.com/mindcraft-bots/mindcraft/develop/mindcraft/modes.json",
+  "fetchedAt": "2026-10-24",
+  "note": "404 probe: layout moved to src/ (found via the git-trees API call above).",
+  "advocates": [
+   "modes"
+  ]
+ },
+ {
+  "url": "https://raw.githubusercontent.com/mindcraft-bots/mindcraft/develop/settings.js",
+  "fetchedAt": "2026-10-24",
+  "note": "Base profiles (survival/assistant/creative/god_mode) and prompt settings; no mode-specific prompt mechanism at settings level.",
+  "advocates": [
+   "modes"
+  ]
+ },
+ {
+  "url": "https://raw.githubusercontent.com/mindcraft-bots/mindcraft/develop/src/agent/modes.js",
+  "fetchedAt": "2026-10-24",
+  "note": "Load-bearing: full mode list in priority order (self_preservation, unstuck, cowardice, self_defense, hunting, item_collecting, torch_placing, elbow_room, idle_staring, cheat) with per-mode interrupts; ModeController.update() scans per tick, first active mode wins; mode actions run via runAction('mode:<name>') and interrupted LLM actions get an '(AUTO MESSAGE)Your previous action was interrupted by <mode>'.",
+  "advocates": [
+   "modes",
+   "hybrid"
+  ]
+ },
+ {
+  "url": "https://raw.githubusercontent.com/mindcraft-bots/mindcraft/develop/src/models/prompter.js",
+  "fetchedAt": "2026-10-24",
+  "note": "Modes do NOT render into the prompt (no $MODES placeholder); getInitModes() only returns profile.modes \u2014 evidence that Mindcraft modes gate actions, not prompts.",
+  "advocates": [
+   "modes"
+  ]
+ },
+ {
+  "url": "https://raw.githubusercontent.com/mindcraft-bots/mindcraft/main/mindcraft/modes.json",
+  "fetchedAt": "2026-10-24",
+  "note": "404 probe: 'main' is not the default branch (develop is).",
+  "advocates": [
+   "modes"
+  ]
+ },
+ {
+  "url": "https://say-can.github.io/",
+  "fetchedAt": "2026-10-24",
+  "note": "SayCan project page: 101 real-world tasks, 84% plan success and 74% execution success; affordance value function overrides infeasible LLM-preferred actions.",
+  "advocates": [
+   "goap"
+  ]
+ },
+ {
+  "url": "https://shaggydev.com/2023/04/19/utility-ai/",
+  "fetchedAt": "2026-10-24",
+  "note": "Utility AI authoring tutorial: response curves, consideration multiplication, weights as post-multipliers, bucketing (Zoo Tycoon 2), randomness for variety; also the implicit tuning-by-playtest caveat.",
+  "advocates": [
+   "utility"
+  ]
+ },
+ {
+  "url": "https://voyager.minedojo.org/",
+  "fetchedAt": "2026-10-24",
+  "note": "Voyager project page: skills indexed by embedding of GPT-4-written description, top-5 retrieval, self-verification critic gate before a skill is added.",
+  "advocates": [
+   "skills"
+  ]
+ },
+ {
+  "url": "https://web.archive.org/web/2024/https://chrishecker.com/My_Liner_Notes_for_Spore/Spore_Behavior_Tree_Docs",
+  "fetchedAt": "2026-10-24",
+  "note": "Chris Hecker's shipped Spore behavior-tree docs (via Wayback Machine; live site returned a temporary-downtime page on 4 attempts): BT library as ticking HFSMs, Activate/Deactivate/Tick, prioritized deciders with hysteresis, static declaration, debug levels.",
+  "advocates": [
+   "fsm"
+  ]
+ },
+ {
+  "url": "https://www.anthropic.com/engineering/building-effective-agents",
+  "fetchedAt": "2026-10-24",
+  "note": "Anthropic engineering guidance: use 'the simplest solution possible'; agents = LLMs dynamically directing their own tool usage; invest in agent-computer interfaces (tool descriptions) as much as HCI.",
+  "advocates": [
+   "llm"
+  ]
+ },
+ {
+  "url": "https://www.behaviortree.dev/docs/intro",
+  "fetchedAt": "2026-10-24",
+  "note": "BehaviorTree.CPP docs: 'Trees are created at run-time, using an interpreted language (based on XML)'; logging infrastructure to 'visualize, record, replay and analyze state transitions'; used for game AI and robotics.",
+  "advocates": [
+   "llm-bt"
+  ]
+ },
+ {
+  "url": "https://www.behaviortree.dev/groot",
+  "fetchedAt": "2026-10-24",
+  "note": "Groot2 IDE for BehaviorTree.CPP: drag-and-drop editing, real-time monitoring of a running executor, log replay at variable speeds, blackboard inspection and breakpoints in the PRO tier.",
+  "advocates": [
+   "fsm"
+  ]
+ },
+ {
+  "url": "https://www.gameai.com/manuals/index.php/IAUS",
+  "fetchedAt": "2026-10-24",
+  "note": "IAUS manual: considerations map inputs through response curves, scores multiply, decisions = behavior x target; the scoring model this advocate proposes.",
+  "advocates": [
+   "utility"
+  ]
+ },
+ {
+  "url": "https://www.gameaipro.com/GameAIPro/GameAIPro_Chapter12_Exploring_HTN_Planners_through_Example.pdf",
+  "fetchedAt": "2026-10-24",
+  "note": "Troy Humphreys, Game AI Pro ch.12 'Exploring HTN Planners through Example', downloaded and read in full: production HTN in Transformers: Fall of Cybertron, decomposition algorithm, plan-runner precondition validation, MTR replan hysteresis, HTN faster than their prior GOAP, HTN vs behavior trees.",
+  "advocates": [
+   "goap"
+  ]
+ },
+ {
+  "url": "https://www.gamedeveloper.com/programming/behavior-trees-for-ai-how-they-work",
+  "fetchedAt": "2026-10-24",
+  "note": "Chris Simpson (Game Developer, 2014): game-AI BT practice; Sequence/Selector/Decorator semantics; 'failure is no longer a critical full stop'; trees authored data-driven with editors; leaf actions take parameters from shared context.",
+  "advocates": [
+   "llm-bt"
+  ]
+ },
+ {
+  "url": "https://www.gamedevs.org/uploads/three-states-plan-ai-of-fear.pdf",
+  "fetchedAt": "2026-10-24",
+  "note": "Jeff Orkin's GDC 2006 'Three States and a Plan: The A.I. of F.E.A.R.' paper, downloaded and read in full: GOAP mechanics (A* over world states, per-action costs, procedural preconditions/effects), replanning from failure facts, goals/actions decoupling, new enemy built late from existing actions.",
+  "advocates": [
+   "goap"
+  ]
+ },
+ {
+  "url": "https://www.gdcvault.com/play/1021848/building-a-better-centaur-ai",
+  "fetchedAt": "2026-10-24",
+  "note": "FETCH FAILED (not a citation): GDC Vault redirected to gdconf.com/gdc-vault-maintenance/ on every attempt; talk is cited only via the IAUS manual, gameaipro.com index and Wikipedia.",
+  "advocates": [
+   "utility"
+  ]
+ },
+ {
+  "url": "https://www.guerrilla-games.com/read/htn-planning-in-decima",
+  "fetchedAt": "2026-10-24",
+  "note": "Guerrilla Games article: HTN planner drives NPC high-level decisions in Decima (Killzone, Horizon Zero Dawn/Forbidden West); Prolog-like backtracking over preconditions; in-game HTN decomposition debugging.",
+  "advocates": [
+   "goap"
+  ]
+ },
+ {
+  "url": "https://www.lumine-ai.org/",
+  "fetchedAt": "2026-10-24",
+  "note": "Lumine project page: 1,731 h gameplay + 200 h instruction-following + 15 h reasoning training data; quest timings (Mondstadt 56m + 4h43m, Liyue 7h16m OOD, HSR ~7h18m, WuWa ~1h46m); no GitHub/HuggingFace links on the page, so weights/code treated as not released.",
+  "advocates": [
+   "model"
+  ]
+ },
+ {
+  "url": "https://www.npmjs.com/package/onnxruntime-node",
+  "fetchedAt": "2026-10-24",
+  "note": "FETCH FAILED (HTTP 403); not used \u2014 ONNX Runtime claims taken from the microsoft/onnxruntime GitHub repo.",
+  "advocates": [
+   "rl"
+  ]
+ },
+ {
+  "url": "https://zhongwen.one/projects/portal",
+  "fetchedAt": "2026-10-24",
+  "note": "PORTAL project page: BT generator emits DSL/JSON per policy 'which can be parsed to run the corresponding behavior tree in the game'; dual-feedback policy iteration without RL.",
+  "advocates": [
+   "llm-bt"
+  ]
+ }
+]

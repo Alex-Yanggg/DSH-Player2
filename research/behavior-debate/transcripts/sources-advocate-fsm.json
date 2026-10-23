@@ -1,0 +1,77 @@
+[
+  {
+    "url": "https://arxiv.org/html/2005.05842v2",
+    "fetchedAt": "2026-10-24",
+    "note": "Iovino et al. BT survey: Halo 2 among first BT papers; FSM n^2 transition blowup vs BT function-call-like modularity; BTs in Nav2, ABB/KUKA/UR industrial robots; BT+planner hybrids for long-horizon tasks."
+  },
+  {
+    "url": "https://docs.nav2.org/rolling/getting_started/navigation_concepts/behavior_trees",
+    "fetchedAt": "2026-10-24",
+    "note": "Nav2 official docs: behavior trees give navigation logic a formal structure that is verifiable and validated; reusable primitives and subtree composition; chosen over FSMs for scalability."
+  },
+  {
+    "url": "https://aarmstrong.org/journal/2008/03/02/gdc08-notes-building-a-better-battle-halo-3-ai-objectives",
+    "fetchedAt": "2026-10-24",
+    "note": "Attendee notes of Damian Isla's GDC 2008 Halo 3 AI talk: behavior trees run the individual AI under a declarative task/objectives layer; also records the talk's honest drawbacks."
+  },
+  {
+    "url": "https://web.archive.org/web/2024/https://chrishecker.com/My_Liner_Notes_for_Spore/Spore_Behavior_Tree_Docs",
+    "fetchedAt": "2026-10-24",
+    "note": "Chris Hecker's shipped Spore behavior-tree docs (via Wayback Machine; live site returned a temporary-downtime page on 4 attempts): BT library as ticking HFSMs, Activate/Deactivate/Tick, prioritized deciders with hysteresis, static declaration, debug levels."
+  },
+  {
+    "url": "https://github.com/BehaviorTree/BehaviorTree.CPP",
+    "fetchedAt": "2026-10-24",
+    "note": "BehaviorTree.CPP repo (~4.3k stars, MIT, 2014-2026): C++17 BT engine with runtime-loaded XML trees, async actions, reactive/concurrent execution, logging to record and replay state transitions."
+  },
+  {
+    "url": "https://www.behaviortree.dev/groot",
+    "fetchedAt": "2026-10-24",
+    "note": "Groot2 IDE for BehaviorTree.CPP: drag-and-drop editing, real-time monitoring of a running executor, log replay at variable speeds, blackboard inspection and breakpoints in the PRO tier."
+  },
+  {
+    "url": "https://arxiv.org/html/2503.13356v1",
+    "fetchedAt": "2026-10-24",
+    "note": "PORTAL (Agents Play Thousands of 3D Video Games): states 'the inherent latency of LLM inference renders them impractical for real-time applications'; generates BTs in a DSL executed at runtime, 'eliminating inference latency during gameplay' — a rival paper confirming the BT runtime architecture."
+  },
+  {
+    "url": "https://docs.unity3d.com/Packages/com.unity.behavior@1.0/manual/index.html",
+    "fetchedAt": "2026-10-24",
+    "note": "Unity Behavior package docs: official visual behavior-authoring tool for NPCs and gameplay logic with graph authoring and blackboard variables — BT authoring as engine-grade commodity."
+  },
+  {
+    "url": "https://github.com/limbonaut/limboai",
+    "fetchedAt": "2026-10-24",
+    "note": "LimboAI (~3.1k stars, MIT): Godot 4 C++ plugin combining behavior trees and hierarchical state machines, with editor, visual debugger, blackboard, and BT/HSM integration."
+  },
+  {
+    "url": "https://arxiv.org/abs/2203.13083",
+    "fetchedAt": "2026-10-24",
+    "note": "Ogren & Sprague, 'Behavior Trees in Robot Control Systems' (Annual Review of Control, Robotics, and Autonomous Systems 2022): modularity, hierarchies, and feedback as the control-theoretic foundations of BTs."
+  },
+  {
+    "url": "https://en.wikipedia.org/wiki/Behavior_tree_(artificial_intelligence,_robotics_and_control)",
+    "fetchedAt": "2026-10-24",
+    "note": "BT overview article: extensive use in high-profile games such as Halo, Bioshock, and Spore; task-not-state building block; robotics uptake (UAVs, manipulation, multi-robot)."
+  },
+  {
+    "url": "https://arxiv.org/html/2404.05134v1",
+    "fetchedAt": "2026-10-24",
+    "note": "Round 1: LLM-BT (Zhou et al. 2024) verified — ~85% cargo / ~75% household success, 5 cases x 20 users, with random external disturbances; in-place tree expansion on failure."
+  },
+  {
+    "url": "https://arxiv.org/html/2409.10444",
+    "fetchedAt": "2026-10-24",
+    "note": "Round 1: LLM-as-BT-Planner (Ao et al.) verified — GPT-4 12/17 one-step and iterative, 16/17 only human-in-the-loop, recursive 13/17 at ~50k tokens; non-specific feedback gives no improvement."
+  },
+  {
+    "url": "https://developer.nvidia.com/blog/how-krafton-built-pubg-ally-a-co-playable-character-powered-by-nvidia-ace",
+    "fetchedAt": "2026-10-24",
+    "note": "Round 2: KRAFTON PUBG Ally (NVIDIA ACE) — 'A System 1 layer, implemented as a behavior tree, handles... movement, aiming, and immediate combat responses at game tick rate'; 'Reflex-level actions never have to wait for the model'; authored BT reflexes in a shipped co-op companion."
+  },
+  {
+    "url": "https://arxiv.org/abs/2204.01691",
+    "fetchedAt": "2026-10-24",
+    "note": "Round 3: SayCan (Ahn et al.) abstract verified — grounding comes from 'pretrained skills' and their 'value functions', i.e. learned competence, not authored response curves; used against the utility advocate's citation of SayCan as 'their exact shape'."
+  }
+]

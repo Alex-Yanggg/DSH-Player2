@@ -1,0 +1,1 @@
+{"content":"Wood picked up. Now the stone at (10,7).","toolCalls":[{"id":"call_00_fAypGFP43mQoREIZRHun1936","name":"body_walk_to","args":{"mode":"adjacent","x":10,"y":7}}],"ms":882,"cached":false,"usage":{"prompt":3352,"completion":84}}

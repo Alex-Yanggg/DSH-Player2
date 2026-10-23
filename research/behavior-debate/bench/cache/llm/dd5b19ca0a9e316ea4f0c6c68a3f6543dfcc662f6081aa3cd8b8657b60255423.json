@@ -1,0 +1,1 @@
+{"content":"A slime is on my tile and my health is 10. I'll step onto the ladder immediately.","toolCalls":[{"id":"call_00_bjnrgDUjhK07LGmLAn0P3340","name":"body_input","args":{"steps":[{"hold":["up"],"ms":400}],"until":{"warped":true}}}],"ms":873,"cached":false,"usage":{"prompt":2100,"completion":91}}

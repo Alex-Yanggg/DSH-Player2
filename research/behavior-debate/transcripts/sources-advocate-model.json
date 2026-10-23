@@ -1,0 +1,72 @@
+[
+  {
+    "url": "https://deepmind.google/blog/sima-2-an-agent-that-plays-reasons-and-learns-with-you-in-virtual-3d-worlds/",
+    "fetchedAt": "2026-10-24",
+    "note": "SIMA 2 announcement (Nov 13 2025): Gemini core, pixels+multimodal instructions in, virtual keyboard/mouse out, zero-shot on held-out games (ASKA, MineDojo) and Genie 3 worlds, limited-context-for-low-latency tradeoff, limited research preview, no API/weights."
+  },
+  {
+    "url": "https://arxiv.org/abs/2404.10179",
+    "fetchedAt": "2026-10-24",
+    "note": "SIMA 1 paper abstract: image observations + language instructions in, keyboard-and-mouse actions out, real-time interaction across research environments and commercial video games."
+  },
+  {
+    "url": "https://deepmind.google/blog/sima-generalist-ai-agent-for-3d-virtual-environments/",
+    "fetchedAt": "2026-10-24",
+    "note": "SIMA 1 announcement: no game source code or APIs needed; nine commercial games (No Man's Sky, Teardown, Valheim, Satisfactory, Goat Simulator 3, Hydroneer, Space Engineers, Wobbly Life, Eco) + 4 research envs; ~600 basic skills; multi-game agents beat single-game specialists; withheld-game agent nearly matched specialist; trained on human demonstration pairs with language labels."
+  },
+  {
+    "url": "https://arxiv.org/abs/2511.08892",
+    "fetchedAt": "2026-10-24",
+    "note": "Lumine paper: VLM agent processing raw pixels at 5 Hz producing 30 Hz keyboard-mouse actions; trained in Genshin Impact; full ~5-hour Mondstadt storyline at human-level efficiency; zero-shot missions in Wuthering Waves and Honkai: Star Rail; CC BY 4.0 paper."
+  },
+  {
+    "url": "https://www.lumine-ai.org/",
+    "fetchedAt": "2026-10-24",
+    "note": "Lumine project page: 1,731 h gameplay + 200 h instruction-following + 15 h reasoning training data; quest timings (Mondstadt 56m + 4h43m, Liyue 7h16m OOD, HSR ~7h18m, WuWa ~1h46m); no GitHub/HuggingFace links on the page, so weights/code treated as not released."
+  },
+  {
+    "url": "https://arxiv.org/html/2610.28698",
+    "fetchedAt": "2026-10-24",
+    "note": "GameScaling paper (miHoYo Honkai AI): continued pre-training of Qwen3.5 VLMs (0.8B-27B) on keyboard-mouse gameplay; 5 Hz obs / 30 Hz controls, 200 ms action chunks; interface-phase vs world-phase finding; 0.13-0.69 s/step vs frontier 4.0-23.7 s/step; small models retain ~88% real-time performance while frontier agents lose ~90%; 27B beats Minecraft specialists by 13 points; OOD scaling does not follow a law."
+  },
+  {
+    "url": "https://huggingface.co/THUSI-Lab/GameScaling",
+    "fetchedAt": "2026-10-24",
+    "note": "GameScaling weights and client: Apache 2.0 code+weights; 0.8B-27B checkpoints (0.8B = 2.2 GB bf16, 1 GPU); vLLM >= 0.17 serving; policy.act(frame) returns 200 ms of keyboard/mouse actions over a 74-token key vocabulary; training data not released; not on HF Inference Providers."
+  },
+  {
+    "url": "https://deepmind.google/discover/blog/genie-3-a-new-frontier-for-world-models/",
+    "fetchedAt": "2026-10-24",
+    "note": "Genie 3 world model: prompt-generated interactive 3D worlds at 24 fps 720p, minutes-long consistency; SIMA agents ran inside Genie 3 worlds pursuing goals; limited research preview; unlimited-training-gym argument for agents."
+  },
+  {
+    "url": "https://developer.nvidia.com/blog/build-on-device-ai-companions-with-the-nvidia-ace-game-agent-sdk-and-unreal-engine-5-plugins/",
+    "fetchedAt": "2026-10-24",
+    "note": "NVIDIA ACE Game Agent SDK: open-source C/C++ on-device agent framework (beta) with UE5 plugins; Agent/Chat/RAG APIs; Qwen 3.5 4B SLM for reasoning and function calling; shipped in PUBG Ally and Total War: PHARAOH; acting layer is integration code, not a learned policy."
+  },
+  {
+    "url": "https://arxiv.org/abs/2310.12931",
+    "fetchedAt": "2026-10-24",
+    "note": "Eureka abstract (fetched round 2): 'evolutionary optimization over reward code' where candidate rewards are evaluated by training RL skills in simulation — training-time loop, used to attack advocate-utility's runtime reading of its 83%/29-task result."
+  },
+  {
+    "url": "https://arxiv.org/abs/2503.13356",
+    "fetchedAt": "2026-10-24",
+    "note": "PORTAL (Xu et al. 2025): LLM-generated behavior trees in DSL with dual feedback (game metrics + VLM analysis); validated across 'thousands of first-person shooter (FPS) games' — one genre, not cross-genre; used in round 1 to attack advocate-llm-bt's extensibility reading."
+  },
+  {
+    "url": "https://m.36kr.com/p/4038036364317824",
+    "fetchedAt": "2026-10-24",
+    "note": "FETCH FAILED: 301 redirect. Second-hand search snippet (not counted as evidence) said miHoYo + Tsinghua/Peking teams open-sourced a game-operation model on Qwen3.5; superseded by the direct arXiv/HuggingFace fetches above."
+  },
+  {
+    "url": "https://36kr.com/p/4038036364317824",
+    "fetchedAt": "2026-10-24",
+    "note": "FETCH FAILED: Volcano Engine security-check placeholder; no article content retrievable."
+  },
+  {
+    "url": "https://deepmind.google/blog/sima-2-technical-report/",
+    "fetchedAt": "2026-10-24",
+    "note": "FETCH FAILED: HTTP 404; guessed URL for the SIMA 2 technical report, does not exist at this path."
+  }
+]

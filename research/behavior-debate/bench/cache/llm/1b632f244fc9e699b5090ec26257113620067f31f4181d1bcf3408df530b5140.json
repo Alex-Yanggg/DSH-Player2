@@ -1,0 +1,1 @@
+{"content":"Let me get the full picture of the workshop layout and items.","toolCalls":[{"id":"call_00_MqrnRklUvCeucWGJeZdA4122","name":"world_find","args":{"limit":40}},{"id":"call_01_VmXNtrWDQQcRAyAYIL8o5867","name":"world_map","args":{"radius":12}}],"ms":1485,"cached":false,"usage":{"prompt":1777,"completion":78}}

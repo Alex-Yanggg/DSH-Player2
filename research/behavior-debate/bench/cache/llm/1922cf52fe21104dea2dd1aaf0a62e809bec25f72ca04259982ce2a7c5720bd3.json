@@ -1,0 +1,1 @@
+{"content":"A slime is on my tile and another on the ladder. I'll kill the one I face, then the other.","toolCalls":[{"id":"call_00_jGK9bYNgVz1dggsRHSJI9109","name":"body_input","args":{"steps":[{"press":["ControllerX"],"ms":300}]}}],"ms":997,"cached":false,"usage":{"prompt":2953,"completion":74}}
