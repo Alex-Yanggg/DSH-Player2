@@ -31,7 +31,7 @@ def test_three_parsnips_from_scratch(world, hello, art):
     world.close_chat()
     assert ex.reply, ex.error or ex.stop_reason
     days, s = [], world.state()
-    with GoalMetrics(world) as metrics:
+    with GoalMetrics(world, art.dir) as metrics:
         while True:
             day, woke = s["time"]["day"], s["body"]["location"]
             places = {l["name"]: l for l in GameEndpoint(world.paths).call("world_map")["locations"]}
@@ -51,7 +51,8 @@ def test_three_parsnips_from_scratch(world, hello, art):
             assert woke in places, f"the companion woke in {woke}, which world_map does not know"
             if _parsnips(s) >= WANTED or day - first_day + 1 >= DAYS:
                 break
-            world.sleep_night(day)
+            with metrics.night():
+                world.sleep_night(day)
             s = world.state()
     world.smapi.poll()
     errors = [ln for _, ln in world.smapi.lines if "Player2 DSH_" in ln]

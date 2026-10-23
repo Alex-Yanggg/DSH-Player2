@@ -104,7 +104,21 @@ def focus(hwnd: int, attempts: int = 5) -> bool:
         time.sleep(0.15)
         if user32.GetForegroundWindow() == hwnd:
             return True
-    return False
+    # Another process holds the foreground lock (the Alt tap did not lift it): share the
+    # foreground thread's input queue for the duration of the call, which Windows honours.
+    import ctypes
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    this_thread = kernel32.GetCurrentThreadId()
+    fg_thread = user32.GetWindowThreadProcessId(user32.GetForegroundWindow(), None)
+    attached = user32.AttachThreadInput(this_thread, fg_thread, True)
+    try:
+        user32.SetForegroundWindow(hwnd)
+        user32.BringWindowToTop(hwnd)
+        time.sleep(0.15)
+    finally:
+        if attached:
+            user32.AttachThreadInput(this_thread, fg_thread, False)
+    return user32.GetForegroundWindow() == hwnd
 
 
 def ime_passthrough(hwnd: int) -> bool:

@@ -51,24 +51,25 @@ def test_timeline_and_summary():
     assert s["p50"] == 300 and s["max"] == 1000
 
 
-def test_goal_metrics_math():
+def test_goal_metrics_math(tmp_path):
     from gamepilot.metrics import GoalMetrics
 
-    m = GoalMetrics(world=None)
     t0 = time.time() - 60
-    # 20 half-second samples, one turn in flight throughout: tasks in 0-5, a
-    # 3.5 s no-task standstill in 6-12 (one stuck event, one 3.5 s skill gap),
-    # tasks again 13-15, then 16-19 idle but moving (idle for G1, not stuck).
+    # 20 half-second unpaused samples: tasks in 0-5, a 3.5 s no-task standstill in 6-12
+    # (one stuck event, one 3.5 s skill gap), a task again at 13, then 14-19 inside the
+    # excluded night window (t0+7.0..t0+10.0).
     def sample(i, task, moving=True):
         return {"t": t0 + i * 0.5, "paused": False, "day": 1, "clock": 600 + i * 10,
-                "task": task, "moving": moving}
-    m.samples = [sample(i, 11 if i < 6 else (12 if 13 <= i <= 15 else None),
-                        moving=not (6 <= i <= 12)) for i in range(20)]
-    m.turns = [(t0 - 1, t0 + 11)]
-    out = m.summary()
+                "task": task, "moving": moving, "location": "Farm"}
+    with GoalMetrics(world=None, art_dir=tmp_path) as m:
+        m.samples = [sample(i, 11 if i < 6 else (12 if 13 <= i <= 15 else None),
+                            moving=not (6 <= i <= 12)) for i in range(20)]
+        m.nights = [(t0 + 7.0, t0 + 10.0)]
+        out = m.summary()
     assert out["n_samples"] == 20
-    assert out["g1_idle_ratio"] == round(11 * 0.5 / (20 * 0.5), 3)  # no-task samples while the turn ran
+    assert out["g1_idle_ratio"] == 0.5  # 7 no-task samples over the 14 unpaused active ones
     assert out["g2_skill_gap_ms"] == {"n": 1, "p50": 3500, "p95": 3500, "max": 3500}
     assert out["g3_stuck"]["events"] == 1
     assert out["g3_stuck"]["detail"][0]["recovery_ms"] == 3000  # first idle sample to acting again
-    assert out["g3_stuck"]["per_game_hour"] == round(1 / (19 * 10 / 10 / 60), 2)
+    assert out["g3_stuck"]["game_minutes"] == 13.0  # 13 one-minute clock steps across the active samples
+    assert (tmp_path / "metrics-samples.json").exists()

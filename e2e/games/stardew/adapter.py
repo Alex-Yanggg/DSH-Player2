@@ -88,14 +88,18 @@ def _forget_previous_test_save(paths: Paths) -> None:
 def build_test_save(paths: Paths, source: str | None = None) -> Path:
     """Fresh isolated copy of a day-1 save under this run's new unique ID - a fresh test character - so chat
     history and sessions never mix with the player's real saves or with an earlier run. The template is
-    any untouched day-1 save folder name under Saves, named by E2E_SOURCE_SAVE; it is only ever read."""
+    any untouched day-1 save folder name under Saves, named by E2E_SOURCE_SAVE; it is only ever read.
+    E2E_DAY (with optional E2E_SEASON/E2E_YEAR) re-dates the copy natively, which scenario runs use to
+    start past date gates such as the landslide that blocks the mines until spring 5."""
     source = source or os.environ.get("E2E_SOURCE_SAVE", "")
     if not source or not (paths.saves / source / source).is_file():
         raise RuntimeError(f"set E2E_SOURCE_SAVE to a day-1 save folder in {paths.saves} (got {source!r}); see e2e/README.md")
     _forget_previous_test_save(paths)
     LAST_TEST_SAVE.parent.mkdir(parents=True, exist_ok=True)
     LAST_TEST_SAVE.write_text(str(TEST_SAVE_ID), encoding="utf-8")
-    dst = copy_save(paths, source, TEST_SAVE_ID)
+    day = int(os.environ["E2E_DAY"]) if os.environ.get("E2E_DAY") else None
+    dst = copy_save(paths, source, TEST_SAVE_ID, day=day,
+                    season=os.environ.get("E2E_SEASON"), year=int(os.environ["E2E_YEAR"]) if os.environ.get("E2E_YEAR") else None)
     # Reset our bridge sessions only - the path is keyed by the test ID, never by a real save's.
     for d in paths.session_dirs():
         shutil.rmtree(d, ignore_errors=True)

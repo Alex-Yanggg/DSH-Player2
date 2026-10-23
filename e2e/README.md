@@ -28,6 +28,7 @@ The mod's game endpoint is the second oracle. The tests read its URL and bearer 
 | boundaries | Requests the companion's body cannot do (trading from the player's inventory) are not faked. |
 | feel | Time from Enter to the sent prompt, the first spoken line, and the end of the turn. |
 | bline | A goal asked in chat makes the companion work, and a stop said in chat ends it. Goals are DSH's own, so the judgement is the spoken reply, the SMAPI lines, the companion's tile and screenshots. |
+| mine | P2-0019: asked for 10 copper ore (any season), the companion mines it itself: down the mountain mine with its own pickaxe, reflexes keeping it alive, home to sleep. Needs a template whose farmhand is a chosen companion and `E2E_DAY=6` (the native re-date that opens the mine); world_state is the oracle, and `GoalMetrics` records idle, skill-gap and stuck numbers for every goal run. |
 | coop | S13: the companion speaks before it moves and walks to the player, keeps playing with another window in front, buys parsnip seeds at Pierre's, sleeps with the host, and rejoins after the game is quit and the save reloaded. |
 | persona | P2-0017: the chosen persona answers its pack's probe questions in character, with no coordinates or internal words. Run once per persona (`$env:E2E_PERSONA = "0"` 大肥鱼, `"1"` 军师) with `-m persona`, then `python e2e/blind_sheet.py` writes `artifacts/blind/sheet.md` without names and `key.md` for the H2 blind test. |
 
@@ -67,6 +68,7 @@ The tests own the keyboard and mouse while they run.
 | `E2E_SOURCE_SAVE` | Template save folder name (required). |
 | `E2E_ATTACH=1` | Drive an already running game, reusing the last run's test save (faster iteration; no console fixture channel). |
 | `E2E_SAVE_ID` | Pin the test save id instead of generating a fresh one. |
+| `E2E_DAY`, `E2E_SEASON`, `E2E_YEAR` | Re-date the copied save natively in its XML (and `daysPlayed`), so a scenario starts past date gates such as the mine-blocking landslide before spring 5. |
 | `STARDEW_DIR` | Game directory when it is not the default Steam location. |
 
 `budgets.py` holds the responsiveness budgets. Each value is measured, then rounded up. Raise one only with a recorded reason, because every raise loosens the product's feel.
