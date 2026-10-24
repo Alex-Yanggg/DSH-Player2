@@ -407,10 +407,19 @@ class StardewFlows:
         sent = re.compile(rf"{SENT}\[chat day=\d+\] {re.escape(text)}$")
         deadline = time.monotonic() + timeout
         start = None
+        tapped, retaps = time.monotonic(), 0
         while time.monotonic() < deadline and "result" not in ex.timeline.marks and not (until_said and ex.said):
             self.smapi.poll()
             lines = self.smapi.lines
             if start is None:
+                # A keystroke can land in a frame the menu never reads (a speech frame, a re-created
+                # input): when no sent line shows up soon, a player just presses enter again. The sent
+                # line proves the earlier taps never submitted, so this cannot double-send.
+                if retaps < 3 and time.monotonic() - tapped > 6.0:
+                    self.kb.tap("enter", hold=0.25)
+                    ex.timeline.mark(f"enter-again-{retaps + 1}")
+                    retaps += 1
+                    tapped = time.monotonic()
                 start = next((i for i in range(mark, len(lines)) if sent.search(lines[i][1])), None)
                 if start is not None:
                     ex.timeline.mark("published", lines[start][0])
