@@ -22,7 +22,6 @@ import type {} from "@deepseek-ai/dsh-system-prompt";
 import { defineTool } from "@deepseek-ai/dsh-tools";
 import z from "@deepseek-ai/schemastery";
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { parsePersonaPack, type PersonaPack } from "@dsh-player2/contracts";
 import { GameBody, type BodyPort } from "./body/port.js";
 import { PersonaDice, tendencyLines, turnNudges } from "./body/knobs.js";
@@ -99,6 +98,8 @@ interface SaveState {
   day: number | null;
   attendedTurn: number;
   lastText: string;
+  /** The session-start memory note goes out once per sitting. */
+  memoryShown?: boolean;
   open?: { readonly occasion: "chat" | "day-start"; readonly turn: number; readonly prepared: PreparedMind };
   dream?: PreparedDream;
 }
@@ -128,8 +129,8 @@ export function apply(ctx: Context, config: Config): void {
     });
   const saves = new Map<string, SaveState>();
   let skillsOf: ((agent: Agent | undefined) => SkillStore | undefined) | undefined;
-  /** Where skill programs execute (PTC seam or in-process), for the mind's skills note. */
-  let skillPath = "in-process";
+  /** Where skill programs execute, for the mind's skills note (set at mount when the seam exists). */
+  let skillPath = "none";
   if (body instanceof ReflexBody) {
     ctx.effect(() => {
       body.start();
@@ -168,8 +169,9 @@ export function apply(ctx: Context, config: Config): void {
       skillPath = skillRunner.path;
       const skillStoreOf = (agent: Agent): SkillStore => {
         const state = stateOf(agent);
-        if (state === undefined) throw new Error("no session for this save; skills cannot be used");
-        state.skills ??= new SkillStore(join(agent.session.header.cwd ?? "", "skills"), game, skillRunner);
+        const library = state?.mind?.library;
+        if (state === undefined || library === undefined) throw new Error("this save has no persona library; skills cannot be used");
+        state.skills ??= new SkillStore(library.skillsDir(), game, skillRunner);
         return state.skills;
       };
       skillsOf = (agent: Agent | undefined): SkillStore | undefined => agent === undefined ? undefined : skillStoreOf(agent);
@@ -228,11 +230,28 @@ export function apply(ctx: Context, config: Config): void {
   })), "player2-companion.tool.remember");
 
   ctx.effect(() => ctx.tools.register(defineTool({
+    name: "lesson_learn",
+    description: "Keep one durable lesson this save taught you: a fact about this world (what blocks what, when something opens, where things come from) or a way of working that succeeded here. One sentence. Your lessons come back to you at the start of a sitting and in your dream; the dream alone promotes one into your library for every save.",
+    parameters: {
+      text: { type: "string", required: true, description: "One sentence, at most 240 characters." },
+      topic: { type: "string", description: "A short tag, e.g. 'north pass', 'the mines'." },
+    },
+    output: textOutput,
+    execute: async (args, exec) => {
+      const state = stateOf(exec.agent);
+      if (state?.mind == null) return "Nothing was kept: this session has no memory.";
+      const kept = await state.mind.learnLesson(String(args.text), String(args.topic ?? "general"), new Date());
+      return kept === "kept" ? "Kept." : "Known already: the same lesson is kept.";
+    },
+  })), "player2-companion.tool.lesson_learn");
+
+  ctx.effect(() => ctx.tools.register(defineTool({
     name: "dream_commit",
-    description: "Only during a day-end dream: write what today changed in your memory (story, traits with episode evidence, trivia to forget).",
+    description: "Only during a day-end dream: write what today changed in your memory (story, traits with episode evidence, durable lessons, trivia to forget).",
     parameters: {
       story: { type: "string", description: "Our story so far, rewritten in your own voice, at most 600 characters; omit to keep it." },
       traits: { type: "array", items: { type: "object", additionalProperties: true }, description: "Trait edits as described in the dream." },
+      lessons: { type: "array", items: { type: "object", additionalProperties: true }, description: 'Durable lessons the day taught: {"where":"save"|"persona","text":"...","topic":"..."}. "persona" only when today showed the approach working; it then serves on every save.' },
       forget: { type: "array", items: { type: "string" }, description: "Trivial episode ids." },
     },
     output: textOutput,
@@ -263,6 +282,13 @@ export function apply(ctx: Context, config: Config): void {
       }
       if (marker?.day != null) state.day = marker.day;
       const lines: string[] = [];
+      if (state.mind !== null && state.memoryShown !== true) {
+        // The sitting's one memory note: the persona library and this save's
+        // own facts, capped. Later turns rely on it staying in the history.
+        state.memoryShown = true;
+        const memory = await state.mind.memoryNote(new Date());
+        if (memory !== "") lines.push(memory);
+      }
       if (reflexFacts.length > 0) {
         // The reflex tier always tells the mind what fired; this is that telling.
         lines.push("Your body acted on reflex (instincts you did not choose in this moment):", ...reflexFacts.splice(0).map((fact) => `- ${fact}`));
@@ -270,7 +296,7 @@ export function apply(ctx: Context, config: Config): void {
       const store = skillsOf?.(payload.agent);
       const skills = store === undefined ? [] : await store.list().catch(() => []);
       if (skills.length > 0) {
-        lines.push(`Your saved skills, distilled from your own past work (skill_run by name, with args; they execute via ${skillPath}):`, ...skills.map((skill) => `- ${skill.name}${skill.stale !== null ? " (stale: repair with skill_save or stop using it)" : ""}: ${skill.purpose}`));
+        lines.push(`Your saved skills, distilled from your own past work (skill_run by name, with args; they execute via ${skillPath}):`, ...skills.map((skill) => `- ${skill.name}${skill.stale !== null ? " (stale: repair with skill_save or stop using it)" : ""}: ${skill.purpose}${typeof skill.game === "string" && skill.game !== game ? ` (learned in ${skill.game})` : ""}`));
       }
       if (state.mind !== null && (marker?.kind === "chat" || marker?.kind === "day-start")) {
         const prepared = await state.mind.prepareTurn(marker.kind, marker.text, game, state.day, new Date());

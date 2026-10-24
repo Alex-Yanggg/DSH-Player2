@@ -20,6 +20,14 @@ export interface LedgerEdits {
   readonly story: string | null;
   readonly traits: readonly TraitEdit[];
   readonly forget: readonly string[];
+  /** Durable lessons the day taught (P2-0020 T1): save facts, or persona-library promotions. */
+  readonly lessons: readonly LessonEdit[];
+}
+
+export interface LessonEdit {
+  readonly where: "save" | "persona";
+  readonly text: string;
+  readonly topic: string;
 }
 
 export type TraitEdit =
@@ -43,7 +51,7 @@ export function dreamEpisodes(episodes: readonly Episode[], gameDay: number): Ep
 }
 
 /** The ledger half of the dream input. */
-export function ledgerDigest(episodes: readonly Episode[], traits: readonly Trait[], story: Story | null): string {
+export function ledgerDigest(episodes: readonly Episode[], traits: readonly Trait[], story: Story | null, memory: readonly string[] = []): string {
   const live = traits.filter((trait) => trait.status !== "retired");
   return [
     `OUR_STORY=${story === null || story.text.trim() === "" ? "(none yet)" : JSON.stringify(story.text)}`,
@@ -51,15 +59,18 @@ export function ledgerDigest(episodes: readonly Episode[], traits: readonly Trai
     ...live.map((trait) => `- ${trait.id} [${trait.status}, confidence ${trait.confidence.toFixed(2)}, ${trait.scope}] ${trait.text} (evidence: ${trait.evidence.join(", ")})`),
     `TODAYS_EPISODES(${episodes.length}):`,
     ...episodes.map((episode) => `- ${episode.id} ${episode.kind} salience ${episode.salience.toFixed(2)}: ${episode.summary}`),
+    `MEMORY_ALREADY_KEPT(${memory.length}) — never write a lesson that repeats one of these:`,
+    ...memory,
   ].join("\n");
 }
 
 /** The instruction lines that teach the `dream_commit` arguments. */
 export const DREAM_LEDGER_INSTRUCTIONS = [
-  'When something is worth keeping, call dream_commit once with {"story":"<=600 chars or null","traits":[...],"forget":["ep-…"]}.',
+  'When something is worth keeping, call dream_commit once with {"story":"<=600 chars or null","traits":[...],"forget":["ep-…"],"lessons":[{"where":"save"|"persona","text":"...","topic":"..."}]}.',
   '- story: rewrite our story so far in your own voice when today changed it; null keeps it. Mention only what the episodes and the existing story support.',
   '- traits: {"op":"add","text":"...","scope":"person","episodeIds":["ep-…","ep-…"]} needs two independent episodes (or one player correction); fewer keeps it as a candidate. {"op":"strengthen"|"weaken"|"retire","id":"tr-…","episodeIds":["ep-…"]} changes an existing trait and needs at least one episode.',
   "- forget: trivial episode ids not worth keeping; receipts are never forgotten.",
+  '- lessons: durable facts and policies the day taught, one sentence each. "save" for facts of this world (places, schedules, what blocks what); "persona" only when today showed an approach working that would serve on every save. Nothing new learned: omit the field.',
   "Do not call dream_commit when nothing changed. Every id you write must appear above.",
 ];
 
@@ -68,7 +79,7 @@ export function parseLedgerEdits(raw: unknown): LedgerEdits | null {
   if (typeof raw !== "object" || raw === null) return null;
   const ledger = (raw as { ledger?: unknown }).ledger;
   if (typeof ledger !== "object" || ledger === null) return null;
-  const value = ledger as { story?: unknown; traits?: unknown; forget?: unknown };
+  const value = ledger as { story?: unknown; traits?: unknown; forget?: unknown; lessons?: unknown };
   const story = typeof value.story === "string" && value.story.trim() !== "" ? value.story.trim() : null;
   const traits: TraitEdit[] = [];
   for (const item of Array.isArray(value.traits) ? value.traits : []) {
@@ -81,7 +92,14 @@ export function parseLedgerEdits(raw: unknown): LedgerEdits | null {
     }
   }
   const forget = Array.isArray(value.forget) ? value.forget.filter((id): id is string => typeof id === "string") : [];
-  return { story, traits, forget };
+  const lessons: LessonEdit[] = [];
+  for (const item of Array.isArray(value.lessons) ? value.lessons : []) {
+    const edit = item as { where?: unknown; text?: unknown; topic?: unknown };
+    if (typeof edit.text === "string" && edit.text.trim() !== "" && (edit.where === "save" || edit.where === "persona")) {
+      lessons.push({ where: edit.where, text: edit.text, topic: typeof edit.topic === "string" ? edit.topic : "general" });
+    }
+  }
+  return { story, traits, forget, lessons };
 }
 
 /**

@@ -8,13 +8,18 @@
  * @module @dsh-player2/dsh-companion-plugin/mind/core
  */
 import type { Episode } from "@dsh-player2/contracts";
+import { dirname, join } from "node:path";
 import { applyLedgerEdits, dreamEpisodes, ledgerDigest, parseLedgerEdits, type LedgerEditOutcome } from "./dream-ledger.js";
 import { writeLedgerExport } from "./export.js";
+import { byLessonScore, lessonLines, PersonaLibrary, type Lesson } from "./library.js";
 import { PersonaLedger, type WhyRecord } from "./ledger.js";
 import { isWhyQuestion, mindContextNote } from "./mind-context.js";
 import { describeMood, type MoodEvent } from "./mood.js";
 import { retrieveEpisodes, type EpisodeSelector, type RetrievedEpisode } from "./retrieval.js";
 import type { EpisodeNomination } from "./turn-extras.js";
+
+/** Character cap of the session-start memory note (persona lessons + save facts). */
+export const MEMORY_NOTE_LIMIT = 900;
 
 /** What a turn was given, kept until the turn commits. */
 export interface PreparedMind {
@@ -35,6 +40,7 @@ export const DEFAULT_GAME = "stardew-valley";
 
 export class MindCore {
   public readonly ledger: PersonaLedger;
+  public readonly library: PersonaLibrary;
   public readonly save: string;
 
   /**
@@ -46,6 +52,7 @@ export class MindCore {
     const located = PersonaLedger.forSession(session);
     this.ledger = located.ledger;
     this.save = located.save;
+    this.library = new PersonaLibrary(dirname(dirname(session)));
   }
 
   /** Before a chat or day-start turn; `text` is the player's words (empty at day start). */
@@ -78,6 +85,42 @@ export class MindCore {
     return added;
   }
 
+  /**
+   * The session-start memory note (P2-0020 T1): the persona library's lessons
+   * and this save's own facts, most-used and newest first, under one hard
+   * cap. The save key is the session folder name, the id the mod derives from
+   * the game's `uniqueIDForThisGame`. Showing a line marks it used.
+   */
+  public async memoryNote(now: Date): Promise<string> {
+    const [persona, facts] = await Promise.all([this.library.ordered(now), this.ledger.facts(this.save)]);
+    const header = "MEMORY (what you already know; history, never the present):";
+    const lines: string[] = [];
+    const shownPersona: string[] = [];
+    const shownFacts: string[] = [];
+    let size = header.length;
+    const take = (title: string, lessons: readonly Lesson[], shown: string[]): void => {
+      if (lessons.length === 0 || size + title.length > MEMORY_NOTE_LIMIT) return;
+      lines.push(title);
+      size += title.length;
+      for (const line of lessonLines(lessons)) {
+        if (size + 1 + line.length > MEMORY_NOTE_LIMIT) continue;
+        lines.push(line);
+        size += 1 + line.length;
+        shown.push(line.replace(/^- \[[^\]]*\] /, ""));
+      }
+    };
+    take("YOUR LIBRARY (lessons you keep on every save):", persona, shownPersona);
+    take("THIS SAVE, what your own days here taught (history, not the present):", [...facts].sort(byLessonScore(now)), shownFacts);
+    if (lines.length === 0) return "";
+    await Promise.all([this.library.markUsed(shownPersona, now), this.ledger.markFactsUsed(this.save, shownFacts, now)]);
+    return [header, ...lines].join("\n");
+  }
+
+  /** Keeps one lesson of this save; the persona layer is the dream's to promote into. */
+  public async learnLesson(text: string, topic: string, now: Date): Promise<"kept" | "known"> {
+    return this.ledger.learnFact(this.save, text, topic, now);
+  }
+
   /** After a chat or day-start turn: move the mood and record why the reply was said. */
   public async commitTurn(occasion: "chat" | "day-start", turnId: string, replyText: string, prepared: PreparedMind, now: Date): Promise<void> {
     const events: MoodEvent[] = occasion === "chat" ? [{ kind: "chat" }] : [];
@@ -88,15 +131,19 @@ export class MindCore {
     });
   }
 
-  /** Before a dream: the day's episodes, traits, and story. */
+  /** Before a dream: the day's episodes, traits, story, and the memory already kept. */
   public async prepareDream(gameDay: number | null): Promise<PreparedDream> {
-    const [{ episodes }, story, person] = await Promise.all([this.ledger.episodes(this.save), this.ledger.story(this.save), this.ledger.person()]);
+    const [{ episodes }, story, person, persona, facts] = await Promise.all([
+      this.ledger.episodes(this.save), this.ledger.story(this.save), this.ledger.person(),
+      this.library.ordered(new Date()), this.ledger.facts(this.save),
+    ]);
     const game = episodes.at(-1)?.game ?? DEFAULT_GAME;
     const shown = dreamEpisodes(episodes, gameDay ?? episodes.at(-1)?.gameDay ?? 0);
-    return { digest: ledgerDigest(shown, person.traits, story), shown, game };
+    const memory = [...lessonLines(persona), ...lessonLines([...facts].sort(byLessonScore(new Date())))];
+    return { digest: ledgerDigest(shown, person.traits, story, memory), shown, game };
   }
 
-  /** A dream's ledger edits (the `dream_commit` arguments): validate, apply, refresh the export. */
+  /** A dream's ledger edits (the `dream_commit` arguments): validate, apply, distil its lessons, refresh the export. */
   public async commitDream(raw: unknown, prepared: PreparedDream, companionName: string, now: Date): Promise<LedgerEditOutcome | null> {
     const edits = parseLedgerEdits({ ledger: raw });
     let outcome: LedgerEditOutcome | null = null;
@@ -111,6 +158,20 @@ export class MindCore {
       if (result !== null) {
         if (result.story !== null && result.story !== story) await this.ledger.writeStory(this.save, result.story);
         if (result.forget.length > 0) await this.ledger.forgetEpisodes(this.save, result.forget);
+        // The dream is the only writer of the persona layer: a lesson it
+        // promotes has the day's evidence that the approach worked.
+        const distilled: string[] = [];
+        for (const lesson of edits.lessons) {
+          try {
+            const kept = lesson.where === "save"
+              ? await this.ledger.learnFact(this.save, lesson.text, lesson.topic, now)
+              : await this.library.learn(lesson.text, lesson.topic, now);
+            distilled.push(`${kept === "known" ? "known" : "kept"} (${lesson.where}): ${lesson.text.slice(0, 60)}`);
+          } catch (error) {
+            distilled.push(`refused (${lesson.where}): ${error instanceof Error ? error.message : String(error)}`);
+          }
+        }
+        if (distilled.length > 0) outcome = { ...result, applied: [...result.applied, ...distilled] };
       }
     }
     await writeLedgerExport(this.ledger, companionName, now);

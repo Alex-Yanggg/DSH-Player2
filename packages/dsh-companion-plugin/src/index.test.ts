@@ -81,7 +81,7 @@ describe("Player2 companion inside the ACP profile", () => {
 
   it("mounts hands only when a body is reachable", async () => {
     const without = await createComposition();
-    expect(without.tools.schemas().map((tool) => tool.name).sort()).toEqual(["dream_commit", "remember"]);
+    expect(without.tools.schemas().map((tool) => tool.name).sort()).toEqual(["dream_commit", "lesson_learn", "remember"]);
     const sim = new SimAdapter({ locations: [{ name: "Farm", rows: ["..."], warps: [], objects: [], characters: [] }], body: { location: "Farm", x: 0, y: 0, items: [] } });
     const withBody = await createComposition({ body: sim });
     const names = withBody.tools.schemas().map((tool) => tool.name);
