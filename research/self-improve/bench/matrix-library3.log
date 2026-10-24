@@ -24,3 +24,18 @@
 [library] toy2-locked#4: ok=true llm=25 repFail=0 wall=56.6s
 [library] toy2-locked#5: ok=true llm=29 repFail=0 wall=61.8s
 [library] toy2-locked#6: ok=false llm=45 repFail=4 wall=168.2s
+[library] toy2-locked#7: ok=true llm=23 repFail=0 wall=56.4s
+[library] toy2-locked#8: ok=false llm=45 repFail=0 wall=69s
+[library] toy2-locked#9: ok=false llm=43 repFail=0 wall=146.6s
+[library] toy2-locked#10: ok=true llm=24 repFail=0 wall=58.6s
+[library] toy2-wall#1: ok=true llm=22 repFail=0 wall=37.4s
+[library] toy2-wall#2: ok=true llm=23 repFail=0 wall=43.5s
+[library] toy2-wall#3: ok=true llm=24 repFail=0 wall=44.8s
+[library] toy2-wall#4: ok=true llm=22 repFail=0 wall=42.7s
+[library] toy2-wall#5: ok=true llm=20 repFail=0 wall=40.9s
+[library] toy2-wall#6: ok=true llm=22 repFail=0 wall=42s
+[library] toy2-wall#7: ok=true llm=21 repFail=0 wall=39.6s
+[library] toy2-wall#8: ok=true llm=22 repFail=0 wall=41.6s
+[library] toy2-wall#9: ok=true llm=24 repFail=0 wall=42.8s
+[library] toy2-wall#10: ok=true llm=34 repFail=0 wall=54.7s
+[done] 40 runs in 2218s -> results/runs.json-library3, summary.json-library3, metrics.csv-library3, loc.json

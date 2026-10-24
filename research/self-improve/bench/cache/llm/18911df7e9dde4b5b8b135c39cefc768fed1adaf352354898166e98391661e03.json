@@ -1,0 +1,1 @@
+{"content":"I have Wood x2 and Stone x1. I need 1 more Wood and 1 more Stone. Let me check remaining materials.","toolCalls":[{"id":"call_00_qT1xl5W7fbNbRwzHar3h4160","name":"world_find","args":{"kind":"material"}}],"ms":1238,"cached":false,"usage":{"prompt":5696,"completion":65}}

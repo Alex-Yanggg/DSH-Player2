@@ -1,0 +1,5 @@
+approach,scenario,runs,success_rate,llm_calls_mean,llm_calls_median,wall_s_mean,wall_s_median,idle_ratio_mean,gap_ratio_mean,model_wait_s_mean,stuck_events_mean,tasks_mean,avg_hits_mean,repeated_failures_mean,recovery_ticks_mean,recovery_runs,actions_per_game_minute,errors
+library,locked,10,1.00,10.9,10.5,60.0,60.7,0.178,0.678,12.0,0.0,2.9,0.0,0.0,,0,0.0004,0
+library,toy2-locked,10,0.60,33.6,29.5,97.3,64.3,0.474,0.164,46.6,1.9,36.2,0.0,0.8,,0,0.0026,0
+library,toy2-wall,10,1.00,23.4,22.0,43.0,42.4,0.519,0.105,25.9,0.0,16.8,0.0,0.0,,0,0.0030,0
+library,wall,10,1.00,8.6,9.0,21.5,22.4,0.247,0.179,8.9,0.0,3.0,0.0,0.0,,0,0.0011,0
