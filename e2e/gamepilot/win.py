@@ -133,6 +133,19 @@ def focus(hwnd: int, attempts: int = 8) -> bool:
             tried_restore = True
             if user32.GetForegroundWindow() == hwnd:
                 return True
+        # 4. A player's own way in: a synthetic click on the window's title bar
+        #    (never the client area, so the game sees no input) activates it like
+        #    a real click does, even when every programmatic call is refused.
+        import ctypes.wintypes as wt
+        wrect = wt.RECT()
+        if user32.GetWindowRect(hwnd, ctypes.byref(wrect)):
+            user32.SetCursorPos(wrect.left + (wrect.right - wrect.left) // 2, wrect.top + 8)
+            time.sleep(0.05)
+            user32.mouse_event(0x0002, 0, 0, 0, 0)
+            user32.mouse_event(0x0004, 0, 0, 0, 0)
+            time.sleep(0.2)
+            if user32.GetForegroundWindow() == hwnd:
+                return True
         time.sleep(0.5)
     return user32.GetForegroundWindow() == hwnd
 
