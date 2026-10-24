@@ -95,6 +95,16 @@ describe("observation", () => {
     sim.player.location = "Town";
     expect(await tool("world_observe").execute({})).toContain("Player Tester: Town, a different place from you");
   });
+
+  it("shows the tiles the game answers, raw, nearest first", async () => {
+    sim.locations.get("Farm")!.warps.push({ x: 18, y: 4, to: "Mine", toX: 18, toY: 13, kind: "walk" });
+    sim.actionTiles = [
+      { x: 23, y: 9, layer: "Buildings", action: "Mine" },
+      { x: 17, y: 3, layer: "Buildings", action: "MineElevator" },
+    ];
+    const look = await tool("world_observe").execute({});
+    expect(look).toContain("Tiles the game itself answers, raw: (17,3) 'MineElevator'; (23,9) 'Mine'");
+  });
 });
 
 describe("navigation", () => {

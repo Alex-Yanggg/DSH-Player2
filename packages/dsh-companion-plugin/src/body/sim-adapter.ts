@@ -66,6 +66,8 @@ export class SimAdapter implements BodyPort {
   public body: { location: string; px: number; py: number; facing: "up" | "right" | "down" | "left"; slot: number; items: (BodyItem | null)[]; stamina: number };
   /** The body's own health, as a raw field reflex rows read. */
   public health = 100;
+  /** Raw action tiles the sim's state carries (tests of the perception render). */
+  public actionTiles: BodyState["actionTiles"];
   public player: { location: string; x: number; y: number; items: BodyItem[]; money: number };
   public day = 1;
   public paused = false;
@@ -349,6 +351,7 @@ export class SimAdapter implements BodyPort {
       body: { location: this.body.location, x: t.x, y: t.y, px: this.body.px, py: this.body.py, facing: this.body.facing, present: true, moving: this.movedLastTick, health: this.health, selectedSlot: this.body.slot, stamina: this.body.stamina, money: this.player.money, items: this.body.items.filter((i): i is BodyItem => i !== null), activeTask: this.task && this.task.status === "running" ? this.task.task.seq : null, menu: this.menuState() },
       map: { location: location.name, width: location.rows[0].length, height: location.rows.length, rows: location.rows },
       objects: location.objects, characters: location.characters, warps: location.warps, truncated: { objects: 0 },
+      ...(this.actionTiles === undefined ? {} : { actionTiles: this.actionTiles }),
     };
   }
 

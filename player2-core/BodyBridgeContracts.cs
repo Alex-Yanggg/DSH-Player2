@@ -88,6 +88,9 @@ public sealed record BodyCharacter(
 
 public sealed record BodyWarp(int X, int Y, string To, int ToX, int ToY, string Kind);
 
+/// <summary>One tile the game itself answers, as raw data: position, map layer, and the raw action string (or sheet#index where code answers by tile).</summary>
+public sealed record BodyActionTile(int X, int Y, string Layer, string Action);
+
 public sealed record BodyTruncation(int Objects);
 
 public sealed record BodyState(
@@ -103,7 +106,8 @@ public sealed record BodyState(
     IReadOnlyList<BodyObject> Objects,
     IReadOnlyList<BodyCharacter> Characters,
     IReadOnlyList<BodyWarp> Warps,
-    BodyTruncation Truncated);
+    BodyTruncation Truncated,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<BodyActionTile>? ActionTiles = null);
 
 public sealed record BodyWorldLocation(string Name, string DisplayName, bool Outdoors, IReadOnlyList<BodyWarp> Warps);
 

@@ -153,6 +153,13 @@ export function renderObservation(state: BodyState, radius: number): string {
   const exits = new Map<string, string>();
   for (const w of state.warps) if (!exits.has(w.to)) exits.set(w.to, `${w.to} via ${w.kind === "walk" ? "walking to" : "the door at"} (${w.x},${w.y})`);
   lines.push(`Exits: ${[...exits.values()].join("; ") || "none"}.`);
+  if (state.actionTiles !== undefined && state.actionTiles.length > 0) {
+    const tiles = [...state.actionTiles]
+      .sort((a, b) => (Math.abs(a.x - origin.x) + Math.abs(a.y - origin.y)) - (Math.abs(b.x - origin.x) + Math.abs(b.y - origin.y)))
+      .slice(0, 12)
+      .map((tile) => `(${tile.x},${tile.y}) '${tile.action}'`);
+    lines.push(`Tiles the game itself answers, raw${state.actionTiles.length > 12 ? ` (nearest 12 of ${state.actionTiles.length})` : ""}: ${tiles.join("; ")}.`);
+  }
   lines.push(`Map ${state.map.location} is ${state.map.width}x${state.map.height}; world_map shows the tiles.`);
   return lines.join("\n");
 }
