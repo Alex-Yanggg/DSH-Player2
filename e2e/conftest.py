@@ -16,7 +16,7 @@ sys.path.insert(0, str(ROOT))
 import gamepilot as gp  # noqa: E402
 from games.stardew import Paths, StardewGame, build_test_save  # noqa: E402
 
-CATEGORIES = ("boot", "presence", "conversation", "boundaries", "feel", "bline", "coop", "persona")
+CATEGORIES = ("boot", "presence", "conversation", "boundaries", "feel", "bline", "mine", "coop", "persona")
 _results: list[dict] = []
 _state: dict = {}
 

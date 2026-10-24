@@ -10,7 +10,7 @@ import { parsePersonaPack, type PersonaPack } from "@dsh-player2/contracts";
 import { afterEach, describe, expect, it } from "vitest";
 import * as companionPlugin from "./index.js";
 import { MindCore } from "./mind/core.js";
-import { SimAdapter } from "./body/sim-adapter.js";
+import { SimAdapter } from "./body/sim-adapter.testkit.js";
 
 const roots: string[] = [];
 const packPath = (id: string) => join(import.meta.dirname, "../../../personas", id, "persona.json");
@@ -20,6 +20,8 @@ async function createComposition(config: Partial<companionPlugin.Config> = {}): 
   const ctx = new Context();
   await ctx.plugin(SystemPrompt);
   await ctx.plugin(ToolRuntime);
+  // The real registry is DSH's own; a stub stands in for the bare test mount.
+  ctx.provide("agents", { list: () => [] });
   await ctx.plugin(companionPlugin, {
     persona: packPath("da-fei-yu"),
     ...config,
@@ -81,12 +83,15 @@ describe("Player2 companion inside the ACP profile", () => {
 
   it("mounts hands only when a body is reachable", async () => {
     const without = await createComposition();
-    expect(without.tools.schemas().map((tool) => tool.name).sort()).toEqual(["dream_commit", "remember"]);
+    expect(without.tools.schemas().map((tool) => tool.name).sort()).toEqual(["dream_commit", "lesson_learn", "remember"]);
     const sim = new SimAdapter({ locations: [{ name: "Farm", rows: ["..."], warps: [], objects: [], characters: [] }], body: { location: "Farm", x: 0, y: 0, items: [] } });
     const withBody = await createComposition({ body: sim });
     const names = withBody.tools.schemas().map((tool) => tool.name);
-    expect(names).toEqual(expect.arrayContaining(["world_observe", "body_walk_to", "body_input", "cheat_grant", "remember"]));
+    expect(names).toEqual(expect.arrayContaining(["world_observe", "world_find", "plan_set", "cheat_grant", "remember"]));
+    expect(names).not.toContain("body_input");
+    expect(names).not.toContain("body_walk_to");
     expect(renderPrompt(await withBody.systemPrompt.assemble())).toContain("create a goal for it right away");
+    expect(renderPrompt(await withBody.systemPrompt.assemble())).toContain("plan_set");
   });
 
   it("keeps what the companion nominates in the save's ledger and refuses a dream commit outside a dream", async () => {

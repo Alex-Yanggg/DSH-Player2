@@ -50,3 +50,56 @@ autonomy answers whose consent is required; it defaults to `consult`.
 composition, idempotent reuse, and conflicting-content refusal. The host setup
 calls `agentPresets.mount()` before lane plugins and writes `meta.agentPreset`;
 the dual-end reflect replay remains green across receipt → reflection → growth.
+
+## UR-2 A wake service for a sleeping agent
+
+**Status: open; recorded by P2-0021.**
+
+**What Player2 needs:** a session-scoped way to wake an idle agent with a few
+queued facts — once, coalescing repeats — without inventing a prompt the
+session would not otherwise have.
+
+**Why:** the P2-0021 small brain sleeps the mind while the body works a plan.
+The mind must wake exactly when the plan finishes, the stuck detector fires, a
+reflex fires, or a world event or chat arrives. Player2 composes this today
+from public DSH surface: `goals.disarm` sleeps the goal round driver,
+`goals.resume` re-arms it (an active→active re-arm is legal), and
+`agent.followup` opens a turn when no goal stands; wakes that land on a
+running turn are retried when it ends. The choreography works, but the
+pause/resume cycle and its retry belong in the runtime that owns the round
+driver.
+
+**In-boundary workaround shipped:** the plugin owns disarm on `plan_set`,
+resume-or-follow-up on wake, and a one-shot retry on the next idle edge.
+
+**Acceptance shape:** a wake service that queues facts for an idle agent,
+opens exactly one turn carrying them, coalesces wakes that arrive while a turn
+runs, and never fires while the agent is disposed. Player2's goal sleep/resume
+cycle and its follow-up fallback retire when it lands.
+
+## Game facts that cannot be exported
+
+The body protocol exports what the game holds as data: map tiles, tile
+properties, objects, warps, and (P2-0021) every tile `Action`/`TouchAction`
+string, plus mine-floor tiles as raw `sheet#index`. Two gates in the P2-0021
+mine scenario are code, not data, and stay outside any honest raw export.
+
+### GF-1 The mine's opening gate is an event, not map data
+
+The Mountain → Mine walk warp at (54,4) is exported. Until spring day 5 the
+game blocks it with a landslide implemented as code (a `DaysPlayed` gate and
+the spring-5 removal event), never as a tile property, object, or warp flag.
+The exported state shows the warp and the tiles, but nothing says the way is
+shut or when it opens. No vanilla data source carries the pairing, so no
+export can be honest about it; the companion has to learn it the way a player
+does (try, ask, search) and write a lesson.
+
+### GF-2 What a tile action does is code, not a property
+
+The mine floors answer by tilesheet index in `MineShaft.checkAction`
+(112 elevator, 115 exit ladder, 173 ladder down, 174 shaft), and the dynamic
+ladder is written into the map layer at runtime. The exporter ships those
+tiles raw (`mine#173`); what using one does lives in game code. A
+meaning-annotated export would be a game fact in this repository's code,
+which its rules forbid — the raw identifier plus the companion's own
+experiment, lessons and web search is the honest ceiling.

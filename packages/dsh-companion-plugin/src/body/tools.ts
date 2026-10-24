@@ -1,43 +1,33 @@
 import { defineTool } from "@deepseek-ai/dsh-tools";
-import type { BodyInputStep, BodyItem, BodyState, BodyUntil, BodyWorld } from "@dsh-player2/contracts";
-import type { BodyPort, BodyRun } from "./port.js";
-import { controlsOf, type Controls } from "./navigation.js";
-import { walkTo } from "./walk.js";
+import type { BodyInputStep, BodyItem, BodyState, BodyWorld } from "@dsh-player2/contracts";
+import type { BodyPort } from "./port.js";
 
 /**
- * The companion's hands as DSH tools: raw perception, raw input on the body's
- * own controller, and the navigation helper built on them. Every call runs
- * under the caller's own cancellation, so a cancelled turn stops the body too.
- * The adapter itself refuses cheat inputs while no cheat switch is on.
+ * The companion's perception as DSH tools: raw reads of the game state, the
+ * controller's own vocabulary, and the exported world graph. The body is never
+ * driven from here (P2-0021): all body work goes through `plan_set`, so these
+ * tools cannot act, only look.
  */
-export interface BodyContext {
-  readonly body: BodyPort;
-}
 
 export const BODY_TOOL_NAMES = {
   observe: "world_observe",
   find: "world_find",
   map: "world_map",
   locations: "world_locations",
-  walk: "body_walk_to",
   controls: "body_controls",
-  input: "body_input",
 } as const;
 
-const textOutput = { schema: { type: "string" }, render: (_args: unknown, value: unknown) => [{ type: "text" as const, text: String(value) }] } as const;
+/** The output shape every body tool returns. */
+export const textOutput = { schema: { type: "string" }, render: (_args: unknown, value: unknown) => [{ type: "text" as const, text: String(value) }] } as const;
 
-export function createBodyTools(hands: BodyContext) {
-  let controls: Controls | undefined;
-  let world: BodyWorld | undefined;
-  const controlsNow = async () => (controls ??= controlsOf(await hands.body.declaration()));
-  const loadWorld = async () => (world ??= await hands.body.world());
+export function createBodyTools(body: BodyPort) {
   return [
     defineTool({
       name: BODY_TOOL_NAMES.observe,
       description: "Look at the game right now: clock, your body (location, tile, toolbar, stamina), the player, things near you nearest first, characters and exits. Raw game state, no interpretation.",
       parameters: { radius: { type: "integer", description: "How many tiles around you to list things (default 10, max 40)." } },
       output: textOutput,
-      execute: async (args) => renderObservation(await hands.body.state(), Math.min(40, Math.max(1, args.radius ?? 10))),
+      execute: async (args) => renderObservation(await body.state(), Math.min(40, Math.max(1, args.radius ?? 10))),
     }),
     defineTool({
       name: BODY_TOOL_NAMES.find,
@@ -49,20 +39,7 @@ export function createBodyTools(hands: BodyContext) {
         limit: { type: "integer", description: "Maximum results (default 20, max 80)." },
       },
       output: textOutput,
-      execute: async (args) => {
-        const state = await hands.body.state();
-        const name = args.name?.toLowerCase();
-        const origin = state.body ?? state.player;
-        const hits = state.objects
-          .filter((o) => (args.kind === undefined || o.kind === args.kind)
-            && (name === undefined || o.name.toLowerCase().includes(name) || (o.id ?? "").toLowerCase().includes(name) || String(o.extra?.crop ?? "").toLowerCase().includes(name))
-            && (args.readyOnly !== true || o.extra?.ready === true))
-          .map((o) => ({ o, d: Math.abs(o.x - origin.x) + Math.abs(o.y - origin.y) }))
-          .sort((a, b) => a.d - b.d)
-          .slice(0, Math.min(80, Math.max(1, args.limit ?? 20)));
-        if (hits.length === 0) return `Nothing matching in ${state.map.location}${state.truncated.objects > 0 ? ` (${state.truncated.objects} far objects were not exported)` : ""}.`;
-        return [`${hits.length} match(es) in ${state.map.location}, nearest first:`, ...hits.map(({ o, d }) => `- ${describeObject(o)} [${d} tiles]`)].join("\n");
-      },
+      execute: async (args) => findObjects(await body.state(), args),
     }),
     defineTool({
       name: BODY_TOOL_NAMES.map,
@@ -73,100 +50,52 @@ export function createBodyTools(hands: BodyContext) {
         radius: { type: "integer", description: "Half-size of the window (default 8, max 20)." },
       },
       output: textOutput,
-      execute: async (args) => renderMap(await hands.body.state(), args.x, args.y, Math.min(20, Math.max(2, args.radius ?? 8))),
+      execute: async (args) => renderMapAround(await body.state(), { ...args, radius: Math.min(20, Math.max(2, args.radius ?? 8)) }),
     }),
     defineTool({
       name: BODY_TOOL_NAMES.locations,
       description: "List the game's locations and how they connect (exits), from the exported world graph.",
       parameters: { near: { type: "string", description: "Only this location and its neighbours." } },
       output: textOutput,
-      execute: async (args) => {
-        const graph = await loadWorld();
-        const rows = graph.locations
-          .filter((l) => args.near === undefined || l.name === args.near || l.warps.some((w) => w.to === args.near))
-          .map((l) => `- ${l.name}${l.displayName !== l.name ? ` (${l.displayName})` : ""}${l.outdoors ? ", outdoors" : ""}: exits to ${[...new Set(l.warps.map((w) => w.to))].join(", ") || "none"}`);
-        return rows.length === 0 ? "No such location in the world graph." : rows.join("\n");
-      },
-    }),
-    defineTool({
-      name: BODY_TOOL_NAMES.walk,
-      description: "Navigation helper: walk your body to a tile, across locations if needed. It plans a route on the exported map and plays it as held direction buttons, looking again after each leg. mode stand = stand on the tile; adjacent = stop next to it and face it (use before a tool or the action button on that tile). Reports honestly where you ended up.",
-      parameters: {
-        x: { type: "integer", required: true, description: "Target tile x." },
-        y: { type: "integer", required: true, description: "Target tile y." },
-        location: { type: "string", description: "Target location name (default: where you are)." },
-        mode: { type: "string", enum: ["stand", "adjacent"], description: "Default stand." },
-      },
-      output: textOutput,
-      execute: async (args, exec) => {
-        const result = await walkTo(hands.body, await controlsNow(), loadWorld, { x: args.x, y: args.y, mode: args.mode === "adjacent" ? "adjacent" : "stand", ...(args.location ? { location: args.location } : {}) }, exec.signal);
-        return `${result.ok ? "OK" : "NOT REACHED"}: ${result.reason}. Now at ${result.location ?? "?"} (${result.x ?? "?"},${result.y ?? "?"}) after ${result.legs} leg(s), ${Math.round(result.ms / 100) / 10} s.${eventsLine(result.events)}`;
-      },
+      execute: async (args) => locationsLine(await body.world(), args.near),
     }),
     defineTool({
       name: BODY_TOOL_NAMES.controls,
-      description: "Your controller: every button id, whether it is held or pressed, and what this game binds it to.",
+      description: "Your controller: every button id your plan steps can hold or press, and what this game binds it to.",
       parameters: {},
       output: textOutput,
-      execute: async () => (await hands.body.declaration()).inputs.map((i) => `- ${i.id} (${i.kind}${i.cheat ? ", cheat" : ""}): ${i.description}`).join("\n"),
-    }),
-    defineTool({
-      name: BODY_TOOL_NAMES.input,
-      description: `Raw input on your own controller: play a sequence of steps. Each step holds buttons (hold) for ms milliseconds and fires press buttons once at its start. The game does what the buttons do for any farmer, menus included. until can stop early: blockedMs, monsterWithin (tiles), warped, arrive {location,x,y,radius}. Button ids: see ${BODY_TOOL_NAMES.controls}.`,
-      parameters: {
-        steps: {
-          type: "array", required: true, description: "1-64 steps.",
-          items: {
-            type: "object", additionalProperties: false,
-            properties: {
-              hold: { type: "array", items: { type: "string" } },
-              press: { type: "array", items: { type: "string" } },
-              ms: { type: "integer", required: true },
-            },
-          },
-        },
-        until: { type: "object", additionalProperties: true, description: "Optional stop conditions." },
-      },
-      output: textOutput,
-      execute: async (args, exec) => {
-        const before = await hands.body.state();
-        const run = await hands.body.run(args.steps as BodyInputStep[], { ...(args.until ? { until: args.until as BodyUntil } : {}), signal: exec.signal });
-        return describeRun(run, before);
-      },
+      execute: async () => (await body.declaration()).inputs.map((i) => `- ${i.id} (${i.kind}${i.cheat ? ", cheat" : ""}): ${i.description}`).join("\n"),
     }),
   ] as const;
 }
 
-function describeRun(run: BodyRun, before: BodyState): string {
-  const after = run.state;
-  const lines = [`Input ${run.status}${run.reason ? ` (${run.reason})` : ""}.${eventsLine(run.events)}`];
-  if (after?.body && before.body) {
-    const diff = inventoryDiff(before.body.items, after.body.items);
-    if (diff !== "") lines.push(`Your toolbar changed: ${diff}.`);
-    lines.push(`Stamina ${Math.round(after.body.stamina)}. Now at ${after.body.location} (${after.body.x},${after.body.y}) facing ${after.body.facing}.`);
-  }
-  if (after) {
-    const diff = inventoryDiff(before.player.items, after.player.items);
-    if (diff !== "") lines.push(`The player's inventory changed: ${diff}.`);
-  }
-  return lines.join(" ");
+/** A stable short signature of one raw input sequence, so a resubmission matches. */
+export function stepsDigest(steps: readonly BodyInputStep[]): string {
+  const text = steps.map((s) => `${(s.hold ?? []).join("+")}|${(s.press ?? []).join("+")}|${s.ms}`).join(";").slice(0, 120);
+  return `${steps.length} step(s): ${text}`;
 }
 
-function eventsLine(events: readonly { kind: string; detail: string }[]): string {
-  const shown = events.filter((e) => !["done", "running"].includes(e.kind)).slice(-8);
-  return shown.length === 0 ? "" : ` Events: ${shown.map((e) => `${e.kind}: ${e.detail}`).join("; ")}.`;
+/** The `world_find` search shared by the tools and the plan's reports. */
+export function findObjects(state: BodyState, args: { kind?: string; name?: string; readyOnly?: boolean; limit?: number }): string {
+  const name = args.name?.toLowerCase();
+  const origin = state.body ?? state.player;
+  const hits = state.objects
+    .filter((o) => (args.kind === undefined || o.kind === args.kind)
+      && (name === undefined || o.name.toLowerCase().includes(name) || (o.id ?? "").toLowerCase().includes(name) || String(o.extra?.crop ?? "").toLowerCase().includes(name))
+      && (args.readyOnly !== true || o.extra?.ready === true))
+    .map((o) => ({ o, d: Math.abs(o.x - origin.x) + Math.abs(o.y - origin.y) }))
+    .sort((a, b) => a.d - b.d)
+    .slice(0, Math.min(80, Math.max(1, args.limit ?? 20)));
+  if (hits.length === 0) return `Nothing matching in ${state.map.location}${state.truncated.objects > 0 ? ` (${state.truncated.objects} far objects were not exported)` : ""}.`;
+  return [`${hits.length} match(es) in ${state.map.location}, nearest first:`, ...hits.map(({ o, d }) => `- ${describeObject(o)} [${d} tiles]`)].join("\n");
 }
 
-export function inventoryDiff(before: readonly BodyItem[], after: readonly BodyItem[]): string {
-  const count = (items: readonly BodyItem[]) => items.reduce((map, item) => map.set(item.name, (map.get(item.name) ?? 0) + item.stack), new Map<string, number>());
-  const a = count(before);
-  const b = count(after);
-  const changes: string[] = [];
-  for (const name of new Set([...a.keys(), ...b.keys()])) {
-    const delta = (b.get(name) ?? 0) - (a.get(name) ?? 0);
-    if (delta !== 0) changes.push(`${name} ${delta > 0 ? "+" : ""}${delta}`);
-  }
-  return changes.join(", ");
+/** The `world_locations` rendering shared by the tools and the world graph. */
+export function locationsLine(graph: BodyWorld, near: string | undefined): string {
+  const rows = graph.locations
+    .filter((l) => near === undefined || l.name === near || l.warps.some((w) => w.to === near))
+    .map((l) => `- ${l.name}${l.displayName !== l.name ? ` (${l.displayName})` : ""}${l.outdoors ? ", outdoors" : ""}: exits to ${[...new Set(l.warps.map((w) => w.to))].join(", ") || "none"}`);
+  return rows.length === 0 ? "No such location in the world graph." : rows.join("\n");
 }
 
 function describeObject(o: BodyState["objects"][number]): string {
@@ -224,15 +153,23 @@ export function renderObservation(state: BodyState, radius: number): string {
   const exits = new Map<string, string>();
   for (const w of state.warps) if (!exits.has(w.to)) exits.set(w.to, `${w.to} via ${w.kind === "walk" ? "walking to" : "the door at"} (${w.x},${w.y})`);
   lines.push(`Exits: ${[...exits.values()].join("; ") || "none"}.`);
+  if (state.actionTiles !== undefined && state.actionTiles.length > 0) {
+    const tiles = [...state.actionTiles]
+      .sort((a, b) => (Math.abs(a.x - origin.x) + Math.abs(a.y - origin.y)) - (Math.abs(b.x - origin.x) + Math.abs(b.y - origin.y)))
+      .slice(0, 12)
+      .map((tile) => `(${tile.x},${tile.y}) '${tile.action}'`);
+    lines.push(`Tiles the game itself answers, raw${state.actionTiles.length > 12 ? ` (nearest 12 of ${state.actionTiles.length})` : ""}: ${tiles.join("; ")}.`);
+  }
   lines.push(`Map ${state.map.location} is ${state.map.width}x${state.map.height}; world_map shows the tiles.`);
   return lines.join("\n");
 }
 
-function renderMap(state: BodyState, cx: number | undefined, cy: number | undefined, radius: number): string {
-  const x0 = Math.max(0, (cx ?? state.body?.x ?? state.player.x) - radius);
-  const y0 = Math.max(0, (cy ?? state.body?.y ?? state.player.y) - radius);
-  const x1 = Math.min(state.map.width - 1, x0 + 2 * radius);
-  const y1 = Math.min(state.map.height - 1, y0 + 2 * radius);
+/** The `world_map` window shared by the tools; `radius` arrives clamped (2..20). */
+export function renderMapAround(state: BodyState, args: { x?: number; y?: number; radius: number }): string {
+  const x0 = Math.max(0, (args.x ?? state.body?.x ?? state.player.x) - args.radius);
+  const y0 = Math.max(0, (args.y ?? state.body?.y ?? state.player.y) - args.radius);
+  const x1 = Math.min(state.map.width - 1, x0 + 2 * args.radius);
+  const y1 = Math.min(state.map.height - 1, y0 + 2 * args.radius);
   const overlay = new Map<string, string>();
   for (const o of state.objects) if (o.extra?.passable === false) overlay.set(`${o.x},${o.y}`, "o");
   if (state.body && state.body.location === state.map.location) overlay.set(`${state.body.x},${state.body.y}`, "@");

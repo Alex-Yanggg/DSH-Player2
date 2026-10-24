@@ -10,11 +10,14 @@
 import type { Episode } from "@dsh-player2/contracts";
 import { applyLedgerEdits, dreamEpisodes, ledgerDigest, parseLedgerEdits, type LedgerEditOutcome } from "./dream-ledger.js";
 import { writeLedgerExport } from "./export.js";
-import { PersonaLedger, type WhyRecord } from "./ledger.js";
+import { PersonaLedger, PERSONA_SAVE, lessonKey, lessonLines, lessonScore, type Lesson, type WhyRecord } from "./ledger.js";
 import { isWhyQuestion, mindContextNote } from "./mind-context.js";
 import { describeMood, type MoodEvent } from "./mood.js";
 import { retrieveEpisodes, type EpisodeSelector, type RetrievedEpisode } from "./retrieval.js";
 import type { EpisodeNomination } from "./turn-extras.js";
+
+/** Character cap of the session-start memory note (persona lessons + save facts). */
+export const MEMORY_NOTE_LIMIT = 900;
 
 /** What a turn was given, kept until the turn commits. */
 export interface PreparedMind {
@@ -78,6 +81,38 @@ export class MindCore {
     return added;
   }
 
+  /**
+   * The session-start memory note (P2-0020 T1): the persona's own lessons and
+   * this save's facts, most-used and newest first, under one hard cap. The
+   * save key is the session folder name, the id the mod derives from the
+   * game's `uniqueIDForThisGame`.
+   */
+  public async memoryNote(now: Date): Promise<string> {
+    const byScore = (a: Lesson, b: Lesson) => lessonScore(b, now) - lessonScore(a, now);
+    const [persona, facts] = await Promise.all([this.ledger.facts(PERSONA_SAVE), this.ledger.facts(this.save)]);
+    const header = "MEMORY (what you already know; history, never the present):";
+    const lines: string[] = [];
+    let size = header.length;
+    const take = (title: string, lessons: readonly Lesson[]): void => {
+      if (lessons.length === 0 || size + title.length > MEMORY_NOTE_LIMIT) return;
+      lines.push(title);
+      size += title.length;
+      for (const line of lessonLines(lessons)) {
+        if (size + 1 + line.length > MEMORY_NOTE_LIMIT) continue;
+        lines.push(line);
+        size += 1 + line.length;
+      }
+    };
+    take("YOUR LIBRARY (lessons you keep on every save):", [...persona].sort(byScore));
+    take("THIS SAVE, what your own days here taught (history, not the present):", [...facts].sort(byScore));
+    return lines.length === 0 ? "" : [header, ...lines].join("\n");
+  }
+
+  /** Keeps one lesson of this save. */
+  public async learnLesson(text: string, topic: string, now: Date): Promise<"kept" | "known"> {
+    return this.ledger.learnFact(this.save, text, topic, now);
+  }
+
   /** After a chat or day-start turn: move the mood and record why the reply was said. */
   public async commitTurn(occasion: "chat" | "day-start", turnId: string, replyText: string, prepared: PreparedMind, now: Date): Promise<void> {
     const events: MoodEvent[] = occasion === "chat" ? [{ kind: "chat" }] : [];
@@ -88,15 +123,23 @@ export class MindCore {
     });
   }
 
-  /** Before a dream: the day's episodes, traits, and story. */
+  /** Before a dream: the day's episodes, traits, story, and the memory already kept. */
   public async prepareDream(gameDay: number | null): Promise<PreparedDream> {
-    const [{ episodes }, story, person] = await Promise.all([this.ledger.episodes(this.save), this.ledger.story(this.save), this.ledger.person()]);
+    const [{ episodes }, story, person, persona, facts] = await Promise.all([
+      this.ledger.episodes(this.save), this.ledger.story(this.save), this.ledger.person(),
+      this.ledger.facts(PERSONA_SAVE), this.ledger.facts(this.save),
+    ]);
     const game = episodes.at(-1)?.game ?? DEFAULT_GAME;
     const shown = dreamEpisodes(episodes, gameDay ?? episodes.at(-1)?.gameDay ?? 0);
-    return { digest: ledgerDigest(shown, person.traits, story), shown, game };
+    const byScore = (a: Lesson, b: Lesson) => lessonScore(b, new Date()) - lessonScore(a, new Date());
+    const memory = [...lessonLines([...persona].sort(byScore)), ...lessonLines([...facts].sort(byScore))];
+    return { digest: ledgerDigest(shown, person.traits, story, memory), shown, game };
   }
 
-  /** A dream's ledger edits (the `dream_commit` arguments): validate, apply, refresh the export. */
+  /**
+   * A dream's ledger edits (the `dream_commit` arguments): validate, apply,
+   * distil its lessons, promote what two saves verified, refresh the export.
+   */
   public async commitDream(raw: unknown, prepared: PreparedDream, companionName: string, now: Date): Promise<LedgerEditOutcome | null> {
     const edits = parseLedgerEdits({ ledger: raw });
     let outcome: LedgerEditOutcome | null = null;
@@ -111,9 +154,53 @@ export class MindCore {
       if (result !== null) {
         if (result.story !== null && result.story !== story) await this.ledger.writeStory(this.save, result.story);
         if (result.forget.length > 0) await this.ledger.forgetEpisodes(this.save, result.forget);
+        const distilled: string[] = [];
+        for (const lesson of edits.lessons) {
+          try {
+            const kept = await this.ledger.learnFact(this.save, lesson.text, lesson.topic, now, lesson.worked);
+            distilled.push(`${kept === "known" ? "known" : "kept"}: ${lesson.text.slice(0, 60)}`);
+          } catch (error) {
+            distilled.push(`refused: ${error instanceof Error ? error.message : String(error)}`);
+          }
+        }
+        if (distilled.length > 0) outcome = { ...result, applied: [...result.applied, ...distilled] };
       }
     }
+    // The persona layer's only writer is this code rule (P2-0021): a save
+    // lesson marked worked reaches the library once two saves verified it.
+    const promoted = await this.promoteVerifiedLessons(now);
+    if (promoted.length > 0) outcome = { ...(outcome ?? { person: await this.ledger.person(), story: await this.ledger.story(this.save), forget: [], applied: [], rejected: [] }), applied: [...(outcome?.applied ?? []), ...promoted] };
     await writeLedgerExport(this.ledger, companionName, now);
     return outcome;
+  }
+
+  /**
+   * The persona-level learning trigger: a save lesson whose approach was
+   * verified successful (marked `worked`) in two different saves is promoted
+   * into the persona's own lesson store, so every save of this person starts
+   * with it (the session-start note shows them under the existing cap).
+   */
+  private async promoteVerifiedLessons(now: Date): Promise<string[]> {
+    const promoted: string[] = [];
+    const held = new Set((await this.ledger.facts(PERSONA_SAVE)).map((lesson) => lessonKey(lesson.text)));
+    const verified = new Map<string, { text: string; topic: string; saves: Set<string> }>();
+    for (const save of await this.ledger.saves()) {
+      for (const fact of await this.ledger.facts(save)) {
+        if (fact.worked !== true) continue;
+        const key = lessonKey(fact.text);
+        const entry = verified.get(key) ?? { text: fact.text, topic: fact.topic, saves: new Set<string>() };
+        entry.text = fact.text;
+        entry.saves.add(save);
+        verified.set(key, entry);
+      }
+    }
+    for (const entry of verified.values()) {
+      const key = lessonKey(entry.text);
+      if (entry.saves.size < 2 || held.has(key)) continue;
+      await this.ledger.learnFact(PERSONA_SAVE, entry.text, entry.topic, now);
+      held.add(key);
+      promoted.push(`promoted to your library (verified in ${entry.saves.size} saves): ${entry.text.slice(0, 60)}`);
+    }
+    return promoted;
   }
 }

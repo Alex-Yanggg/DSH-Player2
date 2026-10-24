@@ -88,14 +88,19 @@ def _forget_previous_test_save(paths: Paths) -> None:
 def build_test_save(paths: Paths, source: str | None = None) -> Path:
     """Fresh isolated copy of a day-1 save under this run's new unique ID - a fresh test character - so chat
     history and sessions never mix with the player's real saves or with an earlier run. The template is
-    any untouched day-1 save folder name under Saves, named by E2E_SOURCE_SAVE; it is only ever read."""
+    any untouched day-1 save folder name under Saves, named by E2E_SOURCE_SAVE; it is only ever read.
+    E2E_DAY (with optional E2E_SEASON/E2E_YEAR) re-dates the copy natively, which scenario runs use to
+    start past date gates such as the landslide that blocks the mines until spring 5."""
     source = source or os.environ.get("E2E_SOURCE_SAVE", "")
     if not source or not (paths.saves / source / source).is_file():
         raise RuntimeError(f"set E2E_SOURCE_SAVE to a day-1 save folder in {paths.saves} (got {source!r}); see e2e/README.md")
     _forget_previous_test_save(paths)
     LAST_TEST_SAVE.parent.mkdir(parents=True, exist_ok=True)
     LAST_TEST_SAVE.write_text(str(TEST_SAVE_ID), encoding="utf-8")
-    dst = copy_save(paths, source, TEST_SAVE_ID)
+    day = int(os.environ["E2E_DAY"]) if os.environ.get("E2E_DAY") else None
+    dst = copy_save(paths, source, TEST_SAVE_ID, day=day,
+                    season=os.environ.get("E2E_SEASON"), year=int(os.environ["E2E_YEAR"]) if os.environ.get("E2E_YEAR") else None,
+                    strip_farm_stones=bool(os.environ.get("E2E_STRIP_FARM_STONES")))
     # Reset our bridge sessions only - the path is keyed by the test ID, never by a real save's.
     for d in paths.session_dirs():
         shutil.rmtree(d, ignore_errors=True)
@@ -106,7 +111,7 @@ SEASONS = ("spring", "summer", "fall", "winter")
 
 
 def copy_save(paths: Paths, source: str, save_id: int, day: int | None = None, season: str | None = None,
-              year: int | None = None) -> Path:
+              year: int | None = None, strip_farm_stones: bool = False) -> Path:
     """Copies a save to `E2E_<save_id>` under a new unique id, the source only read. The date fields are edited in
     the save XML itself, so a copy can start on any day with whatever the source already holds (a created
     companion farmhand, a cabin) and no day-1 creation runs."""
@@ -136,6 +141,14 @@ def copy_save(paths: Paths, source: str, save_id: int, day: int | None = None, s
         xml = re.sub(r"<string>daysPlayed</string></key><value><unsignedInt>\d+<", played, xml)
         for tag, value in (("dayOfMonthForSaveGame", d), ("seasonForSaveGame", s), ("yearForSaveGame", y)):
             head = re.sub(rf"<{tag}>\d+<", f"<{tag}>{value}<", head)
+    if strip_farm_stones:
+        # A Hill-Top template ships and regrows quarry stones: strip every Stone object from the
+        # Farm block so the scenario's ore can only come from the mine (the route oracle checks).
+        head_at = xml.index('xsi:type="Farm"')
+        end_at = xml.index("</GameLocation>", head_at)
+        farm = xml[head_at:end_at]
+        farm = re.sub(r"<Object>(?:(?!</Object>).)*<name>Stone</name>(?:(?!</Object>).)*</Object>", "", farm, flags=re.S)
+        xml = xml[:head_at] + farm + xml[end_at:]
     main.write_text(xml, encoding="utf-8")
     info.write_text(head, encoding="utf-8")
     return dst
@@ -297,23 +310,38 @@ class StardewFlows:
         in_bed = rf"{re.escape(SENT)}\[world day={day}\] .* went to bed"
         self.smapi.poll()
         mark = len(self.smapi.lines)
-        for _ in range(3):  # step out of bed and back in; the game asks only after the farmer has moved
+        for _ in range(5):  # step out of bed and back in; the game asks only after the farmer has moved
             self.refocus()
             self.kb.hold("a", 0.4)
             self.kb.hold("d", 0.5)
-            if self._wait_dialog(3):
-                self.kb.tap("y")  # the sleep question's Yes
-                if self.smapi.wait_for(in_bed, 5, since=mark):
-                    break
+            self._wait_dialog(5)
+            # The sleep question's Yes, tapped even when the dimmed night screen hides the
+            # dialog from the color heuristic; without a question the tap is harmless.
+            self.kb.tap("y")
+            if self.smapi.wait_for(in_bed, 5, since=mark):
+                break
         self.shot(f"host_in_bed_day{day}")
         if not self.smapi.wait_for(in_bed, 0, since=mark):
             raise TimeoutError("the host never got into bed")
-        if not self.smapi.wait_for(r"screen_0 SMAPI\] Context: before save", 720, since=mark):
+        if not self._wait_night_end(mark):
             raise TimeoutError("the night never ended: the companion did not go to bed")
         lines = [ln for _, ln in self.smapi.lines]
         start = max(i for i, ln in enumerate(lines) if "Context: before save" in ln)
         if not self.smapi.wait_for(rf"Player2 sent: \[day-start day={day + 1}\]", 120, since=start):
             raise TimeoutError("the next day never started")
+
+    def _wait_night_end(self, mark: int, timeout_s: int = 720) -> bool:
+        """Waits for the night's save. A menu left open on the shared screen freezes the world (a
+        companion trapped in a menu cannot sleep out), so Escape is tapped now and then - closing
+        a menu that nobody needs is harmless when no menu is up."""
+        deadline = time.monotonic() + timeout_s
+        while time.monotonic() < deadline:
+            left = deadline - time.monotonic()
+            if self.smapi.wait_for(r"screen_0 SMAPI\] Context: before save", min(45, left), since=mark) is not None:
+                return True
+            self.refocus()
+            self.kb.tap("esc")
+        return False
 
     def _wait_dialog(self, timeout: float) -> bool:
         deadline = time.monotonic() + timeout
