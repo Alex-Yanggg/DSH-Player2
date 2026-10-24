@@ -36,7 +36,7 @@ def test_ten_copper_from_spring_day_1(world, hello, art):
     days, s = [], world.state()
     with GoalMetrics(world, art.dir) as metrics:
         while True:
-            day, health = s["time"]["day"], s["body"].get("health")
+            day, health, had = s["time"]["day"], s["body"].get("health"), _copper(s)
             mark, route = len(world.smapi.lines), [s["body"]["location"]]
             while s["time"]["timeOfDay"] < BEDTIME and _copper(s) < WANTED:
                 time.sleep(2)
@@ -46,6 +46,7 @@ def test_ten_copper_from_spring_day_1(world, hello, art):
             world.smapi.poll()
             said = [ln.split(SAID, 1)[1] for _, ln in world.smapi.lines[mark:] if SAID in ln]
             days.append({"day": s["time"]["dayOfMonth"], "said": said, "route": route, "copper": _copper(s),
+                         "ore_from": _copper(s) - had, "mine_visited": any(str(loc).startswith("UndergroundMine") for loc in route),
                          "woke_health": health, "died": any("fainted" in ln.lower() or "passed out" in ln.lower() for _, ln in world.smapi.lines[mark:])})
             world.shot(f"mine_spring_day{day - first_day + 1}")
             art.record("mine_spring", ask_reply=ex.reply, days=days)
@@ -59,3 +60,5 @@ def test_ten_copper_from_spring_day_1(world, hello, art):
     art.record("mine_spring", ask_reply=ex.reply, days=days, errors=errors[-20:], metrics=metrics.summary(),
                prompts=sum(SENT in ln for _, ln in world.smapi.lines))
     assert _copper(s) >= WANTED, f"{_copper(s)} copper ore after {len(days)} day(s): {days}"
+    bad = [d for d in days if d["ore_from"] > 0 and not d["mine_visited"]]
+    assert not bad, f"ore appeared without a mine visit (farm ore?): {bad}"

@@ -99,7 +99,8 @@ def build_test_save(paths: Paths, source: str | None = None) -> Path:
     LAST_TEST_SAVE.write_text(str(TEST_SAVE_ID), encoding="utf-8")
     day = int(os.environ["E2E_DAY"]) if os.environ.get("E2E_DAY") else None
     dst = copy_save(paths, source, TEST_SAVE_ID, day=day,
-                    season=os.environ.get("E2E_SEASON"), year=int(os.environ["E2E_YEAR"]) if os.environ.get("E2E_YEAR") else None)
+                    season=os.environ.get("E2E_SEASON"), year=int(os.environ["E2E_YEAR"]) if os.environ.get("E2E_YEAR") else None,
+                    strip_farm_stones=bool(os.environ.get("E2E_STRIP_FARM_STONES")))
     # Reset our bridge sessions only - the path is keyed by the test ID, never by a real save's.
     for d in paths.session_dirs():
         shutil.rmtree(d, ignore_errors=True)
@@ -110,7 +111,7 @@ SEASONS = ("spring", "summer", "fall", "winter")
 
 
 def copy_save(paths: Paths, source: str, save_id: int, day: int | None = None, season: str | None = None,
-              year: int | None = None) -> Path:
+              year: int | None = None, strip_farm_stones: bool = False) -> Path:
     """Copies a save to `E2E_<save_id>` under a new unique id, the source only read. The date fields are edited in
     the save XML itself, so a copy can start on any day with whatever the source already holds (a created
     companion farmhand, a cabin) and no day-1 creation runs."""
@@ -140,6 +141,14 @@ def copy_save(paths: Paths, source: str, save_id: int, day: int | None = None, s
         xml = re.sub(r"<string>daysPlayed</string></key><value><unsignedInt>\d+<", played, xml)
         for tag, value in (("dayOfMonthForSaveGame", d), ("seasonForSaveGame", s), ("yearForSaveGame", y)):
             head = re.sub(rf"<{tag}>\d+<", f"<{tag}>{value}<", head)
+    if strip_farm_stones:
+        # A Hill-Top template ships and regrows quarry stones: strip every Stone object from the
+        # Farm block so the scenario's ore can only come from the mine (the route oracle checks).
+        head_at = xml.index('xsi:type="Farm"')
+        end_at = xml.index("</GameLocation>", head_at)
+        farm = xml[head_at:end_at]
+        farm = re.sub(r"<Object>(?:(?!</Object>).)*<name>Stone</name>(?:(?!</Object>).)*</Object>", "", farm, flags=re.S)
+        xml = xml[:head_at] + farm + xml[end_at:]
     main.write_text(xml, encoding="utf-8")
     info.write_text(head, encoding="utf-8")
     return dst
