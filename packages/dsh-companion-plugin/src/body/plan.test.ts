@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { BodyObject } from "@dsh-player2/contracts";
 import { PlanBoard, type PlanStepInput } from "./plan.js";
 import { sleep } from "./port.js";
-import { SimAdapter, type SimLocation } from "./sim-adapter.js";
+import { SimAdapter, type SimLocation } from "./sim-adapter.testkit.js";
 import { StuckWatch } from "./stuck.js";
 
 vi.setConfig({ testTimeout: 60_000 });
@@ -56,7 +56,6 @@ async function until(ready: () => boolean, ms = 20_000): Promise<void> {
   const deadline = Date.now() + ms;
   while (!ready() && Date.now() < deadline) await sleep(50);
 }
-
 describe("the plan board", () => {
   it("works handed-down steps in code with no model turn, reports, and wakes the mind when finished", async () => {
     const sim = open();
@@ -71,8 +70,14 @@ describe("the plan board", () => {
     expect(made.woken()).toBe(0);
     await until(() => sim.tile.x === 11 && sim.tile.y === 1);
     expect(sim.tile).toEqual({ x: 11, y: 1 });
-    await until(() => made.board.drain().some((fact) => fact.startsWith("Plan finished")));
-    expect(made.board.status()).toContain("No plan");
+    const deadline = Date.now() + 20_000;
+    let facts = "";
+    while (Date.now() < deadline) {
+      facts += made.board.drain().join("\n");
+      if (facts.includes("Plan finished: reach the shrine")) break;
+      await sleep(50);
+    }
+    expect(facts).toContain("Plan finished: reach the shrine");
     expect(made.woken()).toBeGreaterThanOrEqual(1); // the mind is woken only when the plan finished
   });
 
@@ -115,7 +120,6 @@ describe("the plan board", () => {
     await until(() => sim.snapshot().body?.activeTask != null);
     expect(made.board.set("rethink", [])).toContain("Plan cleared");
     expect(made.board.wakePending()).toBe(true);
-    expect(made.board.status()).toContain("No plan");
   });
 });
 

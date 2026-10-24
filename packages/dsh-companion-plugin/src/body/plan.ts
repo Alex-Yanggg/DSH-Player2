@@ -78,16 +78,6 @@ export class PlanBoard {
     return `Plan handed down: ${prepared.length} step(s). The body works it without you; you are woken when it finishes or hits a wall.`;
   }
 
-  /** Where the plan stands right now, for the mind's own check-ins. */
-  public status(): string {
-    const plan = this.plan;
-    if (plan === null) return "No plan in the body's hands.";
-    return [
-      `Plan: ${plan.approach} — step ${Math.min(plan.index + 1, plan.steps.length)} of ${plan.steps.length}${this.working ? ", working now" : ""}${this.watch.isHolding() ? ", ON HOLD after repeated failure" : ""}.`,
-      ...plan.steps.map((step, index) => `${index < plan.index ? "done" : index === plan.index ? "next" : "queued"}: ${step.label}`),
-    ].join("\n");
-  }
-
   /** Progress facts for the mind's next turn, drained. */
   public drain(): string[] {
     this.wake = false;

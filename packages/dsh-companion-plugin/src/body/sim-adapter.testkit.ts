@@ -4,6 +4,7 @@ import {
   type BodyCharacter,
   type BodyDeclaration,
   type BodyEvent,
+  type BodyInputStep,
   type BodyItem,
   type BodyObject,
   type BodyState,
@@ -11,16 +12,13 @@ import {
   type BodyTaskStatus,
   type BodyWarp,
   type BodyWorld,
-  type BodyInputStep,
 } from "@dsh-player2/contracts";
 import { sleep, type BodyPort, type BodyRun, type RunOptions } from "./port.js";
 
 /**
- * A keyless stand-in for the Stardew body, behind the same body port
- * (P2-0021). Replays and tests use it to drive navigation, the body tools and
- * reflexes without a game. Its world is a
- * toy: tile collision, a hoe, a watering can, seeds that grow when told to,
- * and monsters that vanish when hit.
+ * Test support, not shipped: the sim bench the behavior tests run against —
+ * a BodyPort over a tiny tick-driven world (P2-0017's adapter, kept beside
+ * the tests; the package builds without it).
  */
 
 export interface SimLocation {

@@ -10,7 +10,7 @@ import { parsePersonaPack, type PersonaPack } from "@dsh-player2/contracts";
 import { afterEach, describe, expect, it } from "vitest";
 import * as companionPlugin from "./index.js";
 import { MindCore } from "./mind/core.js";
-import { SimAdapter } from "./body/sim-adapter.js";
+import { SimAdapter } from "./body/sim-adapter.testkit.js";
 
 const roots: string[] = [];
 const packPath = (id: string) => join(import.meta.dirname, "../../../personas", id, "persona.json");

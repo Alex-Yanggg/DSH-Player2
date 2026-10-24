@@ -42,11 +42,9 @@ import { NOMINABLE_KINDS, nominationOf } from "./mind/turn-extras.js";
 export * from "./mind/index.js";
 export { GameBody, sleep, type BodyPort, type BodyRun, type RunOptions } from "./body/port.js";
 export { PersonaDice, tendencyLines, turnNudges } from "./body/knobs.js";
-export { SimAdapter, type SimLocation, type SimOptions } from "./body/sim-adapter.js";
 export { ReflexBody, ReflexEngine, loadReflexTable, nearestMonster, renderFact, roleButtons } from "./body/reflex.js";
 export { StuckWatch, stateDigest, stuckFact, STUCK_HITS, type StuckAttempt } from "./body/stuck.js";
 export { PlanBoard, type PlanStepInput } from "./body/plan.js";
-export { Toy2Adapter, TOY2_GOAL } from "./body/toy2.js";
 export { createBodyTools, BODY_TOOL_NAMES, renderObservation } from "./body/tools.js";
 
 declare module "@deepseek-ai/dsh-llm" {

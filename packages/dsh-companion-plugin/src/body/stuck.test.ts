@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { BodyCharacter, BodyItem, BodyObject } from "@dsh-player2/contracts";
 import { PlanBoard } from "./plan.js";
 import { sleep } from "./port.js";
-import { SimAdapter, type SimLocation, type SimTaskState } from "./sim-adapter.js";
+import { SimAdapter, type SimLocation, type SimTaskState } from "./sim-adapter.testkit.js";
 import { stateDigest, StuckWatch } from "./stuck.js";
 
 vi.setConfig({ testTimeout: 30_000 });

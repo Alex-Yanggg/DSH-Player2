@@ -4,7 +4,7 @@ import { bodyDeclarationSchema, bodyStateSchema, bodyTaskSchema, bodyTaskStatusS
 import { BODY_TOOL_NAMES, createBodyTools } from "./tools.js";
 import { PersonaDice, probability, seededUniform, turnNudges } from "./knobs.js";
 import { controlsOf, findPath, locationRoute, pathToSteps, Walkability } from "./navigation.js";
-import { SimAdapter, type SimLocation } from "./sim-adapter.js";
+import { SimAdapter, type SimLocation } from "./sim-adapter.testkit.js";
 import { walkTo } from "./walk.js";
 
 // The sim plays body tasks at a real tick pace; under a full parallel run a

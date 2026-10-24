@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parseReflexTable, type BodyItem, type ReflexTable } from "@dsh-player2/contracts";
 import { loadReflexTable, ReflexBody } from "./reflex.js";
-import { SimAdapter, type SimLocation } from "./sim-adapter.js";
+import { SimAdapter, type SimLocation } from "./sim-adapter.testkit.js";
 
 vi.setConfig({ testTimeout: 30_000 });
 

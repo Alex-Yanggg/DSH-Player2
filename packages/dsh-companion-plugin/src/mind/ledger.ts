@@ -310,24 +310,6 @@ export class PersonaLedger {
     });
   }
 
-  /** Marks the shown facts used, so the prompt's ordering follows what serves. */
-  public async markFactsUsed(save: string, shown: readonly string[], now: Date): Promise<void> {
-    await this.exclusive(async () => {
-      const keys = new Set(shown.map(lessonKey));
-      if (keys.size === 0) return;
-      const facts = await this.facts(save);
-      let touched = false;
-      for (const fact of facts) {
-        if (keys.has(lessonKey(fact.text)) && fact.lastUsedAt !== now.toISOString()) {
-          fact.uses += 1;
-          fact.lastUsedAt = now.toISOString();
-          touched = true;
-        }
-      }
-      if (touched) await this.writeFacts(save, facts, now);
-    });
-  }
-
   private async writeFacts(save: string, facts: Lesson[], now: Date): Promise<void> {
     const kept = [...facts]
       .sort((left, right) => lessonScore(right, now) - lessonScore(left, now))

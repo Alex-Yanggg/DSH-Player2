@@ -85,16 +85,15 @@ export class MindCore {
    * The session-start memory note (P2-0020 T1): the persona's own lessons and
    * this save's facts, most-used and newest first, under one hard cap. The
    * save key is the session folder name, the id the mod derives from the
-   * game's `uniqueIDForThisGame`. Showing a line marks it used.
+   * game's `uniqueIDForThisGame`.
    */
   public async memoryNote(now: Date): Promise<string> {
+    const byScore = (a: Lesson, b: Lesson) => lessonScore(b, now) - lessonScore(a, now);
     const [persona, facts] = await Promise.all([this.ledger.facts(PERSONA_SAVE), this.ledger.facts(this.save)]);
     const header = "MEMORY (what you already know; history, never the present):";
     const lines: string[] = [];
-    const shownPersona: string[] = [];
-    const shownFacts: string[] = [];
     let size = header.length;
-    const take = (title: string, lessons: readonly Lesson[], shown: string[]): void => {
+    const take = (title: string, lessons: readonly Lesson[]): void => {
       if (lessons.length === 0 || size + title.length > MEMORY_NOTE_LIMIT) return;
       lines.push(title);
       size += title.length;
@@ -102,14 +101,11 @@ export class MindCore {
         if (size + 1 + line.length > MEMORY_NOTE_LIMIT) continue;
         lines.push(line);
         size += 1 + line.length;
-        shown.push(line.replace(/^- \[[^\]]*\] /, ""));
       }
     };
-    take("YOUR LIBRARY (lessons you keep on every save):", [...persona].sort((a, b) => lessonScore(b, now) - lessonScore(a, now)), shownPersona);
-    take("THIS SAVE, what your own days here taught (history, not the present):", [...facts].sort((a, b) => lessonScore(b, now) - lessonScore(a, now)), shownFacts);
-    if (lines.length === 0) return "";
-    await Promise.all([this.ledger.markFactsUsed(PERSONA_SAVE, shownPersona, now), this.ledger.markFactsUsed(this.save, shownFacts, now)]);
-    return [header, ...lines].join("\n");
+    take("YOUR LIBRARY (lessons you keep on every save):", [...persona].sort(byScore));
+    take("THIS SAVE, what your own days here taught (history, not the present):", [...facts].sort(byScore));
+    return lines.length === 0 ? "" : [header, ...lines].join("\n");
   }
 
   /** Keeps one lesson of this save. */

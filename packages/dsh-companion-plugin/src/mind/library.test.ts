@@ -31,7 +31,7 @@ describe("the persona lesson store and the save facts (P2-0020 T1, P2-0021)", ()
     expect((await core.ledger.facts(core.save))).toHaveLength(1);
   });
 
-  it("renders the memory note from both layers, capped, and marks what it showed", async () => {
+  it("renders the memory note from both layers under the cap", async () => {
     const core = await mindAt(project(), "431271845");
     await core.ledger.learnFact(PERSONA_SAVE, "Swing the tool at blockers instead of pressing the action button.", "blockers", NOW);
     await core.learnLesson("The mine is closed by a landslide until spring day 5.", "mines", NOW);
@@ -40,10 +40,9 @@ describe("the persona lesson store and the save facts (P2-0020 T1, P2-0021)", ()
     expect(note).toContain("YOUR LIBRARY");
     expect(note).toContain("THIS SAVE");
     expect(note).toContain("The mine is closed by a landslide until spring day 5.");
-    // Shown lines count as used: a second note orders and marks again without duplicating.
+    // A second sitting sees the same note; ordering follows uses and age.
     const second = await core.memoryNote(later);
     expect(second).toContain("The mine is closed by a landslide until spring day 5.");
-    expect((await core.ledger.facts(core.save))[0].uses).toBe(2);
     expect(note.length).toBeLessThanOrEqual(MEMORY_NOTE_LIMIT + 200);
   });
 
