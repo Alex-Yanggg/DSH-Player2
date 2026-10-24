@@ -1,0 +1,1 @@
+{"content":"Wood +1. Now the red key at (2,2).","toolCalls":[{"id":"call_00_kiBPPyTOfnAE9D1W3OBh6877","name":"body_walk_to","args":{"mode":"adjacent","x":2,"y":2}}],"ms":777,"cached":false,"usage":{"prompt":2754,"completion":85}}

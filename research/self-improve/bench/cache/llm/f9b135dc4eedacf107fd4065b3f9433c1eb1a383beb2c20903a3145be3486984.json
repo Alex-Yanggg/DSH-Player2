@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_rTtfnB7Tfr7EzwUjgiOz4558","name":"body_input","args":{"steps":[{"press":["Slot1"],"ms":100},{"press":["Action"],"ms":400},{"press":["Slot3"],"ms":100},{"press":["Action"],"ms":400},{"press":["Slot2"],"ms":100},{"press":["Action"],"ms":400}]}}],"ms":1091,"cached":false,"usage":{"prompt":1867,"completion":112}}

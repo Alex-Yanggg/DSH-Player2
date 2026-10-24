@@ -1,0 +1,1 @@
+{"content":"I'll head along the bottom row then up the right side, away from the slimes.","toolCalls":[{"id":"call_00_yG2OBGDCUZUY1wqjWIRJ9926","name":"body_walk_to","args":{"x":11,"y":1,"mode":"adjacent"}}],"ms":946,"cached":false,"usage":{"prompt":1733,"completion":90}}

@@ -1,0 +1,1 @@
+{"content":"Health is critical (10/100) and a slime is on my tile. I'll move away to the right and swing at it.","toolCalls":[{"id":"call_00_408Bsi2bnv0eT6HsaHKX8281","name":"body_input","args":{"steps":[{"hold":["DPadRight"],"ms":500},{"ms":200,"press":["ControllerX"]}]}}],"ms":998,"cached":false,"usage":{"prompt":3583,"completion":93}}

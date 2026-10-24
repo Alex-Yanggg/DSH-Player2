@@ -1,0 +1,1 @@
+{"content":"I'm standing on the ladder tile. Let me confirm the ladder interaction works (the task is to get to the ladder).","toolCalls":[{"id":"call_00_anJpJEJvht3qrBalByNk2867","name":"body_input","args":{"steps":[{"ms":300,"press":["action"]}]}}],"ms":880,"cached":false,"usage":{"prompt":2085,"completion":74}}

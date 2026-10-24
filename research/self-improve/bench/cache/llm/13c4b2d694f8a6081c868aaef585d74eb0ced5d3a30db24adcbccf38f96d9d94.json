@@ -1,0 +1,1 @@
+{"content":"Six tiles done. Let me verify all crops are planted and watered.","toolCalls":[{"id":"call_00_skTCnclKZcQgYM3ckvbg0808","name":"world_find","args":{"kind":"dirt","limit":20}}],"ms":1086,"cached":false,"usage":{"prompt":4222,"completion":68}}

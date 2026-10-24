@@ -1,0 +1,1 @@
+{"content":"Row y=3 done. Now (7,4).","toolCalls":[{"id":"call_00_5iNrLioYyv7IzYWTd8oe7615","name":"body_walk_to","args":{"mode":"adjacent","x":7,"y":4}}],"ms":987,"cached":false,"usage":{"prompt":3327,"completion":83}}

@@ -1,0 +1,1 @@
+{"content":"Wood picked up. Now the second wood at (10,3).","toolCalls":[{"id":"call_00_Xr16df9ALSHVF2goXR1D9744","name":"body_walk_to","args":{"mode":"adjacent","x":10,"y":3}}],"ms":930,"cached":false,"usage":{"prompt":3111,"completion":85}}

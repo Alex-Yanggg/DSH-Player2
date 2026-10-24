@@ -1,0 +1,21 @@
+{
+  "name": "mine",
+  "predicates": {
+    "at_ladder(x,y)": { "objectKind": "ladder" },
+    "monster_within(n)": { "monsterWithinTiles": "n" },
+    "health_at_most(n)": { "healthAtMost": "n" }
+  },
+  "actions": [
+    { "id": "GotoLadder", "cost": 1, "pre": [], "add": ["at_ladder(11,1)"],
+      "operator": { "type": "guardedWalkTo", "monsterWithin": 2 },
+      "interrupt": [
+        { "when": ["health_at_most(20)", "monster_within(3)"], "action": "Retreat" },
+        { "when": ["monster_within(2)"], "action": "SwingMonster" }
+      ] },
+    { "id": "SwingMonster", "cost": 2, "pre": ["monster_within(1)"], "add": [],
+      "operator": { "type": "swingNearest", "slot": 0, "button": "ControllerX" } },
+    { "id": "Retreat", "cost": 3, "pre": ["health_at_most(20)", "monster_within(2)"], "add": [],
+      "operator": { "type": "retreat", "minDistanceTiles": 5 } }
+  ],
+  "goalChain": ["at_ladder(11,1)"]
+}

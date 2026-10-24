@@ -1,0 +1,1 @@
+{"content":"Health is critical (10/100) and a slime is on my tile. I'll kill the slime above me first.","toolCalls":[{"id":"call_00_1gBmiPKFUTQKkLSm6mEl5164","name":"body_input","args":{"steps":[{"press":["attack"],"ms":200}]}}],"ms":927,"cached":false,"usage":{"prompt":2257,"completion":75}}

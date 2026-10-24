@@ -1,0 +1,1 @@
+{"content":"Wood at (10,1) still there. I'm at (10,2) facing up — interact.","toolCalls":[{"id":"call_00_y11Px8PUD2kGPqcezXKM0682","name":"body_input","args":{"steps":[{"press":["KeyE"],"ms":200}]}}],"ms":869,"cached":false,"usage":{"prompt":4175,"completion":72}}

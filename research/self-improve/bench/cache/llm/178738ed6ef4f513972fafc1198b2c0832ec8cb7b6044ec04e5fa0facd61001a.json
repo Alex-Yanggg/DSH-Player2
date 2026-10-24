@@ -1,0 +1,1 @@
+{"content":"I'll head up and right toward the ladder, staying clear of the slimes.","toolCalls":[{"id":"call_00_ltKeUeyeqn8MzE5xkIRz9849","name":"body_walk_to","args":{"x":11,"y":1,"mode":"adjacent"}}],"ms":1174,"cached":false,"usage":{"prompt":1733,"completion":88}}

@@ -1,0 +1,1 @@
+{"content":"Now unlock the red door at (8,3).","toolCalls":[{"id":"call_00_o6YggRiPowEdLaulg8l22722","name":"body_walk_to","args":{"mode":"adjacent","x":8,"y":3}}],"ms":1394,"cached":false,"usage":{"prompt":2981,"completion":82}}

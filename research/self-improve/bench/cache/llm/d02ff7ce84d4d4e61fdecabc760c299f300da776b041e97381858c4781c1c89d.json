@@ -1,0 +1,1 @@
+{"content":"The wood is at (6,7) where I stand. Let me step off and face it, then interact.","toolCalls":[{"id":"call_00_u1iqAj9xelI6h0E4zeHX4488","name":"body_walk_to","args":{"mode":"adjacent","x":6,"y":7}}],"ms":1282,"cached":false,"usage":{"prompt":2520,"completion":95}}

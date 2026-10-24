@@ -1,0 +1,1 @@
+{"content":"I'm next to the ladder, facing it. Let me step onto it.","toolCalls":[{"id":"call_00_QXpMXUDqzC1C8AyolIE47238","name":"body_walk_to","args":{"mode":"stand","x":11,"y":1}}],"ms":876,"cached":false,"usage":{"prompt":2100,"completion":86}}

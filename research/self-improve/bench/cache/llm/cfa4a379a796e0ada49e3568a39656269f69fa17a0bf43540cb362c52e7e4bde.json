@@ -1,0 +1,1 @@
+{"content":"Now unlock the red door at (8,3) to reach the wood room.","toolCalls":[{"id":"call_00_6Fj9RUskFVtqtR2hKsX82506","name":"body_walk_to","args":{"mode":"adjacent","x":8,"y":3}}],"ms":1282,"cached":false,"usage":{"prompt":2980,"completion":88}}

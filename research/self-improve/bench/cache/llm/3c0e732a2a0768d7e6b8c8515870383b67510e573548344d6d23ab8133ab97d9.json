@@ -1,0 +1,1 @@
+{"content":"Blue door open. Now grab stone at (10,7) and (11,8).","toolCalls":[{"id":"call_00_63cBDAmGts7o9NbQXzev0280","name":"body_walk_to","args":{"mode":"adjacent","x":10,"y":7}}],"ms":1137,"cached":false,"usage":{"prompt":4518,"completion":90}}

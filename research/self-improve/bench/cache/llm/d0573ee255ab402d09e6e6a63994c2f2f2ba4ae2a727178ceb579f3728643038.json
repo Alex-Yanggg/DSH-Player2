@@ -1,0 +1,1 @@
+{"content":"A slime is on my tile. I'll face it and swing the sword.","toolCalls":[{"id":"call_00_M8J5VtU5t91piOrz7hb88609","name":"body_input","args":{"steps":[{"press":["Slot1"],"ms":100},{"press":["Action"],"ms":300}]}}],"ms":891,"cached":false,"usage":{"prompt":2263,"completion":78}}

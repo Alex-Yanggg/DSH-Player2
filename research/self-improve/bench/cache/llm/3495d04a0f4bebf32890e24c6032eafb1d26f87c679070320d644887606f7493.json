@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_UjdtxpB8N0V7PZ6PbKus6192","name":"body_input","args":{"steps":[{"hold":["DPadDown"],"ms":120},{"press":["ControllerX"],"ms":200}]}}],"ms":978,"cached":false,"usage":{"prompt":2503,"completion":64}}

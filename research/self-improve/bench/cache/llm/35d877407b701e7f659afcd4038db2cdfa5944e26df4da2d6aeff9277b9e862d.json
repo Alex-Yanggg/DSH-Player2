@@ -1,0 +1,1 @@
+{"content":"I'll head to the ladder at (11,1), avoiding the slimes.","toolCalls":[{"id":"call_00_5D6VSuswH4fxAtpNyqmD4607","name":"body_walk_to","args":{"x":11,"y":1,"mode":"stand"}}],"ms":989,"cached":false,"usage":{"prompt":1750,"completion":87}}

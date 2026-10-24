@@ -1,0 +1,1 @@
+{"content":"Wood x3. Now I need 2 Stone. The stone room is through the blue door at (8,6). Let me go there.","toolCalls":[{"id":"call_00_FZxsQnaJwvwn2iqjbhEr4997","name":"body_walk_to","args":{"mode":"adjacent","x":8,"y":6}}],"ms":1333,"cached":false,"usage":{"prompt":4286,"completion":101}}

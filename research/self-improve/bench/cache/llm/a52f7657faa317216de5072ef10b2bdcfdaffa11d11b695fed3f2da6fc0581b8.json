@@ -1,0 +1,1 @@
+{"content":"The ladder is on my own tile, so I need to face it — let me step off and face back onto it.","toolCalls":[{"id":"call_00_3K1hm6wbwnBjejG29UuS6389","name":"body_walk_to","args":{"mode":"adjacent","x":11,"y":1}}],"ms":929,"cached":false,"usage":{"prompt":2490,"completion":96}}

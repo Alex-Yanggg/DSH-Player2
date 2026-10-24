@@ -1,0 +1,1 @@
+{"content":"A slime is on my tile and I'm taking damage. I'll step away and swing at it.","toolCalls":[{"id":"call_00_H1DpK0Di1dbiRcviTC9C9431","name":"body_input","args":{"steps":[{"hold":["DPadDown"],"ms":400},{"ms":200,"press":["ControllerX"]}]}}],"ms":1078,"cached":false,"usage":{"prompt":3227,"completion":86}}

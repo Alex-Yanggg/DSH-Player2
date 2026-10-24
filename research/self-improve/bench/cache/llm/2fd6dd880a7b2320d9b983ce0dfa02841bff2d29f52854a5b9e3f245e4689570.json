@@ -1,0 +1,1 @@
+{"content":"I'm standing on the ladder tile. Let me confirm the ladder is usable here.","toolCalls":[{"id":"call_00_beFv6zWwflBnrbSAnvNc4767","name":"world_find","args":{"kind":"object","name":"ladder"}}],"ms":987,"cached":false,"usage":{"prompt":2118,"completion":71}}

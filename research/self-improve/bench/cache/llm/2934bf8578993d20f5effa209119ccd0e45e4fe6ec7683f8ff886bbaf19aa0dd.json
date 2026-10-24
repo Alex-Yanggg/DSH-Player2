@@ -1,0 +1,1 @@
+{"content":"Now grab the wood at (10,3) and (10,1)... wait, (10,1) is where I stand. Let me get wood at (10,3).","toolCalls":[{"id":"call_00_3FQXW9uXWY7gtRAtKxGQ7853","name":"body_walk_to","args":{"mode":"adjacent","x":10,"y":3}}],"ms":895,"cached":false,"usage":{"prompt":3423,"completion":109}}

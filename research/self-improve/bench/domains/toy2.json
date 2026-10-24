@@ -1,0 +1,86 @@
+{
+  "name": "toy2",
+  "predicates": {
+    "has_wood(n)": {
+      "itemAtLeast": {
+        "name": "Wood",
+        "count": 1
+      }
+    },
+    "has_stone(n)": {
+      "itemAtLeast": {
+        "name": "Stone",
+        "count": 1
+      }
+    },
+    "has_red_key(n)": {
+      "itemAtLeast": {
+        "name": "Red Key",
+        "count": 1
+      }
+    },
+    "has_blue_key(n)": {
+      "itemAtLeast": {
+        "name": "Blue Key",
+        "count": 1
+      }
+    },
+    "has_crown(n)": {
+      "itemAtLeast": {
+        "name": "Crown",
+        "count": 1
+      }
+    },
+    "door_open(x,y)": {
+      "noObjectKind": "door"
+    }
+  },
+  "actions": [
+    {
+      "id": "PickUpAt",
+      "cost": 1,
+      "pre": [],
+      "add": [],
+      "del": [],
+      "operator": {
+        "type": "pressAt",
+        "button": "KeyE"
+      }
+    },
+    {
+      "id": "OpenDoor",
+      "cost": 1,
+      "pre": [],
+      "add": [
+        "door_open(x,y)"
+      ],
+      "del": [],
+      "operator": {
+        "type": "pressAt",
+        "button": "KeyE"
+      }
+    },
+    {
+      "id": "Craft",
+      "cost": 2,
+      "pre": [
+        "has_wood(3)",
+        "has_stone(2)"
+      ],
+      "add": [
+        "has_crown(1)"
+      ],
+      "del": [],
+      "operator": {
+        "type": "pressAt",
+        "button": "KeyC",
+        "anchorKind": "bench"
+      }
+    }
+  ],
+  "goalChain": [],
+  "doorKeys": {
+    "red": "Red Key",
+    "blue": "Blue Key"
+  }
+}

@@ -1,0 +1,1 @@
+{"content":"A slime is on my tile and my health is dropping. I'll step away and kill it with the sword.","toolCalls":[{"id":"call_00_ViHpNtBmShdVKM8iy8GQ8875","name":"body_input","args":{"steps":[{"hold":["DPadLeft"],"ms":400},{"press":["ControllerX"],"ms":300}]}}],"ms":1168,"cached":false,"usage":{"prompt":2855,"completion":87}}
