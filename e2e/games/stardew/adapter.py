@@ -331,7 +331,7 @@ class StardewFlows:
             if self.smapi.wait_for(r"screen_0 SMAPI\] Context: before save", min(45, left), since=mark) is not None:
                 return True
             self.refocus()
-            self.kb.tap("escape")
+            self.kb.tap("esc")
         return False
 
     def _wait_dialog(self, timeout: float) -> bool:
