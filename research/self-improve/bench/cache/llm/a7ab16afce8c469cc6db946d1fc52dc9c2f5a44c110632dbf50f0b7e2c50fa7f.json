@@ -1,0 +1,1 @@
+{"content":"Now the third Wood at (9,8) — that's on the other side of the wall. Let me check the map for the right room layout.","toolCalls":[{"id":"call_00_SitzOpZss7noa6hEjjP11279","name":"world_map","args":{"radius":12}}],"ms":1033,"cached":false,"usage":{"prompt":3354,"completion":68}}

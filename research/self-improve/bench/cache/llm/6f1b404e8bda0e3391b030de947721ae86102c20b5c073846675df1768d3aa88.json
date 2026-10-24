@@ -1,0 +1,1 @@
+{"content":"I'm already adjacent to the Wood at (10,3). Let me interact to pick it up.","toolCalls":[{"id":"call_00_wvReexekEmZos0jJ3HP61045","name":"body_input","args":{"steps":[{"press":["KeyE"],"ms":100}]}}],"ms":967,"cached":false,"usage":{"prompt":2363,"completion":70}}

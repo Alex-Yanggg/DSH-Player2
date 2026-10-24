@@ -1,0 +1,1 @@
+{"content":"Got 1 Wood. Now let me get the Wood at (9,1) and Stone at (10,1).","toolCalls":[{"id":"call_00_dDkMwCFQWTUlxUejySFD0812","name":"body_walk_to","args":{"mode":"adjacent","x":9,"y":1}}],"ms":1006,"cached":false,"usage":{"prompt":2808,"completion":96}}

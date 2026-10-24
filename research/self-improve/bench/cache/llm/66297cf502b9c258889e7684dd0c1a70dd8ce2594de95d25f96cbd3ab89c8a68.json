@@ -1,0 +1,1 @@
+{"content":"The rock blocks the only path. Let me try interacting with it — maybe the action button or a tool clears it. First walk adjacent to the rock.","toolCalls":[{"id":"call_00_Cbj69MeBCQOLO6ysAwUV3358","name":"body_walk_to","args":{"mode":"adjacent","x":11,"y":4}}],"ms":1048,"cached":false,"usage":{"prompt":2802,"completion":102}}

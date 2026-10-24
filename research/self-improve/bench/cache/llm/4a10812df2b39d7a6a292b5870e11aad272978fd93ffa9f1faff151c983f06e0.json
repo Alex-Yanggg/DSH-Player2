@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_XqCNAf17SCztFNaBSuzQ0287","name":"world_map","args":{"x":10,"y":5,"radius":6}},{"id":"call_01_bY9U42ZuCJ6Y9GQZwxkQ8438","name":"web_search","args":{"queries":["workbench craft Crown requirements","pick up materials KeyE"]}}],"ms":911,"cached":false,"usage":{"prompt":1460,"completion":111}}

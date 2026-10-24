@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_jgkpm9wHwG84MV7cmVeC8347","name":"web_fetch","args":{"url":"https://keycraftGuide.example/silver-door"}},{"id":"call_01_BgIlbsTy2Rqz3OiAE1Ap9839","name":"web_fetch","args":{"url":"https://keycraftGuide.example/panels"}}],"ms":920,"cached":false,"usage":{"prompt":1907,"completion":83}}

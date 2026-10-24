@@ -1,0 +1,1 @@
+{"content":"The notice board seems to be on my tile and not interactable from here. Let me focus on gathering materials. First, the Wood at (4,6).","toolCalls":[{"id":"call_00_7fkZHlhWjEn7okU88psD4381","name":"body_walk_to","args":{"x":4,"y":6,"mode":"adjacent"}}],"ms":1334,"cached":false,"usage":{"prompt":2827,"completion":104}}

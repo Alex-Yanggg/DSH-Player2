@@ -1,0 +1,1 @@
+{"content":"3 Wood now. Now the two Stones at (10,1) and (9,8).","toolCalls":[{"id":"call_00_FqGDhWtL3NMIoIPEl3xa5111","name":"body_walk_to","args":{"mode":"adjacent","x":10,"y":1}}],"ms":1370,"cached":false,"usage":{"prompt":4159,"completion":91}}

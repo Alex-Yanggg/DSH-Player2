@@ -1,0 +1,1 @@
+{"content":"The chest is still there. The task is to stand on its tile — let me walk onto (11,1).","toolCalls":[{"id":"call_00_0Y93bF86Gw5P7AYPliCp8337","name":"body_walk_to","args":{"mode":"stand","x":11,"y":1}}],"ms":993,"cached":false,"usage":{"prompt":4225,"completion":94}}

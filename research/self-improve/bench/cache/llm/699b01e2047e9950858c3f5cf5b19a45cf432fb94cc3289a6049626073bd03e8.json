@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_xnck0ckuVhdKHFj978W33499","name":"world_observe","args":{"radius":20}},{"id":"call_01_IsK9UgPVO0fnXe1F9fcW5987","name":"web_search","args":{"queries":["controller buttons action button ids","interact button names"]}}],"ms":852,"cached":false,"usage":{"prompt":2544,"completion":80}}

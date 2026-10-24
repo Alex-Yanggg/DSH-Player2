@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_93jaoXfRmvclXSMyXdBi9549","name":"world_observe","args":{"radius":20}},{"id":"call_01_juPuIwi6qnoYKtXjcmgM3983","name":"web_search","args":{"queries":["workbench craft Crown","Gold Door workshop","workshop bench access"]}}],"ms":1073,"cached":false,"usage":{"prompt":2190,"completion":84}}

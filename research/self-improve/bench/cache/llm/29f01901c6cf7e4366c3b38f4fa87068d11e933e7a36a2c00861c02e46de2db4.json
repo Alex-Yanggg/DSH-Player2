@@ -1,0 +1,1 @@
+{"content":"The rockslide is gone. Now let me walk to the chest at (11,1).","toolCalls":[{"id":"call_00_P1AieV9hF5OLlKoftPmd5087","name":"body_walk_to","args":{"mode":"stand","x":11,"y":1}}],"ms":755,"cached":false,"usage":{"prompt":4810,"completion":89}}

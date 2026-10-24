@@ -1,0 +1,1 @@
+{"content":"I'm not moving right — the player Tester is at (3,7) blocking me. Let me check the map and move around.","toolCalls":[{"id":"call_00_dJVhbwk25wRNa300A0Ox1678","name":"world_map","args":{"radius":4}}],"ms":1134,"cached":false,"usage":{"prompt":3028,"completion":65}}

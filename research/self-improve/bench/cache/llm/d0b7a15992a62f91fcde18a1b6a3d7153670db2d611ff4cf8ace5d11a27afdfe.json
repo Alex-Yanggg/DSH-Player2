@@ -1,0 +1,1 @@
+{"content":"Long waits time out. Let me wait in smaller chunks and check the time.","toolCalls":[{"id":"call_00_tyAjOMTDNj6jGYO65Bzn8505","name":"body_input","args":{"steps":[{"hold":[],"ms":8000}]}}],"ms":964,"cached":false,"usage":{"prompt":4702,"completion":63}}

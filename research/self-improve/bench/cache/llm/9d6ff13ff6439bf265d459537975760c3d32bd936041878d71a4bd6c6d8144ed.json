@@ -1,0 +1,1 @@
+{"content":"The Notice Board at (2,7) is blocking me — I'm standing on it. Let me move off it first.","toolCalls":[{"id":"call_00_01mAeEKiGV5lgehpuclR0348","name":"body_input","args":{"steps":[{"hold":["KeyD"],"ms":400}]}}],"ms":991,"cached":false,"usage":{"prompt":2752,"completion":75}}

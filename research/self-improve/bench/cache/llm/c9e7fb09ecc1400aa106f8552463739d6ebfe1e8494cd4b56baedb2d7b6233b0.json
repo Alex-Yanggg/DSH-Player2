@@ -1,0 +1,1 @@
+{"content":"Day 5 and the rockslide is gone. Now walk to the chest.","toolCalls":[{"id":"call_00_37DkD5OXnhNmOGtnkn3f4622","name":"body_walk_to","args":{"mode":"stand","x":11,"y":1}}],"ms":911,"cached":false,"usage":{"prompt":5889,"completion":86}}

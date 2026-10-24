@@ -1,0 +1,1 @@
+{"content":"It's Day 2, so the gold door is locked. I can gather Wood and Stone from the west half. Let me check the map.","toolCalls":[{"id":"call_00_AWH4mSFdvW2do3cRRwJQ1116","name":"world_map","args":{"radius":12}}],"ms":1173,"cached":false,"usage":{"prompt":2059,"completion":66}}

@@ -1,0 +1,1 @@
+{"content":"No key in the Workshop. Let me check the notice board and other locations.","toolCalls":[{"id":"call_00_FLRbzOTFhPAljXGMxiNR9448","name":"world_locations","args":{}},{"id":"call_01_IIPdgTdtDt5EROlIYcLy3188","name":"world_observe","args":{"radius":40}}],"ms":1026,"cached":false,"usage":{"prompt":3787,"completion":67}}

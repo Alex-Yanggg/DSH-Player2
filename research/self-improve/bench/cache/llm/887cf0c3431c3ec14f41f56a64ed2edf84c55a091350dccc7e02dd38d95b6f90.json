@@ -1,0 +1,1 @@
+{"content":"Now let me try the Gold Door.","toolCalls":[{"id":"call_00_b07Pr4VVlfzK5extU9q97178","name":"body_walk_to","args":{"mode":"adjacent","x":7,"y":6}}],"ms":1171,"cached":false,"usage":{"prompt":3976,"completion":79}}

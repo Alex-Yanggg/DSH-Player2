@@ -1,0 +1,1 @@
+{"content":"The right side is behind the Gold Door. Let me check the map more carefully — the door at (7,6) seems to separate the rooms.","toolCalls":[{"id":"call_00_vc4JcWaOHw6af2kmDm4u0016","name":"world_map","args":{"radius":12,"x":7,"y":6}}],"ms":1023,"cached":false,"usage":{"prompt":2829,"completion":99}}

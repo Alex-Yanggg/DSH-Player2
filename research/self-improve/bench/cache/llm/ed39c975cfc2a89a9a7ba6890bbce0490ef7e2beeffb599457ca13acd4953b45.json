@@ -1,0 +1,1 @@
+{"content":"The passage at (7,3) is now open. Let me go collect the materials. First Wood at (9,8).","toolCalls":[{"id":"call_00_VlpiINP1TbC66bADnl5o4328","name":"body_walk_to","args":{"mode":"adjacent","x":9,"y":8}}],"ms":951,"cached":false,"usage":{"prompt":3255,"completion":98}}

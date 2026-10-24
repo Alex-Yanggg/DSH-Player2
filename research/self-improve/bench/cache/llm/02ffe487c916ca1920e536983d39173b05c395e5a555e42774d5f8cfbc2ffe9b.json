@@ -1,0 +1,1 @@
+{"content":"I'll start by looking around to understand where I am.","toolCalls":[{"id":"call_00_Zv5YdtpTXQTHU1pt69li2808","name":"world_observe","args":{"radius":15}},{"id":"call_01_spVJAAn2t9Xh43CBUDU26544","name":"world_locations","args":{}}],"ms":941,"cached":false,"usage":{"prompt":2014,"completion":63}}

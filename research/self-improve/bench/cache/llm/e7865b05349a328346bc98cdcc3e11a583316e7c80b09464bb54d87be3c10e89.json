@@ -1,0 +1,1 @@
+{"content":"The notice board is on my own tile and I can't interact with it or move off it. This is a genuine blocker. Let me check the world map more broadly and see if there's a warp or something.","toolCalls":[{"id":"call_00_bCYiAOCa8gOVrxS3arWK1984","name":"world_locations","args":{}}],"ms":1102,"cached":false,"usage":{"prompt":4541,"completion":65}}

@@ -1,0 +1,1 @@
+{"content":"The chest is at (11,1). Path: go around the wall at y=3 via x=11 column. Let me walk there.","toolCalls":[{"id":"call_00_25me5LnrmX1nN28KjPYF2220","name":"body_walk_to","args":{"x":11,"y":1,"mode":"stand"}}],"ms":1214,"cached":false,"usage":{"prompt":2095,"completion":100}}

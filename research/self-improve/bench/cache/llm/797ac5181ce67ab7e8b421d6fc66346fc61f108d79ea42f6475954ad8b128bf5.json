@@ -1,0 +1,1 @@
+{"content":"The wall at (7,3) is now open. Let me collect the materials. First Wood at (9,8).","toolCalls":[{"id":"call_00_7JrgadwiMj2JkQwPwVCr2152","name":"body_walk_to","args":{"mode":"adjacent","x":9,"y":8}}],"ms":1022,"cached":false,"usage":{"prompt":3301,"completion":97}}

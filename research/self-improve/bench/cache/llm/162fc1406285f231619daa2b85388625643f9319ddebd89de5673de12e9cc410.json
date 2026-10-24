@@ -1,0 +1,1 @@
+{"content":"Now 3 Wood, 1 Stone. Need 1 more Stone at (11,8).","toolCalls":[{"id":"call_00_ANSAGGKw0hSapojHScio1683","name":"body_walk_to","args":{"mode":"adjacent","x":11,"y":8}}],"ms":1084,"cached":false,"usage":{"prompt":3173,"completion":91}}

@@ -1,0 +1,1 @@
+{"content":"The hoe didn't break it. Let me try the action button (ControllerA) on it.","toolCalls":[{"id":"call_00_hFpqG2KFRpiSzILlPn4w2122","name":"body_input","args":{"steps":[{"press":["ControllerA"],"ms":300}]}}],"ms":1137,"cached":false,"usage":{"prompt":3083,"completion":69}}

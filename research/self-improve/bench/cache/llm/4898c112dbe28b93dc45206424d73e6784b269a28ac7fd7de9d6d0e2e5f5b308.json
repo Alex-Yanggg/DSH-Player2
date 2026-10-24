@@ -1,0 +1,1 @@
+{"content":"3 Wood collected. Now the two Stones at (10,1) and (11,8).","toolCalls":[{"id":"call_00_2mEnuWCFNiuI9MBQPGVI2816","name":"body_walk_to","args":{"mode":"adjacent","x":10,"y":1}}],"ms":833,"cached":false,"usage":{"prompt":2748,"completion":91}}

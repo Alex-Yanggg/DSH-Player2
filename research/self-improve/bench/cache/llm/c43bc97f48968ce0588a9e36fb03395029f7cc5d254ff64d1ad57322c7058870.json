@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_6iEDknVLgDPGKiy6O80N9240","name":"world_observe","args":{"radius":20}},{"id":"call_01_X3HBMcpO1N65rxNAHvXG8170","name":"web_search","args":{"queries":["Gold Door","door key","workshop"]}}],"ms":1025,"cached":false,"usage":{"prompt":2427,"completion":79}}

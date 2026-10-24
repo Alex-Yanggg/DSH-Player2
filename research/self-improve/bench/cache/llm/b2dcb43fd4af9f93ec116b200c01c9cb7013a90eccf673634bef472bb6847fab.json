@@ -1,0 +1,1 @@
+{"content":"I have 2 Wood. I need 1 more Wood and 2 Stone, all on the right side. Let me check the notice board and try the door.","toolCalls":[{"id":"call_00_f7e02nsU0LknxyQ7Isv85997","name":"body_walk_to","args":{"mode":"adjacent","x":2,"y":7}}],"ms":921,"cached":false,"usage":{"prompt":2816,"completion":105}}

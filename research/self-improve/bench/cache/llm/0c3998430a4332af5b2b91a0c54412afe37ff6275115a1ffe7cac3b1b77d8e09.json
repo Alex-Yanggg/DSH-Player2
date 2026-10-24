@@ -1,0 +1,1 @@
+{"content":"The chest is at (11,1). The rock at (11,4) blocks the right column, so I'll go up the left side and across the top row.","toolCalls":[{"id":"call_00_uRcE1oRHxsQFx3SQ6Fbu2979","name":"body_walk_to","args":{"x":11,"y":1,"mode":"stand"}}],"ms":1322,"cached":false,"usage":{"prompt":2040,"completion":106}}

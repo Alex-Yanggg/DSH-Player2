@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_ZQZHS7z5FVx2vAJuAW0I6546","name":"world_observe","args":{"radius":20}},{"id":"call_01_u4HNQa9duFamKOZsboIY7259","name":"world_map","args":{"radius":20}}],"ms":1166,"cached":false,"usage":{"prompt":4322,"completion":67}}

@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_qMExqScFOMlUgWan6J7c2777","name":"plan_submit","args":{"steps":[{"args":{"mode":"adjacent","x":7,"y":3},"tool":"body_walk_to"},{"args":{"steps":[{"press":["KeyE"],"ms":200}]},"tool":"body_input"},{"args":{},"tool":"world_observe"}]}}],"ms":1145,"cached":false,"usage":{"prompt":2727,"completion":111}}

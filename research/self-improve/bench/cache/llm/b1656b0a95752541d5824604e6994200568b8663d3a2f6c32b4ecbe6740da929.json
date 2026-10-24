@@ -1,0 +1,1 @@
+{"content":"{\"kind\":\"raw_input\",\"steps\":[{\"hold\":[],\"press\":[\"ControllerA\"],\"ms\":200},{\"hold\":[\"ControllerA\"],\"press\":[],\"ms\":300}]}","toolCalls":[],"ms":951,"cached":false,"usage":{"prompt":274,"completion":40}}

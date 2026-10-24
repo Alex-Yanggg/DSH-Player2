@@ -1,0 +1,1 @@
+{"content":"The button id \"left\" is invalid. Let me check what button ids the game uses.","toolCalls":[{"id":"call_00_0LeUdDBtk9BSqvSPze0Q8162","name":"web_search","args":{"queries":["controls button ids interact use tool","how to till soil plant seeds controls"]}}],"ms":1093,"cached":false,"usage":{"prompt":2917,"completion":72}}

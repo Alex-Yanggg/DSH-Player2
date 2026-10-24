@@ -1,0 +1,1 @@
+{"content":"I'm at (9,2). Let me check the map and pick up materials.","toolCalls":[{"id":"call_00_h5EMkXYvKkPmB3zagTzb3776","name":"world_map","args":{"radius":10}}],"ms":948,"cached":false,"usage":{"prompt":1933,"completion":54}}

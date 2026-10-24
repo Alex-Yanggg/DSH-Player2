@@ -1,0 +1,1 @@
+{"content":"The panel opened a passage. Let me explore the east room.","toolCalls":[{"id":"call_00_WRtiL5OPRZF5pomK5RRd1383","name":"body_walk_to","args":{"x":10,"y":3,"mode":"adjacent"}}],"ms":776,"cached":false,"usage":{"prompt":2836,"completion":84}}

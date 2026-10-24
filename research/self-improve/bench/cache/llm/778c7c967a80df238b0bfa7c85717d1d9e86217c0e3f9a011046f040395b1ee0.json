@@ -1,0 +1,1 @@
+{"content":"Down is blocked too. Let me test left.","toolCalls":[{"id":"call_00_U1tiRzQTBTSgI6rgUL4L9100","name":"body_input","args":{"steps":[{"hold":["KeyA"],"ms":1500}],"until":{"blockedMs":400}}}],"ms":1257,"cached":false,"usage":{"prompt":14079,"completion":82}}

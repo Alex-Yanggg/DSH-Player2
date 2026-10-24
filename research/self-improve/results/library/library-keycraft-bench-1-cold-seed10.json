@@ -1,0 +1,15 @@
+{
+  "saveId": "keycraft-bench-1-cold-seed10",
+  "facts": [
+    {
+      "lesson": "Workshop's Gold Door at (7,6) is locked and needs the gold key; the east half of the Workshop (workbench, stone, wood at x>=9) is behind it.",
+      "topic": "gold door",
+      "session": 1
+    },
+    {
+      "lesson": "Notice board in Workshop: the key vendor's first visit is the morning of day 3, leaving a Gold Key by the Gold Door; the bench room can't be entered before day 3.",
+      "topic": "gold key",
+      "session": 1
+    }
+  ]
+}

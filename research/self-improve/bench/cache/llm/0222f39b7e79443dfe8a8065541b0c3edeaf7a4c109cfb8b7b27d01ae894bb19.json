@@ -1,0 +1,1 @@
+{"content":"The panel opened a passage. Now let me get the materials.","toolCalls":[{"id":"call_00_chaoFDKsiY9jHfEOr8O92201","name":"world_map","args":{"radius":12}}],"ms":1218,"cached":false,"usage":{"prompt":2930,"completion":49}}

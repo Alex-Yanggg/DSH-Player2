@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_Ut1q4VsDgeu4QZGRdTx53143","name":"web_fetch","args":{"url":"https://valley-wiki.example/shrine-lever"}},{"id":"call_01_JAAekufyikM15H8JUv0w6377","name":"web_fetch","args":{"url":"https://valley-wiki.example/clay-golem"}}],"ms":1281,"cached":false,"usage":{"prompt":1748,"completion":88}}

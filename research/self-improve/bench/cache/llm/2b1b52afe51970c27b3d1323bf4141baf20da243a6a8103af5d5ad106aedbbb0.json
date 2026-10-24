@@ -1,0 +1,1 @@
+{"content":"The rockslide blocks the path. Let me walk up to it and try interacting with it (maybe it can be cleared with a tool).","toolCalls":[{"id":"call_00_a569q4NSLzPOWPzHQr9f3662","name":"body_walk_to","args":{"mode":"adjacent","x":11,"y":4}}],"ms":988,"cached":false,"usage":{"prompt":2482,"completion":99}}

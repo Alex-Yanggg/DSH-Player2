@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_5chmOZ8U5qz54vJAUInX3364","name":"world_map","args":{"x":10,"y":5,"radius":6}},{"id":"call_01_48BVO2bzqsbQkGLh2e0k7898","name":"web_search","args":{"queries":["Crown crafting recipe workbench","Gold Door key"]}}],"ms":811,"cached":false,"usage":{"prompt":1463,"completion":110}}

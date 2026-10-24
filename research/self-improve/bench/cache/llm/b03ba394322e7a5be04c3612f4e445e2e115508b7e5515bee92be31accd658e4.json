@@ -1,0 +1,1 @@
+{"content":"Movement isn't working at all. Let me check the map more carefully — maybe the notice board is blocking and I need to interact differently.","toolCalls":[{"id":"call_00_BNoSONMcy4B1K1EWwiBr3410","name":"world_find","args":{"kind":"notice"}}],"ms":1282,"cached":false,"usage":{"prompt":3615,"completion":65}}

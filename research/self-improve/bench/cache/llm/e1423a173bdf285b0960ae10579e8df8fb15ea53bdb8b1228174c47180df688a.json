@@ -1,0 +1,1 @@
+{"content":"I moved to (3,2) facing right, away from the wood at (2,2). Let me face left toward it and press E.","toolCalls":[{"id":"call_00_V03MnJNh52CIcnDioawk4038","name":"body_input","args":{"steps":[{"hold":["KeyA"],"ms":100},{"press":["KeyE"],"ms":100}]}}],"ms":1202,"cached":false,"usage":{"prompt":3307,"completion":93}}

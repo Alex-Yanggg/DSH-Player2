@@ -1,0 +1,1 @@
+{"content":"Let me try using the hoe on the rockslide.","toolCalls":[{"id":"call_00_UjRegpRNaJdNZfTHwY6x7635","name":"body_input","args":{"steps":[{"press":["ControllerX"],"ms":300}]}}],"ms":1121,"cached":false,"usage":{"prompt":2859,"completion":60}}

@@ -1,0 +1,1 @@
+{"content":"The Loose Panel at (7,3) is on my side of the door. Let me check it.","toolCalls":[{"id":"call_00_DQpDoeNufcRE9qpGItrN2583","name":"body_walk_to","args":{"mode":"adjacent","x":7,"y":3}}],"ms":980,"cached":false,"usage":{"prompt":2786,"completion":94}}

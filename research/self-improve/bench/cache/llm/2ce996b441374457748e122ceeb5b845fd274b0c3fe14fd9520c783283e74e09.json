@@ -1,0 +1,1 @@
+{"content":"Door opened. Now let me gather the remaining materials: Wood at (9,1), Stone at (10,1), Stone at (9,8).","toolCalls":[{"id":"call_00_lYof4fEN6qeJXifKPZ3C3209","name":"body_walk_to","args":{"mode":"adjacent","x":9,"y":1}}],"ms":1001,"cached":false,"usage":{"prompt":3845,"completion":103}}

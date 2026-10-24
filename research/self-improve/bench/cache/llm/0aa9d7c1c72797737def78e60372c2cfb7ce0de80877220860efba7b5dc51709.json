@@ -1,0 +1,1 @@
+{"content":"\"use\" is also rejected. Let me look for the actual control scheme — maybe the wiki has a controls page.","toolCalls":[{"id":"call_00_bg0LZ8FcJGtHWoe1G8pt3742","name":"web_search","args":{"queries":["controls","keybindings","input buttons primary secondary","Valley Wiki controls page"]}}],"ms":1462,"cached":false,"usage":{"prompt":4735,"completion":81}}

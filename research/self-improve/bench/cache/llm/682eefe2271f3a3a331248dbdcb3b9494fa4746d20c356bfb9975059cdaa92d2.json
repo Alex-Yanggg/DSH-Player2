@@ -1,0 +1,1 @@
+{"content":"The chest is in this same Meadow at (11,1), but the Rockslide at (11,4) blocks the corridor. Let me check the notice board for details.","toolCalls":[{"id":"call_00_tu7ha0oSYc06mJd0t59J6567","name":"body_walk_to","args":{"x":3,"y":7,"mode":"adjacent"}}],"ms":1072,"cached":false,"usage":{"prompt":2363,"completion":107}}

@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_02VQFCB1SVsuLDwrS1WA7478","name":"world_map","args":{"x":10,"y":5,"radius":6}},{"id":"call_01_F69ZDjKpQZ7u3TzWfwNX1390","name":"web_search","args":{"queries":["Crown crafting recipe workbench","Wood Stone materials crafting"]}}],"ms":1151,"cached":false,"usage":{"prompt":1464,"completion":111}}

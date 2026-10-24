@@ -1,0 +1,1 @@
+{"content":"Let me collect the nearest Wood at (4,6) first.","toolCalls":[{"id":"call_00_PqDk4UbePdbkYqHFB2j28945","name":"body_walk_to","args":{"x":4,"y":6,"mode":"adjacent"}}],"ms":986,"cached":false,"usage":{"prompt":2135,"completion":85}}

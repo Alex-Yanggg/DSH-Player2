@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_BYonyes6fmTbd82I4wyb1316","name":"web_fetch","args":{"url":"https://valley-wiki.example/controls"}},{"id":"call_01_pVMtYtcgocv8sGBCK2oc9004","name":"web_fetch","args":{"url":"https://valley-wiki.example/spring-crops"}}],"ms":900,"cached":false,"usage":{"prompt":3860,"completion":85}}

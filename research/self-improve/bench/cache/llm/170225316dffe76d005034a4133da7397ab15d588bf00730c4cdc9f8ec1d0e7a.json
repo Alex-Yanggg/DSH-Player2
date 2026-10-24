@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_Uu5nZ9q3rybIEmv0sCwb0611","name":"world_map","args":{"x":10,"y":5,"radius":6}},{"id":"call_01_tOqJKnhXxjxg5WxyUEsb8563","name":"web_search","args":{"queries":["workbench craft Crown recipe","KeyC craft workbench requirements"]}}],"ms":1063,"cached":false,"usage":{"prompt":1461,"completion":112}}

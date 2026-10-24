@@ -1,0 +1,1 @@
+{"content":"I'll pick up materials. Let me walk to the nearest Wood at (10,3).","toolCalls":[{"id":"call_00_AdS8TnbP5ho4cF2OpMG33454","name":"body_walk_to","args":{"x":10,"y":3,"mode":"adjacent"}}],"ms":1019,"cached":false,"usage":{"prompt":2195,"completion":90}}

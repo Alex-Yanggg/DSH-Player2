@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_fvHr300ugbooJzuyL9p36731","name":"web_fetch","args":{"url":"https://keycraftGuide.example/gold-door"}},{"id":"call_01_EkQadnTB1xnt2VDjG7ni4185","name":"web_fetch","args":{"url":"https://keycraftGuide.example/notices"}}],"ms":929,"cached":false,"usage":{"prompt":3444,"completion":83}}

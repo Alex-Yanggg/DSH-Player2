@@ -1,0 +1,1 @@
+{"content":"The rock blocks the only path. Let me try using the hoe on the rock to see if it can be cleared.","toolCalls":[{"id":"call_00_GPfyoMHG5MkQrKNNkYgJ8937","name":"body_walk_to","args":{"mode":"adjacent","x":11,"y":4}}],"ms":1362,"cached":false,"usage":{"prompt":2802,"completion":95}}

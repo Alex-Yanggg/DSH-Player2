@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_shIaWKDb3qdJGsz9vtjR8480","name":"world_map","args":{"radius":20}},{"id":"call_01_xRTe1QtLeZCoYE76MzSU0472","name":"web_search","args":{"queries":["controls page","game controls and buttons","input buttons"]}}],"ms":1282,"cached":false,"usage":{"prompt":4985,"completion":79}}

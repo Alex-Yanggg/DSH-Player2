@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_ENMLH2RnOKD8dTidZMdT1362","name":"web_fetch","args":{"url":"https://valley-wiki.example/old-shrine"}},{"id":"call_01_E1S5aOtpiLl5P6WiNzmF2423","name":"web_search","args":{"queries":["game controls keyboard buttons","interact button id list"]}}],"ms":1396,"cached":false,"usage":{"prompt":5139,"completion":90}}

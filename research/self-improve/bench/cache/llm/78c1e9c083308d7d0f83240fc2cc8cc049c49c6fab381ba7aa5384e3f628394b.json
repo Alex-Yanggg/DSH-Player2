@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_BtmHSWxHxTqeEUKDuXGT8029","name":"world_map","args":{"x":7,"y":3,"radius":3}},{"id":"call_01_YCM2kwx1TAuSCNOkxKPl4072","name":"web_search","args":{"queries":["Loose Panel open panel workshop","Silver Door locked key workshop"]}}],"ms":1060,"cached":false,"usage":{"prompt":3010,"completion":112}}

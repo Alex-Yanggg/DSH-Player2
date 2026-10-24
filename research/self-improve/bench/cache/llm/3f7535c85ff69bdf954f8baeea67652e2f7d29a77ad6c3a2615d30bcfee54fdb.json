@@ -1,0 +1,1 @@
+{"content":"I can't move at all — the notice board is blocking me. Let me try interacting with it more carefully, maybe it needs a specific facing.","toolCalls":[{"id":"call_00_8X66lAxNUAUveYSE85L90445","name":"body_input","args":{"steps":[{"press":["KeyE"],"ms":200}]}}],"ms":1226,"cached":false,"usage":{"prompt":3573,"completion":79}}

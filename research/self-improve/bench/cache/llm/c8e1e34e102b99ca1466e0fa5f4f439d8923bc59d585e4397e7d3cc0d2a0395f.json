@@ -1,0 +1,1 @@
+{"content":"Let me observe to see if the player moved.","toolCalls":[{"id":"call_00_D7sWiZ79KG6uCpC2rS782432","name":"world_observe","args":{"radius":3}}],"ms":1231,"cached":false,"usage":{"prompt":15056,"completion":48}}

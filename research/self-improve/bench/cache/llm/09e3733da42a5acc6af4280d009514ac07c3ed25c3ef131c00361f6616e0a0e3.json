@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_rGDgRV9ciiOo6lh1Ogcx7190","name":"world_observe","args":{"radius":20}},{"id":"call_01_iXAe8S84gVQMEEHGLunD5524","name":"web_search","args":{"queries":["controls movement keys","how to move stuck notice board","workshop layout rooms"]}}],"ms":1365,"cached":false,"usage":{"prompt":4640,"completion":86}}

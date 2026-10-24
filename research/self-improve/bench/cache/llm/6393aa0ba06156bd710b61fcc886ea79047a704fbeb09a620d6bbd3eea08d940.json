@@ -1,0 +1,1 @@
+{"content":"I need 3 Wood and 2 Stone. There are 3 Wood and 2 Stone in the room. Let me check the map and start collecting.","toolCalls":[{"id":"call_00_cfccoRpGyhsbvK2Aj5CY4225","name":"world_map","args":{"radius":8}}],"ms":1023,"cached":false,"usage":{"prompt":1933,"completion":68}}

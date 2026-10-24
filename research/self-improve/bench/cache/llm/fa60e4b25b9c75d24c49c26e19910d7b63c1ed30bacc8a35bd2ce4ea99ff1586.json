@@ -1,0 +1,1 @@
+{"content":"Let me try using the hoe on the rock to see if it can be broken.","toolCalls":[{"id":"call_00_zbteZC3ofJXuCJhLdIQX7355","name":"body_input","args":{"steps":[{"press":["ControllerX"],"ms":300}]}}],"ms":909,"cached":false,"usage":{"prompt":3906,"completion":66}}

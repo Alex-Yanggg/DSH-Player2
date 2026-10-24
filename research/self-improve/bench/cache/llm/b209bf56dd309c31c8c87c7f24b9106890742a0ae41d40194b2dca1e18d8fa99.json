@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_T2ApSh3fJHRTy0IlJxXC2647","name":"world_observe","args":{"radius":6}},{"id":"call_01_9I4CrzfSXfq1GsTD95SV6803","name":"web_search","args":{"queries":["controls buttons ControllerA ControllerX action button","how to pull lever action button"]}}],"ms":1276,"cached":false,"usage":{"prompt":2585,"completion":85}}

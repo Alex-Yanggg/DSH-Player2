@@ -1,0 +1,1 @@
+{"content":"The Gold Door blocks the east side. Let me check it.","toolCalls":[{"id":"call_00_wGy2k0xeqTW8tbuwALB51783","name":"body_walk_to","args":{"mode":"adjacent","x":7,"y":6}}],"ms":1278,"cached":false,"usage":{"prompt":2764,"completion":84}}

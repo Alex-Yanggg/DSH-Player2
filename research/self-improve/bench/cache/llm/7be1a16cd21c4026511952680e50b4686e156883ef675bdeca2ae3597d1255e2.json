@@ -1,0 +1,1 @@
+{"content":"Let me collect materials. First the Wood at (9,8).","toolCalls":[{"id":"call_00_axx4B8xZMSkEVk3fJhjF0664","name":"body_walk_to","args":{"x":9,"y":8,"mode":"adjacent"}}],"ms":939,"cached":false,"usage":{"prompt":2194,"completion":85}}

@@ -1,0 +1,1 @@
+{"content":"The chest is at (11,1). The rockslide at (11,4) blocks the right column, so I'll go up the left side and across the top row.","toolCalls":[{"id":"call_00_hXPD3f9rT7b9060Na4Yr5340","name":"body_walk_to","args":{"x":11,"y":1,"mode":"stand"}}],"ms":1506,"cached":false,"usage":{"prompt":2040,"completion":107}}

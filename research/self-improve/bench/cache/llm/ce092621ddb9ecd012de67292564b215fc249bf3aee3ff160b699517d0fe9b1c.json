@@ -1,0 +1,1 @@
+{"content":"The Gold Key is now at (5,1). Let me pick it up.","toolCalls":[{"id":"call_00_6Ajwf97gIW6txE5DmqL32814","name":"body_walk_to","args":{"mode":"adjacent","x":5,"y":1}}],"ms":1123,"cached":false,"usage":{"prompt":3741,"completion":88}}

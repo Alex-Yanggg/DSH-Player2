@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_g5BW577BkAE92yZaxb8J3615","name":"web_search","args":{"queries":["unknown-input Slot1 Slot2 interact","how to pick up materials inventory slots","KeyE interact slot error"]}},{"id":"call_01_8Np51SGeq6tr9XxAVvyH2394","name":"world_observe","args":{"radius":20}}],"ms":974,"cached":false,"usage":{"prompt":3031,"completion":92}}

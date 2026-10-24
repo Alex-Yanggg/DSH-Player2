@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_vapWpsqine99Vc6Zjf2p7150","name":"world_find","args":{"name":"bell"}},{"id":"call_01_kf1QUGE2qGpSiLmvOPWu1517","name":"world_find","args":{"name":"gate"}},{"id":"call_02_BRLvUE6yiy9BadhalRXy2820","name":"world_find","args":{"name":"lever"}}],"ms":1189,"cached":false,"usage":{"prompt":2086,"completion":96}}

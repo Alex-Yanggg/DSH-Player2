@@ -1,0 +1,1 @@
+{"content":"The rockslide is gone! Hitting it from below with the hoe cleared it. Now let me walk to the chest at (11,1).","toolCalls":[{"id":"call_00_GGJWd3AEg1Q0FKRBwDAF2300","name":"body_walk_to","args":{"mode":"stand","x":11,"y":1}}],"ms":1428,"cached":false,"usage":{"prompt":5977,"completion":100}}

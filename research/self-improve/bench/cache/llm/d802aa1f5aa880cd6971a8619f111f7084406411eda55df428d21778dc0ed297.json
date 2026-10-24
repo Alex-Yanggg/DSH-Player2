@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_r1jgcdbpSqZYYecwMdOU5883","name":"world_observe","args":{"radius":12}},{"id":"call_01_G8fCGyG4G7SA5COv868k2235","name":"web_search","args":{"queries":["lever gate puzzle controls","how to pull lever","interact button names"]}}],"ms":1716,"cached":false,"usage":{"prompt":14640,"completion":85}}

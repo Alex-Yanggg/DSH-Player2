@@ -1,0 +1,1 @@
+{"content":"Door opened. Now to the Wood at (9,1).","toolCalls":[{"id":"call_00_F5ePdXoX3BNTjH98G2fN5358","name":"body_walk_to","args":{"mode":"adjacent","x":9,"y":1}}],"ms":854,"cached":false,"usage":{"prompt":4801,"completion":84}}

@@ -1,0 +1,1 @@
+{"content":"I can't move at all. Perhaps the game is paused or input isn't registering movement. Let me check controls state and try a longer hold.","toolCalls":[{"id":"call_00_cYRGwTZPEaJZQPrmcdgB4674","name":"body_input","args":{"steps":[{"hold":["KeyA"],"ms":1500}]}}],"ms":1081,"cached":false,"usage":{"prompt":3475,"completion":80}}

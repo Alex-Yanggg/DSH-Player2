@@ -1,0 +1,1 @@
+{"content":"The Gold Door blocks the right side. Let me check the map and the notice board.","toolCalls":[{"id":"call_00_uF5lfKsRavRAgLKwfxhx7662","name":"world_map","args":{"radius":12}},{"id":"call_01_A7DdP1oHL0j8G2ZAG7tN2427","name":"world_observe","args":{"radius":20}}],"ms":1287,"cached":false,"usage":{"prompt":3934,"completion":84}}

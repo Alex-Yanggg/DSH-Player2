@@ -1,0 +1,1 @@
+{"content":"The rockslide blocks the only corridor. Let me check the map more carefully and see if the rock can be broken.","toolCalls":[{"id":"call_00_8kqPHHNGIUVkQ09BvaGw7901","name":"world_map","args":{"x":11,"y":4,"radius":6}},{"id":"call_01_y0A0cAo2NP6yhLL29DfI1392","name":"body_controls","args":{}}],"ms":1283,"cached":false,"usage":{"prompt":2368,"completion":105}}

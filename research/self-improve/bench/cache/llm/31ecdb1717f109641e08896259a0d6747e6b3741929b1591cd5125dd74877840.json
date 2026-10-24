@@ -1,0 +1,1 @@
+{"content":"The rock at (11,4) blocks the only corridor to the north-east. Let me read the notice board first — it may explain how to clear the rockslide.","toolCalls":[{"id":"call_00_Uq2l2vdNcxqqLiuaDxzp5383","name":"body_walk_to","args":{"x":3,"y":7,"mode":"adjacent"}}],"ms":1063,"cached":false,"usage":{"prompt":2792,"completion":106}}

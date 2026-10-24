@@ -1,0 +1,1 @@
+{"content":"I need to gather 3 Wood and 2 Stone. Let me check the map first.","toolCalls":[{"id":"call_00_FPeHEteN7r4hYNisXwA73959","name":"world_map","args":{"radius":10}}],"ms":1196,"cached":false,"usage":{"prompt":1971,"completion":55}}

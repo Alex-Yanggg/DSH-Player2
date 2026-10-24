@@ -1,0 +1,1 @@
+{"content":"Gold Key at (5,1). Let me grab it.","toolCalls":[{"id":"call_00_d2xidJLGIylxNSbJIFIt7577","name":"plan_submit","args":{"steps":[{"args":{"mode":"adjacent","x":5,"y":1},"tool":"body_walk_to"},{"args":{"steps":[{"press":["KeyE"],"ms":100}]},"tool":"body_input"},{"args":{},"tool":"world_observe"}]}}],"ms":943,"cached":false,"usage":{"prompt":4246,"completion":123}}

@@ -1,0 +1,1 @@
+{"content":"Picked up Wood. Now I need 2 more Wood and 2 Stone. Let me get the Wood at (2,2).","toolCalls":[{"id":"call_00_lb6CYzujIFHALgZScTmB0661","name":"body_walk_to","args":{"mode":"adjacent","x":2,"y":2}}],"ms":1263,"cached":false,"usage":{"prompt":3766,"completion":99}}

@@ -1,0 +1,1 @@
+{"content":"I'm at (2,7) which shows as walkable on the map but the notice board is there. Let me try moving up.","toolCalls":[{"id":"call_00_Il2G2k0vquKb1CqIjsp45435","name":"body_input","args":{"steps":[{"hold":["KeyW"],"ms":500}]}}],"ms":1215,"cached":false,"usage":{"prompt":3284,"completion":78}}

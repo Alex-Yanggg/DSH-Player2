@@ -1,0 +1,1 @@
+{"content":"I'm at (10,4), with Wood at (10,3) right above me and the Workbench at (10,5) below. Let me check the map and pick up materials.","toolCalls":[{"id":"call_00_Ba5mDoFTINuBt96R6fC21976","name":"world_map","args":{"radius":8}}],"ms":1152,"cached":false,"usage":{"prompt":2003,"completion":77}}

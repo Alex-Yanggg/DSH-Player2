@@ -1,0 +1,1 @@
+{"content":"Both \"left\" and \"mouse1\" are rejected. Let me look for the actual input vocabulary.","toolCalls":[{"id":"call_00_OBHCFMZOX5mTSEKfs0pc6619","name":"web_search","args":{"queries":["controls","keyboard keys","interact button names","game guide getting started"]}}],"ms":1111,"cached":false,"usage":{"prompt":4633,"completion":77}}

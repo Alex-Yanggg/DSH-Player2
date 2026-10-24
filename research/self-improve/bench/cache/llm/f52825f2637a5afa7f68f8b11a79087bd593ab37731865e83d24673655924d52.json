@@ -1,0 +1,1 @@
+{"content":"I'm standing on the notice board tile. Let me try moving up to get off it.","toolCalls":[{"id":"call_00_SN1sBLJ4lOGOGPdlc2Qw7115","name":"body_input","args":{"steps":[{"hold":["KeyW"],"ms":400}]}}],"ms":1076,"cached":false,"usage":{"prompt":2874,"completion":68}}

@@ -1,0 +1,1 @@
+{"content":"Let me examine the door and panel first.","toolCalls":[{"id":"call_00_fbKUtTmDxejovnmKkCFK3544","name":"body_walk_to","args":{"x":7,"y":6,"mode":"adjacent"}}],"ms":785,"cached":false,"usage":{"prompt":2199,"completion":80}}

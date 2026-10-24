@@ -1,0 +1,1 @@
+{"content":"The Wood is on my tile. Let me try interacting again.","toolCalls":[{"id":"call_00_M4BjqswOIU3zFBAKBxTd1398","name":"body_input","args":{"steps":[{"press":["KeyE"],"ms":100}]}}],"ms":731,"cached":false,"usage":{"prompt":2632,"completion":62}}

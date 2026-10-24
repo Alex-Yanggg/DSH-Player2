@@ -1,0 +1,22 @@
+[
+  {
+    "url": "https://www.anthropic.com/engineering/code-execution-with-mcp",
+    "fetchedAt": "2026-10-24",
+    "note": "Anthropic engineering: presenting MCP tools as code APIs so the model writes one program that loops/branches cut a multi-tool task from 150,000 to 2,000 tokens (98.7% saving); 'every intermediate result must pass through the model' no longer holds; agent sees 5 rows instead of 10,000; saved code as skills; sandboxing caveat. (First fetch hit a concurrency error; succeeded on retry.)"
+  },
+  {
+    "url": "https://arxiv.org/abs/2204.01691",
+    "fetchedAt": "2026-10-24",
+    "note": "SayCan ('Do As I Can, Not As I Say: Grounding Language in Robotic Affordances'): LLM supplies semantic knowledge, pretrained skills ground it, 'the robot can act as the language model's hands and eyes'; abstract describes iterative re-scoring of the next skill after each execution, not one open-loop plan."
+  },
+  {
+    "url": "https://arxiv.org/html/2409.07429v1",
+    "fetchedAt": "2026-10-24",
+    "note": "Agent Workflow Memory full text (Table 1): WebArena steps BrowserGym_ax-tree 7.9 (15.0% SR) vs AWM 5.9 (35.5% SR) vs AutoEval 46.7 (20.2% SR); 'AWM obtains high success rates while maintaining efficient trajectories'; +51.1% relative success."
+  },
+  {
+    "url": "https://developer.nvidia.com/blog/how-krafton-built-pubg-ally-a-co-playable-character-powered-by-nvidia-ace",
+    "fetchedAt": "2026-10-24",
+    "note": "Krafton PUBG Ally (NVIDIA ACE): System 1 behavior tree handles movement/aiming/combat 'at game tick rate', System 2 language model handles intent/speech; verbatim 'Reflex-level actions never have to wait for the model.'; boundary routing was the main engineering effort."
+  }
+]

@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_vXCSRO3Mk2heXOtJ9cp75150","name":"web_fetch","args":{"url":"https://valley-wiki.example/rockslide-pass"}},{"id":"call_01_CjKSLnJveQ3mtMKLrq8U0342","name":"web_search","args":{"queries":["controls","interface","help","buttons","mouse","keyboard"]}}],"ms":1120,"cached":false,"usage":{"prompt":6092,"completion":96}}

@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_9bpPfW0w7y6CK1cWY3v89206","name":"web_fetch","args":{"url":"https://keycraftGuide.example/crown-recipe"}},{"id":"call_01_20pVorb6V0QS11NQkFm97119","name":"web_search","args":{"queries":["controls KeyE pick up item","gathering materials wood stone"]}}],"ms":1202,"cached":false,"usage":{"prompt":3943,"completion":90}}

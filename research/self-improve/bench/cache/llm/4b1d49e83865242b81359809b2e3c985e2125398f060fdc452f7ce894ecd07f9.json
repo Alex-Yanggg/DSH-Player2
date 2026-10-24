@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_4zAhrsxuX1h6cSx25GD58485","name":"world_map","args":{"x":11,"y":2,"radius":6}},{"id":"call_01_MQxmgp5TXOfEyh0Avs825175","name":"web_search","args":{"queries":["rockslide blocking path clear","Old Shrine chest memento"]}}],"ms":1166,"cached":false,"usage":{"prompt":1410,"completion":113}}

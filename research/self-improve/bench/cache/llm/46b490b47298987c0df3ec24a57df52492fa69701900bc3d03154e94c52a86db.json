@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_ptkzSllRog0C46CGYdQM6619","name":"web_fetch","args":{"url":"https://valley-wiki.example/spring-crops"}},{"id":"call_01_7CnoMbcoCKOaVVOlCIuu9585","name":"web_search","args":{"queries":["game controls mouse buttons keyboard","notice board read"]}}],"ms":972,"cached":false,"usage":{"prompt":3430,"completion":88}}

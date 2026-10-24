@@ -1,0 +1,1 @@
+{"content":"The Gold Key opens the Gold Door. Let me use it on the door at (7,6).","toolCalls":[{"id":"call_00_4jX6Natft1RQfjQG0NKM4606","name":"body_walk_to","args":{"mode":"adjacent","x":7,"y":6}}],"ms":1305,"cached":false,"usage":{"prompt":5060,"completion":92}}

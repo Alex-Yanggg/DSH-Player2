@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_HgYFckS9XC6l1s6B15Dl3603","name":"world_observe","args":{"radius":20}},{"id":"call_01_jbEa6DeLSM5cAKqW7lrI0107","name":"web_search","args":{"queries":["interact unknown-input Slot1 Slot2","how to pick up materials KeyE slot"]}}],"ms":1000,"cached":false,"usage":{"prompt":3086,"completion":87}}

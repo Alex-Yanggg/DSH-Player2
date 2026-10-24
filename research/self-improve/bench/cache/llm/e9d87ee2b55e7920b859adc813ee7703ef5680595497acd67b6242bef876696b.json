@@ -1,0 +1,1 @@
+{"content":"The rockslide blocks the only route. Let me inspect it — maybe it can be broken with a tool.","toolCalls":[{"id":"call_00_7WMasj3fmfksGEHnocdp6250","name":"body_walk_to","args":{"mode":"adjacent","x":11,"y":4}}],"ms":1340,"cached":false,"usage":{"prompt":2229,"completion":93}}

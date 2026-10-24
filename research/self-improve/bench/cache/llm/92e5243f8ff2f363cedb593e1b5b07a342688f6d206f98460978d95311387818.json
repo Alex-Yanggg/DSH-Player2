@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_ctKaOkhnT6UyQeNoAG156034","name":"world_observe","args":{"radius":20}},{"id":"call_01_VAl6zGbQ3r3SMZRJyWuD8480","name":"web_search","args":{"queries":["controller buttons action button ids","Great Gate open lever gate still blocks"]}}],"ms":1034,"cached":false,"usage":{"prompt":2589,"completion":83}}

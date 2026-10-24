@@ -1,0 +1,1 @@
+{"content":"The chest is at (11,1). The map shows a corridor at x=11 through y=3, with a rockslide at (11,4). Let me walk there.","toolCalls":[{"id":"call_00_O9iEiNgHcLpuXrz1KM4h9194","name":"body_walk_to","args":{"x":11,"y":1,"mode":"stand"}}],"ms":1189,"cached":false,"usage":{"prompt":2197,"completion":108}}

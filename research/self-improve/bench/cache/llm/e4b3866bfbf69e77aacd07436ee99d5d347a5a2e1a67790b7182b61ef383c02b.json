@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_1BwQEDuR9k22hkijGzfr8904","name":"web_search","args":{"queries":["unknown-input shrine lever","lever pull controls button","ControllerX action button lever"]}},{"id":"call_01_9JHyU5kmPuiSJvGFAkTP1698","name":"world_observe","args":{"radius":6}}],"ms":1449,"cached":false,"usage":{"prompt":2531,"completion":86}}

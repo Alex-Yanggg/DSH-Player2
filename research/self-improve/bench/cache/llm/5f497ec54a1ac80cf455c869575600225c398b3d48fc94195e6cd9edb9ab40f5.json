@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_RWoMjUtoDBs84YC3aowC3496","name":"world_find","args":{"name":"rock"}},{"id":"call_01_ljm9uFCgzYCMimFfInv21318","name":"world_observe","args":{"radius":40}}],"ms":987,"cached":false,"usage":{"prompt":3574,"completion":68}}

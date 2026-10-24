@@ -1,0 +1,1 @@
+{"content":"The rock won't break with the hoe. Let me check the Notice Board — it may explain how to clear the rockslide.","toolCalls":[{"id":"call_00_Ef56xRJ2LxnCKFmHZhVR2133","name":"body_walk_to","args":{"mode":"adjacent","x":3,"y":7}}],"ms":1485,"cached":false,"usage":{"prompt":5035,"completion":97}}

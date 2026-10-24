@@ -1,0 +1,1 @@
+{"content":"I'm already adjacent. Let me press E to pick up.","toolCalls":[{"id":"call_00_iKL0fekes1zN03WmdVy22647","name":"body_input","args":{"steps":[{"press":["KeyE"],"ms":100}]}}],"ms":1266,"cached":false,"usage":{"prompt":2250,"completion":62}}

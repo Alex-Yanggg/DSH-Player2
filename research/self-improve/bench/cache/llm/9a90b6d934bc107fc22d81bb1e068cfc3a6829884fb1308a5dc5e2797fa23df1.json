@@ -1,0 +1,1 @@
+{"content":"Movement is being ignored. Something is capturing input. Let me check the controls and try other buttons that might close a panel. Let me look at what buttons exist.","toolCalls":[{"id":"call_00_w0ExNg7yLxurg54vRW012941","name":"body_controls","args":{}}],"ms":1676,"cached":false,"usage":{"prompt":5777,"completion":54}}

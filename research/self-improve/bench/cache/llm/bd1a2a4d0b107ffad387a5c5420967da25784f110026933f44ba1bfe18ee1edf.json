@@ -1,0 +1,1 @@
+{"content":"The chest is at (11,1). The map shows a wall at y=3 from x=0..10, with a gap at x=11. Let me walk there.","toolCalls":[{"id":"call_00_m3GvMWdX9yvzT6qKr75d4986","name":"body_walk_to","args":{"x":11,"y":1,"mode":"adjacent"}}],"ms":1212,"cached":false,"usage":{"prompt":2006,"completion":109}}

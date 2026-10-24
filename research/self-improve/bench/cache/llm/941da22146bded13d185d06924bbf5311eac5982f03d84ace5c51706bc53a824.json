@@ -1,0 +1,1 @@
+{"content":"I'm at (2,7) but movement isn't registering. Let me try longer holds.","toolCalls":[{"id":"call_00_vBLP8yZO6bz0jqCm0ltn8251","name":"body_input","args":{"steps":[{"hold":["KeyW"],"ms":900}]}}],"ms":1045,"cached":false,"usage":{"prompt":3106,"completion":69}}

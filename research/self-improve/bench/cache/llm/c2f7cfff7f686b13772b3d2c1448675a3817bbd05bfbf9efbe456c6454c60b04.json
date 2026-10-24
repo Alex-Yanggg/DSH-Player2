@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_yLRdrLfZFxHPgXOo2G7E3176","name":"world_observe","args":{"radius":20}},{"id":"call_01_O7l8vCLkTMu2u9SgmYxi9475","name":"web_search","args":{"queries":["pick up items KeyE nothing there","inventory empty how to pick up material"]}}],"ms":1002,"cached":false,"usage":{"prompt":4294,"completion":86}}

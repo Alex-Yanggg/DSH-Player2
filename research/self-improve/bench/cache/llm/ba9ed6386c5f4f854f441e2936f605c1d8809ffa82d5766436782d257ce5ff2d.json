@@ -1,0 +1,1 @@
+{"content":"Let me read the notice board first.","toolCalls":[{"id":"call_00_H6stVFoPqVyyNB6kU7dW7075","name":"body_walk_to","args":{"x":2,"y":7,"mode":"adjacent"}}],"ms":940,"cached":false,"usage":{"prompt":2276,"completion":79}}

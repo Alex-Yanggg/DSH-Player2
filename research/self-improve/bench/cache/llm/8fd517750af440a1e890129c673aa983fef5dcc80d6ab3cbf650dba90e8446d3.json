@@ -1,0 +1,1 @@
+{"content":"The tool itself times out around a few seconds. Let me try shorter total durations.","toolCalls":[{"id":"call_00_fIyjWjv7ExxZEFnf0X7C7756","name":"body_input","args":{"steps":[{"hold":[],"ms":3000},{"hold":[],"ms":3000}]}}],"ms":1376,"cached":false,"usage":{"prompt":4867,"completion":75}}

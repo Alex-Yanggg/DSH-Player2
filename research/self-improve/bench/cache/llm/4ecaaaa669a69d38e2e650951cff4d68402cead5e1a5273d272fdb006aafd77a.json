@@ -1,0 +1,1 @@
+{"content":"Hoe doesn't clear it. Let me check the notice board for hints.","toolCalls":[{"id":"call_00_p0g6LyNXkbjL2JZiqc804076","name":"body_walk_to","args":{"mode":"adjacent","x":3,"y":7}}],"ms":987,"cached":false,"usage":{"prompt":3102,"completion":87}}

@@ -1,0 +1,1 @@
+{"content":"The notice board blocks my tile — I can't move off it. Let me check the map and try moving.","toolCalls":[{"id":"call_00_ASdBaW0tMjMfMClqTZxP8734","name":"world_map","args":{"radius":4}}],"ms":1020,"cached":false,"usage":{"prompt":3207,"completion":59}}

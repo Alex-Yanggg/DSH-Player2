@@ -1,0 +1,1 @@
+{"content":"Let me try a very long hold to see if movement is just slow, and also try diagonal-ish combos.","toolCalls":[{"id":"call_00_YjhB55R13V0Wu9DSITxP4648","name":"body_input","args":{"steps":[{"hold":["KeyD"],"ms":2000}]}}],"ms":998,"cached":false,"usage":{"prompt":3613,"completion":73}}

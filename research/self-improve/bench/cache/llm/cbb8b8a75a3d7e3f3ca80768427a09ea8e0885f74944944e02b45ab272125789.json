@@ -1,0 +1,1 @@
+{"content":"The chest is at (11,1). The map shows a corridor: row 3 is blocked except x=11, and the rockslide at (11,4) blocks the column. Let me check the rockslide and try the path.","toolCalls":[{"id":"call_00_vFZnPoYwosTJWveytrSQ3284","name":"body_walk_to","args":{"x":11,"y":1,"mode":"adjacent"}}],"ms":1101,"cached":false,"usage":{"prompt":2039,"completion":121}}

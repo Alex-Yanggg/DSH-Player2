@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_3Q6alH8ea7ZviLbTdBbs2017","name":"guide_write","args":{"topic":"silver door","note":"The Silver Door at Workshop (7,6) is locked and needs the silver key."}},{"id":"call_01_SUiw8XNDXFLoMq3vYPlM8652","name":"body_walk_to","args":{"mode":"adjacent","x":7,"y":3}}],"ms":894,"cached":false,"usage":{"prompt":2616,"completion":134}}

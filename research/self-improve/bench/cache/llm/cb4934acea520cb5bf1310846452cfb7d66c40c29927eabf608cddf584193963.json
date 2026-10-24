@@ -1,0 +1,1 @@
+{"content":"Holding a direction for 150ms moves me a tile. I need a shorter tap to just turn. Let me try a very short hold.","toolCalls":[{"id":"call_00_jvwlnAl6OOPMj1eTPiom2036","name":"body_input","args":{"steps":[{"hold":["KeyW"],"ms":30},{"press":["KeyE"],"ms":150}]}}],"ms":1117,"cached":false,"usage":{"prompt":3627,"completion":92}}

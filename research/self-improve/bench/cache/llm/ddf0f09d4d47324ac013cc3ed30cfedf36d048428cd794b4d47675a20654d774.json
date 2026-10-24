@@ -1,0 +1,1 @@
+{"content":"Interacting on my own tile doesn't pick up. Let me try standing adjacent to the wood and facing it.","toolCalls":[{"id":"call_00_6bLGMQFq49rqfBo6KJFH7384","name":"body_walk_to","args":{"mode":"adjacent","x":4,"y":6}}],"ms":1062,"cached":false,"usage":{"prompt":3336,"completion":94}}

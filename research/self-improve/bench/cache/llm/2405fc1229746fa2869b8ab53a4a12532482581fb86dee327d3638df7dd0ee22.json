@@ -1,0 +1,1 @@
+{"content":"The panel gap at (7,3) is now open. Let me walk to the Wood at (9,8) and collect it.","toolCalls":[{"id":"call_00_BaTq6f2i2qkyjgS8UyWm3445","name":"body_walk_to","args":{"mode":"adjacent","x":9,"y":8}}],"ms":1767,"cached":false,"usage":{"prompt":3477,"completion":100}}

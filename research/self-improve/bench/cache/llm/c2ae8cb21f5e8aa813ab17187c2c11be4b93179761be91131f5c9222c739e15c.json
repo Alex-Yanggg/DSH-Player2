@@ -1,0 +1,1 @@
+{"content":"Let me pick up materials. First the Wood at (4,6).","toolCalls":[{"id":"call_00_sgdutG296JEvkajxBFt78218","name":"body_walk_to","args":{"x":4,"y":6,"mode":"adjacent"}}],"ms":947,"cached":false,"usage":{"prompt":2195,"completion":86}}

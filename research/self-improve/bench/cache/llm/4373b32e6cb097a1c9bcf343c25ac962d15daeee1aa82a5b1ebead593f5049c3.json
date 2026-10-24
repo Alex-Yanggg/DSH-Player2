@@ -1,0 +1,1 @@
+{"content":"Facing up again (last movement was up). Let me face right and press E toward the player.","toolCalls":[{"id":"call_00_70I8tnw2ChKMOd1pBH9H1006","name":"body_input","args":{"steps":[{"hold":["KeyD"],"ms":50},{"press":["KeyE"],"ms":100}]}}],"ms":1069,"cached":false,"usage":{"prompt":10093,"completion":83}}

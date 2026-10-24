@@ -1,0 +1,1 @@
+{"content":"I need 3 Wood and 2 Stone. Let me collect them. First, walk to the nearest Wood at (9,8).","toolCalls":[{"id":"call_00_jb7pGNZhXJ4ayJ5bdc830836","name":"body_walk_to","args":{"x":9,"y":8,"mode":"adjacent"}}],"ms":1115,"cached":false,"usage":{"prompt":2264,"completion":99}}

@@ -1,0 +1,1 @@
+{"content":"Let me try the action button on the rockslide first, then the hoe.","toolCalls":[{"id":"call_00_CMr41WOp77vxoAURIsKH0414","name":"body_input","args":{"steps":[{"press":["ControllerA"],"ms":100}]}}],"ms":1091,"cached":false,"usage":{"prompt":3151,"completion":65}}

@@ -1,0 +1,1 @@
+{"content":"The button id \"left\" is invalid — I need the actual button ids. Let me observe to see what inputs are available.","toolCalls":[{"id":"call_00_ePXaPCBtNvuU1BwmRBTE3381","name":"world_observe","args":{"radius":6}}],"ms":1168,"cached":false,"usage":{"prompt":3072,"completion":64}}

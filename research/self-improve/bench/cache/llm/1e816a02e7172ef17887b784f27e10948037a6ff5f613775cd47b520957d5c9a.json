@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_QLm6QCmMoCaI1YUnxq4B9651","name":"web_fetch","args":{"url":"https://valley-wiki.example/rockslide-pass"}},{"id":"call_01_rGIoUf6ExdDQ8Xe1v9fF3060","name":"web_fetch","args":{"url":"https://valley-wiki.example/old-shrine"}}],"ms":1152,"cached":false,"usage":{"prompt":1705,"completion":89}}

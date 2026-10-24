@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_WK5mIbXelFdY4dboHyoY4372","name":"world_observe","args":{"radius":20}},{"id":"call_01_6q5uNH7dwtcNidsgwCkq6032","name":"web_search","args":{"queries":["KeyE interact not working unknown-input","controls KeyE pickup materials KeyC craft"]}}],"ms":1222,"cached":false,"usage":{"prompt":3991,"completion":86}}

@@ -1,0 +1,1 @@
+{"content":"{\"kind\":\"raw_input\",\"steps\":[{\"hold\":[\"KeyW\"],\"press\":[],\"ms\":600},{\"hold\":[],\"press\":[\"KeyE\"],\"ms\":200}]}","toolCalls":[],"ms":1389,"cached":false,"usage":{"prompt":263,"completion":40}}

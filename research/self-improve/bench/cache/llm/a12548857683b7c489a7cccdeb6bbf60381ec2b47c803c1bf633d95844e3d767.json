@@ -1,0 +1,1 @@
+{"content":"Picked up Wood. Now the Stone at (10,1).","toolCalls":[{"id":"call_00_YmAwv2oIhFyVhMv8JNav2859","name":"body_walk_to","args":{"mode":"adjacent","x":10,"y":1}}],"ms":1078,"cached":false,"usage":{"prompt":3155,"completion":85}}

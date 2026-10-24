@@ -1,0 +1,1 @@
+{"content":"Time jumped to day 5. Let me check the rockslide.","toolCalls":[{"id":"call_00_jeJkeqiJzDiYnhMmJAdg3431","name":"world_observe","args":{"radius":14}}],"ms":845,"cached":false,"usage":{"prompt":3570,"completion":52}}

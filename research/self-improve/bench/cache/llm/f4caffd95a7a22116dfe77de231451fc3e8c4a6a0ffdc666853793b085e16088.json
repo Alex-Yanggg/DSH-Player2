@@ -1,0 +1,1 @@
+{"content":"The panel opened a passage. Now I can reach the other room.","toolCalls":[{"id":"call_00_XrQWAPUUjrUruDn8YaZA1052","name":"world_map","args":{"radius":12}}],"ms":767,"cached":false,"usage":{"prompt":3021,"completion":50}}

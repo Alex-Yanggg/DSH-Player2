@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_tdkHSIyCm27S0iOiNaUn7452","name":"world_observe","args":{"radius":20}},{"id":"call_01_ksijIhTwKr3EnON2YUN54269","name":"web_search","args":{"queries":["controls buttons action button ControllerA","how to pull lever interact button"]}}],"ms":870,"cached":false,"usage":{"prompt":3579,"completion":83}}

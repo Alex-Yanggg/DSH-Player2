@@ -1,0 +1,1 @@
+{"content":"The hoe didn't clear it. Let me try the action button (ControllerA) on the rockslide.","toolCalls":[{"id":"call_00_L02VBtwBHw5tvb8z9LGF0568","name":"body_input","args":{"steps":[{"press":["ControllerA"],"ms":300}]}}],"ms":1700,"cached":false,"usage":{"prompt":3502,"completion":71}}

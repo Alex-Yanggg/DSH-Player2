@@ -1,0 +1,1 @@
+{"content":"I'll start by getting my bearings.","toolCalls":[{"id":"call_00_A3mAhk6xSfw9DvWtdU0D6876","name":"world_observe","args":{}},{"id":"call_01_RblLZDeh0uXijG26usLu6272","name":"world_locations","args":{}}],"ms":781,"cached":false,"usage":{"prompt":1644,"completion":43}}

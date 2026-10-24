@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_tLpuLEDSAa9BjEuVdffy8464","name":"world_observe","args":{"radius":20}},{"id":"call_01_4YeSuJ523p3as5As3HZo7684","name":"web_search","args":{"queries":["walking movement blocked pathfinding workshop","how to move around obstacles"]}}],"ms":1172,"cached":false,"usage":{"prompt":2521,"completion":83}}

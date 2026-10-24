@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_AbXUB2aykJ00MbcMXabR4416","name":"world_observe","args":{"radius":12}},{"id":"call_01_aCwJ3GbzmfvMfnrB26BZ8367","name":"web_search","args":{"queries":["lever","interact button ids","controls"]}}],"ms":1752,"cached":false,"usage":{"prompt":13087,"completion":79}}

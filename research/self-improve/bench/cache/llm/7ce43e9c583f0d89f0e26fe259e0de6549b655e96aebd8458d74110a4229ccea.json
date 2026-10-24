@@ -1,0 +1,1 @@
+{"content":"It's Day 2, so the Gold Door is locked until day 3. Let me gather materials first.","toolCalls":[{"id":"call_00_iCId6ZZK7WptcKguxPmC8202","name":"world_map","args":{"radius":12}}],"ms":886,"cached":false,"usage":{"prompt":2089,"completion":59}}

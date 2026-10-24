@@ -1,0 +1,1 @@
+{"content":"The rock is still there per the pathfinder. Let me check the map again.","toolCalls":[{"id":"call_00_duaudp6eEFgM50NfCeCI8842","name":"world_map","args":{"radius":20}},{"id":"call_01_IQbBfY5iESCnrqmj6GH43818","name":"world_find","args":{"kind":"rock"}}],"ms":1387,"cached":false,"usage":{"prompt":5359,"completion":82}}

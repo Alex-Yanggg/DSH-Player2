@@ -1,0 +1,1 @@
+{"content":"The notice board interact failed (unknown input), and the plan seems to have stopped early. Let me check current state.","toolCalls":[{"id":"call_00_NuWd9Wq1uJPoIJ3BxSok8819","name":"world_observe","args":{"radius":20}}],"ms":1249,"cached":false,"usage":{"prompt":3097,"completion":62}}

@@ -1,0 +1,1 @@
+{"content":"Now the Stone at (10,1) — I'm at (10,2), adjacent.","toolCalls":[{"id":"call_00_gONSSZoRD1kGVjCCYIKG0768","name":"body_walk_to","args":{"mode":"adjacent","x":10,"y":1}}],"ms":1261,"cached":false,"usage":{"prompt":2530,"completion":91}}

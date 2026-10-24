@@ -1,0 +1,1 @@
+{"content":"Let me pick up the nearest materials. Wood at (9,1) is adjacent to me.","toolCalls":[{"id":"call_00_KH2WbYG5kpANuWTdAU4g6211","name":"body_walk_to","args":{"x":9,"y":1,"mode":"adjacent"}}],"ms":1172,"cached":false,"usage":{"prompt":2099,"completion":91}}

@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_LpkU3qv2J6J3LMrBPmdg6974","name":"world_map","args":{"x":10,"y":3,"radius":4}},{"id":"call_01_FvuHwPF74Pz8T7HFT6a51294","name":"web_search","args":{"queries":["Gold Door workshop key","how to open gold door"]}}],"ms":1042,"cached":false,"usage":{"prompt":2763,"completion":110}}

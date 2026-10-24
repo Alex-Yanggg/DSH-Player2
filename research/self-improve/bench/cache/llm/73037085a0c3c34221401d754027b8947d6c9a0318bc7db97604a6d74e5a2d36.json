@@ -1,0 +1,1 @@
+{"content":"Door opened. Now let me get the Wood at (9,1) and Stone at (10,1).","toolCalls":[{"id":"call_00_BFItDrpTFRyJLWpTpmnx4127","name":"body_walk_to","args":{"mode":"adjacent","x":9,"y":1}}],"ms":1011,"cached":false,"usage":{"prompt":5283,"completion":94}}

@@ -1,0 +1,1 @@
+{"content":"The button id \"left\" is invalid. Let me check what button ids the game uses.","toolCalls":[{"id":"call_00_ch6QVib4tkE5k0Fxlz0N0862","name":"web_search","args":{"queries":["controls button ids interact use tool","how to use hoe plant seeds controls"]}}],"ms":1154,"cached":false,"usage":{"prompt":3123,"completion":72}}

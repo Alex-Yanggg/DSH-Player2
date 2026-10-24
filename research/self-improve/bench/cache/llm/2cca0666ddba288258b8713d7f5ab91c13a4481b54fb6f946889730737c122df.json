@@ -1,0 +1,1 @@
+{"content":"Let me examine the lever first.","toolCalls":[{"id":"call_00_qpuFEO77XiO6cP8zjLBr2534","name":"body_walk_to","args":{"x":1,"y":2,"mode":"adjacent"}}],"ms":1074,"cached":false,"usage":{"prompt":2457,"completion":78}}

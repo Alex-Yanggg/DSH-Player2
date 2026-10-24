@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_vxskTvXBMzpkF4G5ChkX1693","name":"web_search","args":{"queries":["lever unknown-input action button","controls ControllerA ControllerX button ids","how to pull lever"]}},{"id":"call_01_2VESAlwnNQbYNScKufTl7922","name":"world_observe","args":{"radius":6}}],"ms":1035,"cached":false,"usage":{"prompt":2549,"completion":89}}

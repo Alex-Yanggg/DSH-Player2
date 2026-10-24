@@ -1,0 +1,1 @@
+{"content":"The rockslide blocks the only passage. Let me check the notice board for hints, and try interacting with the rockslide.","toolCalls":[{"id":"call_00_UmgkeAykncJUcOvNOjIr5929","name":"body_walk_to","args":{"mode":"adjacent","x":3,"y":7}}],"ms":1218,"cached":false,"usage":{"prompt":2723,"completion":96}}

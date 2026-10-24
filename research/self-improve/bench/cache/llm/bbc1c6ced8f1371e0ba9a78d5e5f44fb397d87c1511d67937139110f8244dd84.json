@@ -1,0 +1,1 @@
+{"content":"Long idle timed out. Let me check the time and use shorter waits.","toolCalls":[{"id":"call_00_2mBsWAKgk2mtiqaOrOwx1092","name":"world_observe","args":{}}],"ms":1106,"cached":false,"usage":{"prompt":4419,"completion":37}}

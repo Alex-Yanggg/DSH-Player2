@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_DoSVZjxYJPpkxTOUthCP6127","name":"web_search","args":{"queries":["stuck on notice board tile cannot move","notice board blocks movement"]}},{"id":"call_01_BbC0pyFBcWusTGjn80zA5630","name":"web_fetch","args":{"url":"https://keycraftGuide.example/notices"}}],"ms":1114,"cached":false,"usage":{"prompt":4965,"completion":90}}

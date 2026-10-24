@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_71MiggwFIETvmQbhiXRo9648","name":"world_find","args":{"kind":"chest"}},{"id":"call_01_w48VTFMRLoKPUfP3ldIB1443","name":"world_observe","args":{"radius":40}}],"ms":891,"cached":false,"usage":{"prompt":2066,"completion":69}}

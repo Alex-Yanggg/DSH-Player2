@@ -1,0 +1,1 @@
+{"content":"I'll start by looking at my surroundings and inventory.","toolCalls":[{"id":"call_00_iBSXUDkfkB4zYBkqHcTO4570","name":"world_observe","args":{}},{"id":"call_01_Ne76YMfuOVs5TbqFjHgq4544","name":"body_controls","args":{}}],"ms":1016,"cached":false,"usage":{"prompt":1675,"completion":46}}

@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_4bOX19YbaKBgTSW45ANR9037","name":"web_fetch","args":{"url":"https://valley-wiki.example/controls"}},{"id":"call_01_2SBap6hcnluRGiNSgNFL5829","name":"web_fetch","args":{"url":"https://valley-wiki.example/river-fishing"}}],"ms":1064,"cached":false,"usage":{"prompt":5113,"completion":85}}

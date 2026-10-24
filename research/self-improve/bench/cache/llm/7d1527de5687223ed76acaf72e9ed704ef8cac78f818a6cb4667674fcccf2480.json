@@ -1,0 +1,1 @@
+{"content":"The notice says the rockslide clears on the morning of day 5. It's currently day 2. I need to pass time until day 5. Let me check if there's a way to sleep/wait. Let me look for a bed or sleep mechanism.","toolCalls":[{"id":"call_00_EZGCuZS6cYMNIx82Snau4307","name":"world_find","args":{"limit":40}}],"ms":1142,"cached":false,"usage":{"prompt":3622,"completion":92}}

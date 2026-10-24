@@ -1,0 +1,1 @@
+{"content":"Now 3 Wood collected. Need 2 Stone. Stone at (10,1) and (9,8).","toolCalls":[{"id":"call_00_AM4lRqUfiOr76e5jZzsX3039","name":"body_walk_to","args":{"mode":"adjacent","x":10,"y":1}}],"ms":1132,"cached":false,"usage":{"prompt":5508,"completion":95}}

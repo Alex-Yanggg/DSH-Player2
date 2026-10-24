@@ -1,0 +1,1 @@
+{"content":"I have 2 Wood. The right side is blocked by the Gold Door. Let me check the door and the map around it.","toolCalls":[{"id":"call_00_uJZrfi6d7ys5R9xiHQtu3931","name":"world_map","args":{"x":7,"y":6,"radius":6}},{"id":"call_01_oSo3CaMghlxu4OXzbGuR3530","name":"world_find","args":{"kind":"door"}}],"ms":1457,"cached":false,"usage":{"prompt":2890,"completion":124}}

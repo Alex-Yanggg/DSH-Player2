@@ -1,0 +1,1 @@
+{"content":"The hoe didn't break the rock. Let me try the action button on it.","toolCalls":[{"id":"call_00_0QZkxCLh66Oci030WggY4392","name":"body_input","args":{"steps":[{"press":["ControllerA"],"ms":300}]}}],"ms":1003,"cached":false,"usage":{"prompt":3462,"completion":66}}

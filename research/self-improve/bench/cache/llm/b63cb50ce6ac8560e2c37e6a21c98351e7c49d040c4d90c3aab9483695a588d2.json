@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_MhyZ3c3fhWmILqe9iDTF2911","name":"world_map","args":{"radius":8}},{"id":"call_01_U1HEGUfM5zPWrIETOKfs7183","name":"web_search","args":{"queries":["Shrine Lever","Riverbank gate bell","lever gate puzzle"]}}],"ms":1540,"cached":false,"usage":{"prompt":8425,"completion":81}}

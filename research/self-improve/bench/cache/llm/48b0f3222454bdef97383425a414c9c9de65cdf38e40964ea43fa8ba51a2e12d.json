@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_QKDXnKKJ5DeFrDTvT9Vk2361","name":"web_fetch","args":{"url":"https://valley-wiki.example/clay-golem"}},{"id":"call_01_8xEerOSeWz70intdjf974667","name":"world_map","args":{"radius":20}}],"ms":1688,"cached":false,"usage":{"prompt":3792,"completion":76}}

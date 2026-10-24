@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_Xf4VXZk0JTPicw2nOOTC4615","name":"world_map","args":{"x":10,"y":5,"radius":6}},{"id":"call_01_aSjK7rzfwFCkEhJWmrG89160","name":"web_search","args":{"queries":["workbench craft Crown recipe","Gold Door workshop"]}}],"ms":1043,"cached":false,"usage":{"prompt":1459,"completion":109}}

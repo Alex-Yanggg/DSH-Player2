@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_tHsLYpf5jTAX6SgiFaNx1842","name":"world_map","args":{"radius":20}},{"id":"call_01_BRP6YSsTnlQPVPsBbGnZ9403","name":"web_search","args":{"queries":["controls keys","action button key binding","how to interact with objects"]}}],"ms":1153,"cached":false,"usage":{"prompt":12275,"completion":82}}

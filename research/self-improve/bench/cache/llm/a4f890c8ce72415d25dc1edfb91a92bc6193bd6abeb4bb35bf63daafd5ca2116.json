@@ -1,0 +1,1 @@
+{"content":"I'm in a Workshop. Let me read the notice board first.","toolCalls":[{"id":"call_00_AI58A3CWKb1VOM1t0Ic16166","name":"body_walk_to","args":{"x":2,"y":7,"mode":"adjacent"}}],"ms":1055,"cached":false,"usage":{"prompt":2011,"completion":85}}

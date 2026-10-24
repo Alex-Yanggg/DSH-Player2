@@ -1,0 +1,1 @@
+{"content":"Long idle timed out. Let me use shorter idle steps repeatedly.","toolCalls":[{"id":"call_00_Ly3YQKE7w46nXV2cWDmE4327","name":"body_input","args":{"steps":[{"hold":[],"ms":8000},{"hold":[],"ms":8000},{"hold":[],"ms":8000},{"hold":[],"ms":8000},{"hold":[],"ms":8000}]}}],"ms":1543,"cached":false,"usage":{"prompt":4677,"completion":104}}

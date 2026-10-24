@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_nER4oqdjH4XTmnoy3rEZ4238","name":"world_map","args":{"x":10,"y":5,"radius":6}},{"id":"call_01_ViDe5yutrUc1KwHWkdTS3045","name":"web_search","args":{"queries":["workbench craft Crown requirements","Crown recipe wood stone"]}}],"ms":1305,"cached":false,"usage":{"prompt":1461,"completion":111}}

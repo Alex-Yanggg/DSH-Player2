@@ -1,0 +1,1 @@
+{"content":"The door is locked and needs a silver key. Let me look for a key.","toolCalls":[{"id":"call_00_IvdalpIk3U4sQqBEop2u1345","name":"world_find","args":{"name":"key"}},{"id":"call_01_rgLssQYmrMGyxTGGBIkn3801","name":"world_find","args":{"kind":"item"}}],"ms":1074,"cached":false,"usage":{"prompt":2810,"completion":83}}

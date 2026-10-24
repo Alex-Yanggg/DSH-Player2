@@ -1,0 +1,1 @@
+{"content":"I'm standing on the notice board tile (2,7). Let me move up to (2,6) then approach the wood.","toolCalls":[{"id":"call_00_A1HFVNsA0lfPUfQPJfKa5938","name":"body_input","args":{"steps":[{"hold":["KeyW"],"ms":400}]}}],"ms":1093,"cached":false,"usage":{"prompt":2503,"completion":77}}

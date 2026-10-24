@@ -1,0 +1,1 @@
+{"content":"The chest is at (11,1). Path: go right along row 8 to x=11, up column 11 to y=1. Let me walk there.","toolCalls":[{"id":"call_00_aLQjdmbqNyxZS8ttcGGY5080","name":"body_walk_to","args":{"x":11,"y":1,"mode":"stand"}}],"ms":1128,"cached":false,"usage":{"prompt":2366,"completion":106}}

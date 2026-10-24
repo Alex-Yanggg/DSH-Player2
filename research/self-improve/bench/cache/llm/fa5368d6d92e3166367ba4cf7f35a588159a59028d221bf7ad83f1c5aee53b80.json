@@ -1,0 +1,1 @@
+{"content":"I need 3 Wood and 2 Stone. Let me see the full map and all materials.","toolCalls":[{"id":"call_00_OPBnQbeJc6dUtCotlvip1469","name":"world_map","args":{"radius":12}},{"id":"call_01_trLSVsUAxO9eWgF16fum9639","name":"world_find","args":{"kind":"material","limit":40}}],"ms":1120,"cached":false,"usage":{"prompt":1992,"completion":101}}

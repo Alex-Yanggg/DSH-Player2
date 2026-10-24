@@ -1,0 +1,1 @@
+{"content":"The Workshop has no exits — it's the whole world. Let me check the workbench and pick up materials.","toolCalls":[{"id":"call_00_t7S0SuTq8hjob7Db7qTz7279","name":"body_walk_to","args":{"mode":"adjacent","x":10,"y":5}}],"ms":1018,"cached":false,"usage":{"prompt":2904,"completion":94}}

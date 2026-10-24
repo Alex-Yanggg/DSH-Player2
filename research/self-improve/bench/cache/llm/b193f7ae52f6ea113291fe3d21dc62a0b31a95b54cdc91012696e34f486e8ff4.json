@@ -1,0 +1,1 @@
+{"content":"I'm facing down, not at the notice board. Let me face up toward it.","toolCalls":[{"id":"call_00_EeWNgH9BY2swcaSRpnZj4639","name":"body_input","args":{"steps":[{"hold":["KeyW"],"ms":100}]}}],"ms":1357,"cached":false,"usage":{"prompt":2122,"completion":67}}

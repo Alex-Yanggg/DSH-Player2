@@ -1,0 +1,1 @@
+{"content":"It's Day 2 — the rockslide clears on the morning of day 5. Let me check the map and confirm the blockage.","toolCalls":[{"id":"call_00_jWP4A1JHWjOxI4V2heUe2620","name":"world_map","args":{"radius":12}}],"ms":1162,"cached":false,"usage":{"prompt":1916,"completion":64}}

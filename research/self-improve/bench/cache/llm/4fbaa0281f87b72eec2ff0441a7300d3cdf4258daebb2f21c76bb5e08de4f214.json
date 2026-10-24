@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_WrzVHHOJmtWq80bE6a6v6889","name":"world_map","args":{"x":10,"y":5,"radius":6}},{"id":"call_01_272DFMFEO4r5C2K084eD5346","name":"web_search","args":{"queries":["workbench craft Crown recipe","Crown crafting requirements"]}}],"ms":1225,"cached":false,"usage":{"prompt":1461,"completion":110}}

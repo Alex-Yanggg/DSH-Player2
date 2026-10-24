@@ -1,0 +1,1 @@
+{"content":"I'm at (4,7), Wood is at (4,6) — directly above me. Let me face up and interact.","toolCalls":[{"id":"call_00_2Y3uPbBKQhwN3RPx2wtd3792","name":"body_input","args":{"steps":[{"hold":["KeyW"],"ms":100},{"press":["KeyE"],"ms":100}]}}],"ms":868,"cached":false,"usage":{"prompt":3056,"completion":90}}

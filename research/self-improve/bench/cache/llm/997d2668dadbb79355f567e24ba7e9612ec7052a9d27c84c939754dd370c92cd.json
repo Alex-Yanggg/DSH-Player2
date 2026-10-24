@@ -1,0 +1,1 @@
+{"content":"Still no movement. Let me try the walk helper to a very close tile with mode \"stand\" and see the detailed leg report — maybe it reveals why it fails.","toolCalls":[{"id":"call_00_O02P8uaqhoMSZep4Ov4Q9275","name":"body_walk_to","args":{"mode":"stand","x":2,"y":6}}],"ms":1226,"cached":false,"usage":{"prompt":10530,"completion":104}}

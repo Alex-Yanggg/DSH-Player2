@@ -1,0 +1,1 @@
+{"content":"The Gold Door blocks the right side. Let me check it.","toolCalls":[{"id":"call_00_K4zFquuNq526KuRDTkUM1077","name":"body_walk_to","args":{"mode":"adjacent","x":7,"y":6}}],"ms":917,"cached":false,"usage":{"prompt":2760,"completion":84}}

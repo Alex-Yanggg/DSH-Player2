@@ -1,0 +1,1 @@
+{"content":"It's day 1, 15:00. I need to wait until day 5 morning. Let me wait in chunks.","toolCalls":[{"id":"call_00_5LeKa5EDNuw1hUNeMgAh7865","name":"wait_minutes","args":{"minutes":600}}],"ms":1096,"cached":false,"usage":{"prompt":2677,"completion":64}}

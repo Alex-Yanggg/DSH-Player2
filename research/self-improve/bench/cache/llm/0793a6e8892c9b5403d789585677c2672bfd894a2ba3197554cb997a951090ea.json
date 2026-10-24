@@ -1,0 +1,1 @@
+{"content":"The rockslide at (11,4) blocks the corridor. Let me try interacting with it — maybe it can be cleared with the action button or a tool.","toolCalls":[{"id":"call_00_kYHmZU1DnLy7uCzKlJ4O9207","name":"body_walk_to","args":{"mode":"adjacent","x":11,"y":4}}],"ms":940,"cached":false,"usage":{"prompt":2829,"completion":104}}

@@ -1,0 +1,1 @@
+{"content":"The rockslide blocks 6 tiles. Let me walk to it and try using the hoe (tool) on it — maybe it can be cleared.","toolCalls":[{"id":"call_00_qXqZTARq2R0k4ZpATUEs7410","name":"body_walk_to","args":{"mode":"adjacent","x":11,"y":4}}],"ms":1118,"cached":false,"usage":{"prompt":3048,"completion":101}}

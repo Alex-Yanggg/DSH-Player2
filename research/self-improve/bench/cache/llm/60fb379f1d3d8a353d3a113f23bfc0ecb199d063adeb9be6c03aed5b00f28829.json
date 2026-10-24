@@ -1,0 +1,1 @@
+{"content":"I'll start by looking around to see where I am and what's nearby.","toolCalls":[{"id":"call_00_pmRrVAw229YJPgPczZWD6556","name":"world_observe","args":{"radius":20}},{"id":"call_01_RCgv1SgWivRzelVC87ar3882","name":"body_controls","args":{}}],"ms":977,"cached":false,"usage":{"prompt":1570,"completion":67}}

@@ -1,0 +1,1 @@
+{"content":"The rockslide is gone now (day 4, 14:72 — it cleared). Let me walk to the chest.","toolCalls":[{"id":"call_00_j9w4g38alyaMUA2sWiAH6095","name":"body_walk_to","args":{"mode":"stand","x":11,"y":1}}],"ms":1089,"cached":false,"usage":{"prompt":5200,"completion":96}}

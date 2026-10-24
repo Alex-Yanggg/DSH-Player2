@@ -1,0 +1,1 @@
+{"content":"The pathfinder thinks it's blocked. Let me check the map more carefully around the rockslide.","toolCalls":[{"id":"call_00_bNHDy187s13ISMcLw7nY8317","name":"world_map","args":{"x":11,"y":3,"radius":4}}],"ms":932,"cached":false,"usage":{"prompt":2570,"completion":88}}

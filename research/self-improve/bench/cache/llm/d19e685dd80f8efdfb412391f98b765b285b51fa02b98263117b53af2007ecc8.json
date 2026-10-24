@@ -1,0 +1,1 @@
+{"content":"It's now Day 3 and there's a key in the location. Let me find it.","toolCalls":[{"id":"call_00_SlkRXCOxJn4kcmsvob5Y7292","name":"world_find","args":{"kind":"item"}}],"ms":1054,"cached":false,"usage":{"prompt":4558,"completion":57}}

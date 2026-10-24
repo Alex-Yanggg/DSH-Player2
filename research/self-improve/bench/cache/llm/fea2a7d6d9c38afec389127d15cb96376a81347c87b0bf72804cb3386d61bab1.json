@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_I8IerOpVQ54v4m5fnv8s1657","name":"world_observe","args":{"radius":20}},{"id":"call_01_bJ2OvjuvLIr3Jv6k9ejI0362","name":"web_search","args":{"queries":["pick up materials unknown-input slot","KeyE pickup materials inventory slots"]}}],"ms":942,"cached":false,"usage":{"prompt":3862,"completion":83}}

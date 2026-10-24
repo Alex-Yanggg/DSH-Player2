@@ -1,0 +1,1 @@
+{"content":"The rockslide blocks the only passage. Let me try using the hoe on it — maybe it can be cleared.","toolCalls":[{"id":"call_00_5jSdGtYCHTB83mL9YviD2720","name":"body_walk_to","args":{"mode":"adjacent","x":11,"y":4}}],"ms":1101,"cached":false,"usage":{"prompt":2697,"completion":94}}
