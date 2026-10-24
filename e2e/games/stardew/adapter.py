@@ -314,12 +314,25 @@ class StardewFlows:
         self.shot(f"host_in_bed_day{day}")
         if not self.smapi.wait_for(in_bed, 0, since=mark):
             raise TimeoutError("the host never got into bed")
-        if not self.smapi.wait_for(r"screen_0 SMAPI\] Context: before save", 720, since=mark):
+        if not self._wait_night_end(mark):
             raise TimeoutError("the night never ended: the companion did not go to bed")
         lines = [ln for _, ln in self.smapi.lines]
         start = max(i for i, ln in enumerate(lines) if "Context: before save" in ln)
         if not self.smapi.wait_for(rf"Player2 sent: \[day-start day={day + 1}\]", 120, since=start):
             raise TimeoutError("the next day never started")
+
+    def _wait_night_end(self, mark: int, timeout_s: int = 720) -> bool:
+        """Waits for the night's save. A menu left open on the shared screen freezes the world (a
+        companion trapped in a menu cannot sleep out), so Escape is tapped now and then - closing
+        a menu that nobody needs is harmless when no menu is up."""
+        deadline = time.monotonic() + timeout_s
+        while time.monotonic() < deadline:
+            left = deadline - time.monotonic()
+            if self.smapi.wait_for(r"screen_0 SMAPI\] Context: before save", min(45, left), since=mark) is not None:
+                return True
+            self.refocus()
+            self.kb.tap("escape")
+        return False
 
     def _wait_dialog(self, timeout: float) -> bool:
         deadline = time.monotonic() + timeout
