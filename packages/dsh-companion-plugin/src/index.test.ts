@@ -20,6 +20,8 @@ async function createComposition(config: Partial<companionPlugin.Config> = {}): 
   const ctx = new Context();
   await ctx.plugin(SystemPrompt);
   await ctx.plugin(ToolRuntime);
+  // The real registry is DSH's own; a stub stands in for the bare test mount.
+  ctx.provide("agents", { list: () => [] });
   await ctx.plugin(companionPlugin, {
     persona: packPath("da-fei-yu"),
     ...config,

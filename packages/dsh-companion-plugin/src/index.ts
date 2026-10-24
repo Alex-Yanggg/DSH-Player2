@@ -57,8 +57,8 @@ declare module "@deepseek-ai/dsh-llm" {
 /** Cordis plugin name. */
 export const name = "player2-companion";
 
-/** DSH services extended by this plugin. */
-export const inject = ["systemPrompt", "tools"];
+/** DSH services extended by this plugin. `agents` is the registry the wake path walks to find the mind. */
+export const inject = ["systemPrompt", "tools", "agents"];
 
 /** Deployment identity for one companion process. */
 export interface Config {
@@ -139,7 +139,15 @@ export function apply(ctx: Context, config: Config): void {
   const saves = new Map<string, SaveState>();
   /** The stuck detector over the plan's steps; a wall stops the body and wakes the mind. */
   const stuckWatch = body === undefined ? null : new StuckWatch();
-  const agents = () => (ctx as unknown as { agents?: AgentAccess }).agents;
+  const agents = (ctx as unknown as { agents?: AgentAccess }).agents;
+  /** Wakes every agent of this mount; a wake failure never crashes the runtime — it logs, and the facts ride the next turn. */
+  const wakeAll = (): void => {
+    try {
+      for (const agent of agents?.list() ?? []) wake(agent);
+    } catch (error) {
+      console.error(`player2-companion: the mind could not be woken: ${messageOf(error)}`);
+    }
+  };
 
   /**
    * Wakes the mind of one agent: re-arm DSH's goal driver (the round fires and
@@ -176,9 +184,6 @@ export function apply(ctx: Context, config: Config): void {
     } catch (error) {
       console.error(`player2-companion: the mind could not be woken: ${messageOf(error)}`);
     }
-  };
-  const wakeAll = (): void => {
-    for (const agent of agents()?.list() ?? []) wake(agent);
   };
   // A wake that landed on a running turn is retried once that turn ends.
   ctx.on("agent/status", ({ agent, status }) => {
