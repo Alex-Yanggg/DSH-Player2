@@ -1,0 +1,1 @@
+{"content":"The map shows a gap at (11,3) leading north. Let me try walking there.","toolCalls":[{"id":"call_00_ckjFreKH8cYEGQn6IE5u1687","name":"body_walk_to","args":{"mode":"stand","x":11,"y":3}}],"ms":1185,"cached":false,"usage":{"prompt":2366,"completion":90}}

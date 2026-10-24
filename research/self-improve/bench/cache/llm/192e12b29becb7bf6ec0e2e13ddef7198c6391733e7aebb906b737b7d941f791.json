@@ -1,0 +1,1 @@
+{"content":"The chest is at (11,1). I'll walk to it.","toolCalls":[{"id":"call_00_KhGnyXf0VIyrW8izCGjg7096","name":"body_walk_to","args":{"x":11,"y":1,"mode":"stand"}}],"ms":1215,"cached":false,"usage":{"prompt":2076,"completion":85}}

@@ -1,0 +1,1 @@
+{"content":"Let me try the action button on the rockslide to see if it can be cleared.","toolCalls":[{"id":"call_00_RnA1y9z84npx9HAc8jmg7956","name":"body_input","args":{"steps":[{"press":["ControllerA"],"ms":300}]}}],"ms":1028,"cached":false,"usage":{"prompt":2694,"completion":67}}
