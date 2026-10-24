@@ -51,6 +51,8 @@ python -m pytest
 
 Each run creates a fresh test character: a copy of the template under a new unique id in the `99xxxxxxx` range. The farmer and its DSH session are therefore new, and no run inherits an earlier run's conversation. The previous run's test save and bridge session are removed by their recorded id. Real saves are never touched, and the run aborts if SMAPI loads any save other than this run's.
 
+Run each live test at most twice per task, including one rerun after a fix. Report the second result instead of retrying further; live runs take hours.
+
 Results go to `e2e/artifacts/<run>/`: `summary.md` (per-category pass/fail), `results.json` (measurements), the SMAPI console, and screenshots of every failure.
 
 ## Safety
