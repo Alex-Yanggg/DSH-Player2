@@ -301,14 +301,16 @@ class StardewFlows:
         in_bed = rf"{re.escape(SENT)}\[world day={day}\] .* went to bed"
         self.smapi.poll()
         mark = len(self.smapi.lines)
-        for _ in range(3):  # step out of bed and back in; the game asks only after the farmer has moved
+        for _ in range(5):  # step out of bed and back in; the game asks only after the farmer has moved
             self.refocus()
             self.kb.hold("a", 0.4)
             self.kb.hold("d", 0.5)
-            if self._wait_dialog(3):
-                self.kb.tap("y")  # the sleep question's Yes
-                if self.smapi.wait_for(in_bed, 5, since=mark):
-                    break
+            self._wait_dialog(5)
+            # The sleep question's Yes, tapped even when the dimmed night screen hides the
+            # dialog from the color heuristic; without a question the tap is harmless.
+            self.kb.tap("y")
+            if self.smapi.wait_for(in_bed, 5, since=mark):
+                break
         self.shot(f"host_in_bed_day{day}")
         if not self.smapi.wait_for(in_bed, 0, since=mark):
             raise TimeoutError("the host never got into bed")
