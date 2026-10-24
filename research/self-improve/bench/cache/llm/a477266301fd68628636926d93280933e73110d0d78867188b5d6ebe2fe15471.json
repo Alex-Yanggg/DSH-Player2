@@ -1,0 +1,1 @@
+{"content":"It's Day 1, 7:32 — the rockslide at (11,4) won't be cleared until the morning of day 5. Let me check the notice board for any relevant info first.","toolCalls":[{"id":"call_00_uxxsrbckdoA4hVxwVpls8472","name":"body_walk_to","args":{"x":3,"y":7,"mode":"adjacent"}}],"ms":1164,"cached":false,"usage":{"prompt":2090,"completion":115}}

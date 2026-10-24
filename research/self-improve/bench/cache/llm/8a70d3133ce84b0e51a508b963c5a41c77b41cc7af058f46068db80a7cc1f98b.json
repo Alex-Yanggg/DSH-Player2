@@ -1,0 +1,1 @@
+{"content":"It's now day 5. Let me check the rockslide.","toolCalls":[{"id":"call_00_UZkz2DtzztQPFDB4AXKZ3817","name":"world_observe","args":{}},{"id":"call_01_Wg8MkAtvqcU3NjgHrzJh9802","name":"world_map","args":{"radius":14}}],"ms":939,"cached":false,"usage":{"prompt":2675,"completion":64}}

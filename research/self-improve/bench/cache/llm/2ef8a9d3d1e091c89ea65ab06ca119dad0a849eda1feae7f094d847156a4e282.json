@@ -1,0 +1,1 @@
+{"content":"The lever opened the gate. Now heading to the bell.","toolCalls":[{"id":"call_00_CDG0pi7DpuaN34ZftBS07565","name":"body_walk_to","args":{"mode":"stand","x":11,"y":1}}],"ms":1090,"cached":false,"usage":{"prompt":3178,"completion":82}}

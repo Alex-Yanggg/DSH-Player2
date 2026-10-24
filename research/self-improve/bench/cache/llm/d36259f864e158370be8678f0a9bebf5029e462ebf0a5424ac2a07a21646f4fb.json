@@ -1,0 +1,1 @@
+{"content":"Facing changed but position didn't. I'm blocked on all sides? Let me check the map around me precisely.","toolCalls":[{"id":"call_00_bzCc94AfnltFc30Z0y6i8857","name":"world_map","args":{"x":2,"y":7,"radius":4}}],"ms":1242,"cached":false,"usage":{"prompt":3705,"completion":92}}

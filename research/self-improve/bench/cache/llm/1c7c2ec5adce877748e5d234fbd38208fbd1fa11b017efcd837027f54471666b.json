@@ -1,0 +1,1 @@
+{"content":"I'm not moving at all. The notice board is at my tile and blocks. Perhaps I'm stuck. Let me try each direction individually with longer holds.","toolCalls":[{"id":"call_00_4KHcNKR9SU61uDKrQmN98020","name":"body_input","args":{"steps":[{"hold":["KeyA"],"ms":800}]}}],"ms":1036,"cached":false,"usage":{"prompt":3592,"completion":81}}

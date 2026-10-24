@@ -1,0 +1,1 @@
+{"content":"The chest tile is walkable. Let me walk onto it.","toolCalls":[{"id":"call_00_cGyGJPDT1NWOznHlgI0z5768","name":"body_walk_to","args":{"mode":"stand","x":11,"y":1}}],"ms":809,"cached":false,"usage":{"prompt":3430,"completion":83}}

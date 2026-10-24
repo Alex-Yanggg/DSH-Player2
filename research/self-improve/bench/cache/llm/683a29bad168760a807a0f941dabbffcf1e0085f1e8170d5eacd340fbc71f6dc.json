@@ -1,0 +1,1 @@
+{"content":"The passage at (7,3) is now open. Now I can reach the right room. Let me gather materials. First the Wood at (9,8).","toolCalls":[{"id":"call_00_R4Pvpk4hkxJlbNt5GoZq3024","name":"body_walk_to","args":{"mode":"adjacent","x":9,"y":8}}],"ms":974,"cached":false,"usage":{"prompt":3317,"completion":105}}

@@ -1,0 +1,1 @@
+{"content":"The rockslide is gone. Now I'll walk to the shrine chest at (11,1).","toolCalls":[{"id":"call_00_FjGD8DWnkIndQrCRYbTT8289","name":"body_walk_to","args":{"mode":"adjacent","x":11,"y":1}}],"ms":1098,"cached":false,"usage":{"prompt":3000,"completion":91}}

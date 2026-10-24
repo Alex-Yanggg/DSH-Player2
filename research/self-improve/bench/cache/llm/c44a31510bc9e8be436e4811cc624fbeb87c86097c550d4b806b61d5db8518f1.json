@@ -1,0 +1,1 @@
+{"content":"I'm standing on the notice board tile (2,7). The pathing is struggling. Let me manually move. I'm at (2,7). To get to (4,6), I need to go right and up. Let me check controls first.","toolCalls":[{"id":"call_00_Rjm2GKenwsP3ildFVtDQ2075","name":"body_controls","args":{}}],"ms":1159,"cached":false,"usage":{"prompt":2710,"completion":75}}

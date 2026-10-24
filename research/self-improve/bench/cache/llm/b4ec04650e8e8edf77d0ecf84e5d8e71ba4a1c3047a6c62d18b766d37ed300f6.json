@@ -1,0 +1,1 @@
+{"content":"The panel opened a passage. Now let me go through to the right room and gather materials.","toolCalls":[{"id":"call_00_twlU8a0CfFfWSwHnMLZx7245","name":"world_map","args":{"radius":12}}],"ms":1094,"cached":false,"usage":{"prompt":3155,"completion":55}}

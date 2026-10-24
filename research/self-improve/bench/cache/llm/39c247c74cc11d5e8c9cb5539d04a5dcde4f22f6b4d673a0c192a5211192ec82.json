@@ -1,0 +1,1 @@
+{"content":"I'm adjacent to the chest. The task is to stand on its tile. Let me try walking onto it.","toolCalls":[{"id":"call_00_OpADz69t74t9g6bdfkRI7532","name":"body_walk_to","args":{"mode":"stand","x":11,"y":1}}],"ms":959,"cached":false,"usage":{"prompt":3435,"completion":93}}

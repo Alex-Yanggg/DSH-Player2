@@ -1,0 +1,1 @@
+{"content":"The panel opened a passage. Let me check the map now.","toolCalls":[{"id":"call_00_NJtgRr3jBcXaasX4nwzu0811","name":"world_map","args":{"radius":12}}],"ms":862,"cached":false,"usage":{"prompt":3133,"completion":49}}

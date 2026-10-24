@@ -1,0 +1,1 @@
+{"content":"Confirmed. Now let me gather the materials. I need 3 Wood and 2 Stone. Let me pick up the wood first.","toolCalls":[{"id":"call_00_u9HJocf6p8BllsTUSJf51898","name":"body_walk_to","args":{"mode":"adjacent","x":2,"y":2}}],"ms":1124,"cached":false,"usage":{"prompt":2565,"completion":98}}

@@ -1,0 +1,1 @@
+{"content":"Now Stone at (10,1).","toolCalls":[{"id":"call_00_RhiEvNeBAKpMBnf6fodq4718","name":"body_walk_to","args":{"mode":"adjacent","x":10,"y":1}}],"ms":1036,"cached":false,"usage":{"prompt":3837,"completion":79}}

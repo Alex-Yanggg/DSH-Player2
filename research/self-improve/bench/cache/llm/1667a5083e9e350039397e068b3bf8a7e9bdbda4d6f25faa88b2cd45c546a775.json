@@ -1,0 +1,1 @@
+{"content":"A Gold Key appeared at (5,1). Let me pick it up.","toolCalls":[{"id":"call_00_sRDRaTzRgxAEUQ6p58Al7646","name":"body_walk_to","args":{"mode":"adjacent","x":5,"y":1}}],"ms":1027,"cached":false,"usage":{"prompt":4095,"completion":87}}

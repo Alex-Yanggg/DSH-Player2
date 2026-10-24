@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_jVvV5i5COOxkEUKQBgYS4326","name":"world_find","args":{"kind":"object"}},{"id":"call_01_gY7ayMbpiNHGpEwTFM070838","name":"web_search","args":{"queries":["shrine bell lever great gate riverbank","Clay Golem lever gate puzzle"]}}],"ms":1212,"cached":false,"usage":{"prompt":3313,"completion":84}}

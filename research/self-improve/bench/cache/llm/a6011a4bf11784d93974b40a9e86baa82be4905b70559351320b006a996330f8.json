@@ -1,0 +1,1 @@
+{"content":"The right side is blocked by the Gold Door until day 3. The third Wood and both Stones are on the far side. Let me check the notice board for info.","toolCalls":[{"id":"call_00_EWa3poZsJ9pIM8XH2hvR8532","name":"body_walk_to","args":{"mode":"adjacent","x":2,"y":7}}],"ms":1320,"cached":false,"usage":{"prompt":2886,"completion":106}}

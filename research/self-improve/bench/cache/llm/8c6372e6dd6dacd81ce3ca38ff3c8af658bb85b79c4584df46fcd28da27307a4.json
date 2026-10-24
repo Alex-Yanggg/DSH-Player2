@@ -1,0 +1,1 @@
+{"content":"Now 3 Wood. Let me get the two Stones.","toolCalls":[{"id":"call_00_0DfAPqzr3ecwj5I8mHiM1290","name":"body_walk_to","args":{"mode":"adjacent","x":10,"y":1}}],"ms":1014,"cached":false,"usage":{"prompt":4751,"completion":83}}

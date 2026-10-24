@@ -1,0 +1,1 @@
+{"content":"Still not moving. This is strange. Let me try body_walk_to to a nearby tile to see if the helper can move me.","toolCalls":[{"id":"call_00_M3sAOEsomnkQhic4xZU26390","name":"body_walk_to","args":{"x":3,"y":6}}],"ms":1324,"cached":false,"usage":{"prompt":4013,"completion":82}}

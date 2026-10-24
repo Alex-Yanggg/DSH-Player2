@@ -1,0 +1,1 @@
+{"content":"I'll pick up materials. First the Wood at (10,3).","toolCalls":[{"id":"call_00_pcVrHrVKc32IxLw1gPEv4888","name":"body_walk_to","args":{"x":10,"y":3,"mode":"adjacent"}}],"ms":957,"cached":false,"usage":{"prompt":2195,"completion":86}}

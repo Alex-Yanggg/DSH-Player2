@@ -1,0 +1,15 @@
+{
+  "saveId": "keycraft-bench-1",
+  "facts": [
+    {
+      "lesson": "In the Workshop, the Gold Door at (7,6) needs a Gold Key; the key vendor's first visit is the morning of day 3, leaving a Gold Key by the Gold Door. Before day 3 the bench room (workbench at (10,5)) cannot be entered.",
+      "topic": "gold door / workbench access",
+      "session": 1
+    },
+    {
+      "lesson": "In the Workshop, the Notice Board sits at (2,7) and the body can get stuck standing on that tile — all movement directions fail and body_walk_to reports 'no walkable path ... in the way: Notice Board at (2,7)'. Avoid ending up on (2,7).",
+      "topic": "notice board trap",
+      "session": 2
+    }
+  ]
+}

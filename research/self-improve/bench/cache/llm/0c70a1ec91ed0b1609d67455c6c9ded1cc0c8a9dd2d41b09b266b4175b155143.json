@@ -1,0 +1,1 @@
+{"content":"Got 1 Wood. Now the Stone at (10,1) — I'm at (10,2), so it's just above me.","toolCalls":[{"id":"call_00_r8nQTEoMEbIv3EC6qHWO9146","name":"body_walk_to","args":{"mode":"adjacent","x":10,"y":1}}],"ms":1353,"cached":false,"usage":{"prompt":4443,"completion":101}}

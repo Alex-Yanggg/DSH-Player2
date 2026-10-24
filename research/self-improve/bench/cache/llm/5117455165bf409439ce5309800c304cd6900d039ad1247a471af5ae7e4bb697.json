@@ -1,0 +1,1 @@
+{"content":"The rock is gone. Now I can walk to the shrine chest at (11,1).","toolCalls":[{"id":"call_00_XgzJjfhdKaVIAp89ihV09192","name":"body_walk_to","args":{"mode":"stand","x":11,"y":1}}],"ms":1315,"cached":false,"usage":{"prompt":2991,"completion":89}}

@@ -1,0 +1,1 @@
+{"content":"Let me read the notice board to confirm the key vendor timing.","toolCalls":[{"id":"call_00_VtYTsmh5vF1CrPjgz2bI7205","name":"body_walk_to","args":{"x":2,"y":7,"mode":"adjacent"}}],"ms":1294,"cached":false,"usage":{"prompt":2833,"completion":84}}

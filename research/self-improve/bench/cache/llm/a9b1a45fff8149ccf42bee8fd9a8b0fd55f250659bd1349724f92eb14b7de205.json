@@ -1,0 +1,1 @@
+{"content":"Panel opened. Now grab the Wood at (10,3).","toolCalls":[{"id":"call_00_qfPph43bxfxtPR4fQfEs8574","name":"body_walk_to","args":{"mode":"adjacent","x":10,"y":3}}],"ms":1065,"cached":false,"usage":{"prompt":2945,"completion":84}}

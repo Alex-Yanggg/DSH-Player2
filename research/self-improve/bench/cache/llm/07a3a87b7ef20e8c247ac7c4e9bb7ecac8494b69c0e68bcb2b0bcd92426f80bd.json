@@ -1,0 +1,1 @@
+{"content":"The passage at (7,3) is now open. Let me walk to the Wood at (9,8) and pick it up.","toolCalls":[{"id":"call_00_m3nMIt7Y4Xn0eubcgWDu8708","name":"body_walk_to","args":{"mode":"adjacent","x":9,"y":8}}],"ms":1329,"cached":false,"usage":{"prompt":3323,"completion":100}}

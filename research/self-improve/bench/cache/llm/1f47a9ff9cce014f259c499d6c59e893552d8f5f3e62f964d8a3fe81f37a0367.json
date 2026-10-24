@@ -1,0 +1,1 @@
+{"content":"I need 3 Wood and 2 Stone. There are 3 Wood (4,6), (2,2), (9,1) and 2 Stone (9,8), (10,1). Let me pick up the key first, then gather materials.","toolCalls":[{"id":"call_00_XISpyTGwZOUSGz9s4yaV7984","name":"body_walk_to","args":{"mode":"adjacent","x":5,"y":1}}],"ms":1015,"cached":false,"usage":{"prompt":3497,"completion":127}}

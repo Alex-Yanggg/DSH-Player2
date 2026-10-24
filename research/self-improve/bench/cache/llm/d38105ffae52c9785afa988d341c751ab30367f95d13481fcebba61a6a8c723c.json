@@ -1,0 +1,1 @@
+{"content":"Now Wood at (10,3).","toolCalls":[{"id":"call_00_xs2OwBsbBLqU5mPgl5tU4119","name":"body_walk_to","args":{"mode":"adjacent","x":10,"y":3}}],"ms":1080,"cached":false,"usage":{"prompt":3653,"completion":79}}

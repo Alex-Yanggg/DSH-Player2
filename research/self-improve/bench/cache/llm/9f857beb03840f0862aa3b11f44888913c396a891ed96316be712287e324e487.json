@@ -1,0 +1,1 @@
+{"content":"The chest is at (11,1). The task is to stand on its tile. Let me walk onto it.","toolCalls":[{"id":"call_00_eT3Fk04jgLfGnQzv6zge5706","name":"body_walk_to","args":{"mode":"stand","x":11,"y":1}}],"ms":973,"cached":false,"usage":{"prompt":3333,"completion":94}}

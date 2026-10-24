@@ -1,0 +1,1 @@
+{"content":"The rock is gone. Now I'll walk to the chest at (11,1).","toolCalls":[{"id":"call_00_uuiVJiHy8YpZiB6Sds5C0135","name":"body_walk_to","args":{"mode":"adjacent","x":11,"y":1}}],"ms":1149,"cached":false,"usage":{"prompt":2989,"completion":89}}

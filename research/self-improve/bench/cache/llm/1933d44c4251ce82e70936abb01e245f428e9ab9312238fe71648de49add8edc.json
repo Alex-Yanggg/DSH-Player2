@@ -1,0 +1,1 @@
+{"content":"I didn't move. The notice board blocks. Let me try moving up or down to get off it.","toolCalls":[{"id":"call_00_pXHtGlzkIZQAVWgmt3BX5128","name":"body_input","args":{"steps":[{"hold":["KeyW"],"ms":400}]}}],"ms":825,"cached":false,"usage":{"prompt":3463,"completion":71}}

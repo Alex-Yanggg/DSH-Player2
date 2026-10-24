@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_pNoZVd7OQzqFQSbyhJes7495","name":"body_input","args":{"steps":[{"hold":["KeyS"],"ms":3000}],"until":{"blockedMs":300}}}],"ms":1082,"cached":false,"usage":{"prompt":4588,"completion":73}}

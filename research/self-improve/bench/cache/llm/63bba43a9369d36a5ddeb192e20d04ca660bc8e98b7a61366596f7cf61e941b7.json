@@ -1,0 +1,1 @@
+{"content":"Wood +2 now. Next the Wood at (9,1).","toolCalls":[{"id":"call_00_Q0hyFqkcbqtyTDkyE8rY5564","name":"body_walk_to","args":{"mode":"adjacent","x":9,"y":1}}],"ms":1071,"cached":false,"usage":{"prompt":4017,"completion":85}}

@@ -1,0 +1,1 @@
+{"content":"Got 3 Wood. Now the Stone at (11,8).","toolCalls":[{"id":"call_00_7dobeQiXzS6SYCdeWWvu0100","name":"body_walk_to","args":{"mode":"adjacent","x":11,"y":8}}],"ms":995,"cached":false,"usage":{"prompt":5149,"completion":85}}

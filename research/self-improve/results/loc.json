@@ -67,13 +67,5 @@
  "combo": {
   "loc_core": 97,
   "loc_data": 0
- },
- "async": {
-  "loc_core": 358,
-  "loc_data": 0
- },
- "async-llm": {
-  "loc_core": 358,
-  "loc_data": 0
  }
 }

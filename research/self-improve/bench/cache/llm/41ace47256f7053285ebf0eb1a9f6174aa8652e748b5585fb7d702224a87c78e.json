@@ -1,0 +1,1 @@
+{"content":"The right side is blocked by a Gold Door at (7,6). Let me check the map around the door — maybe there's a key or another route.","toolCalls":[{"id":"call_00_ArYGWc78I6lWQIoCyem36426","name":"world_map","args":{"radius":12}},{"id":"call_01_48I33RhNxsY2g7w7E1Xe1226","name":"world_find","args":{}}],"ms":1213,"cached":false,"usage":{"prompt":3801,"completion":82}}

@@ -1,0 +1,1 @@
+{"content":"The right room is walled off. Let me check the Loose Panel and Silver Door.","toolCalls":[{"id":"call_00_7yVdF36q4582sl6ZIjJL0630","name":"body_walk_to","args":{"mode":"adjacent","x":7,"y":3}}],"ms":1068,"cached":false,"usage":{"prompt":2534,"completion":90}}

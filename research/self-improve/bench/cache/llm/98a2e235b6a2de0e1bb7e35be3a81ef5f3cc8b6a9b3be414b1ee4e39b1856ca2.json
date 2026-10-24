@@ -1,0 +1,1 @@
+{"content":"The gate at (5,7) is open. Now I'll head to the bell at (11,1).","toolCalls":[{"id":"call_00_yRbfd9UUd3zUwcYqeJ3n6998","name":"body_walk_to","args":{"mode":"stand","x":11,"y":1}}],"ms":1250,"cached":false,"usage":{"prompt":2712,"completion":94}}

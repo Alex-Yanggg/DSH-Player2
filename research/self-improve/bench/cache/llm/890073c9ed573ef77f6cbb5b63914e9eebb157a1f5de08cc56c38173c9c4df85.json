@@ -1,0 +1,1 @@
+{"content":"I'll start by looking at the current state of the world.","toolCalls":[{"id":"call_00_ZkHIpgSJMTlShl68P7NA5532","name":"world_observe","args":{}}],"ms":715,"cached":false,"usage":{"prompt":1756,"completion":35}}

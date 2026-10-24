@@ -1,0 +1,1 @@
+{"content":"The rockslide at (11,4) blocks the north pass until day 5 morning. It's day 1, 7:36. Let me check the notice board for any info first.","toolCalls":[{"id":"call_00_aZNEhLfFWwRFhDExYMuC2703","name":"body_walk_to","args":{"x":3,"y":7,"mode":"adjacent"}}],"ms":963,"cached":false,"usage":{"prompt":2060,"completion":112}}

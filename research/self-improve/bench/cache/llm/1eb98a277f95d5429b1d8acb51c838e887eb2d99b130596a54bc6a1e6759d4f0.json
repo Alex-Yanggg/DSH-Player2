@@ -1,0 +1,1 @@
+{"content":"Now I have 3 Wood and 2 Stone. Let me verify and go to the workbench.","toolCalls":[{"id":"call_00_XnAAoZ9sJhTc95fy3KXS4748","name":"world_observe","args":{}}],"ms":1454,"cached":false,"usage":{"prompt":4948,"completion":43}}
