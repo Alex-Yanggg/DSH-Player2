@@ -37,7 +37,6 @@ import {
   type Trait,
 } from "@dsh-player2/contracts";
 import { applyMoodEvent, decayMood, restingMood, type MoodEvent } from "./mood.js";
-import { lessonKey, lessonScore, type Lesson } from "./library.js";
 
 /** Episodes kept per save before importance-based forgetting. */
 export const EPISODES_PER_SAVE = 2_000;
@@ -45,7 +44,36 @@ export const EPISODES_PER_SAVE = 2_000;
 export const ACTIVE_TRAIT_LIMIT = 24;
 /** Facts about one save kept before the least-served are dropped. */
 export const SAVE_FACT_LIMIT = 64;
+/** The pseudo-save that holds the persona's own lessons (every save of this person). */
+export const PERSONA_SAVE = "persona";
 const SAVE_SEGMENT = /^[a-z0-9][a-z0-9-]{0,63}$/;
+
+/** A short kept lesson: a save fact, or a persona lesson under `PERSONA_SAVE`. */
+export interface Lesson {
+  readonly text: string;
+  readonly topic: string;
+  readonly createdAt: string;
+  uses: number;
+  lastUsedAt: string | null;
+  /** Set only when the day showed this lesson's approach working in its save. */
+  worked?: true;
+}
+
+/** Whitespace-collapsed, case-folded key two lessons must share to be the same. */
+export function lessonKey(text: string): string {
+  return text.replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+/** Ordering for the prompt: most-used and newest first. */
+export function lessonScore(lesson: Lesson, now: Date): number {
+  const ageDays = Math.max(0, now.getTime() - Date.parse(lesson.createdAt)) / 86_400_000;
+  return lesson.uses / (1 + ageDays);
+}
+
+/** One prompt line per lesson. */
+export function lessonLines(lessons: readonly Lesson[]): string[] {
+  return lessons.map((lesson) => `- [${lesson.topic}${lesson.uses > 1 ? ` x${lesson.uses}` : ""}] ${lesson.text}`);
+}
 
 /** A new experience before the ledger assigns its id. */
 export interface EpisodeDraft {
@@ -244,9 +272,10 @@ export class PersonaLedger {
   // ------------------------------------------------------------------- facts
 
   /**
-   * The save's own facts (P2-0020 T1): durable knowledge about this world,
-   * keyed by the save id the mod derives from the game's `uniqueIDForThisGame`
-   * (the session folder name). Plain JSON lines beside the save's episodes.
+   * The save's own facts (P2-0020 T1), plus the persona's lessons under
+   * `PERSONA_SAVE`: durable knowledge keyed by the save id the mod derives
+   * from the game's `uniqueIDForThisGame` (the session folder name). Plain
+   * JSON lines beside the save's episodes.
    */
   public async facts(save: string): Promise<Lesson[]> {
     const lines = (await readFile(this.savePath(save, "facts.jsonl"), "utf8").catch(() => "")).split("\n");
@@ -262,7 +291,7 @@ export class PersonaLedger {
   }
 
   /** Keeps one save fact; the same text (folded) is counted again, not duplicated. */
-  public async learnFact(save: string, text: string, topic: string, now: Date): Promise<"kept" | "known"> {
+  public async learnFact(save: string, text: string, topic: string, now: Date, worked = false): Promise<"kept" | "known"> {
     return this.exclusive(async () => {
       const clean = text.replace(/\s+/g, " ").trim().slice(0, 240);
       if (clean.length < 3) throw new Error("a fact needs at least 3 characters");
@@ -271,10 +300,11 @@ export class PersonaLedger {
       const known = facts.find((fact) => lessonKey(fact.text) === key);
       if (known !== undefined) {
         known.uses += 1;
+        if (worked) known.worked = true;
         await this.writeFacts(save, facts, now);
         return "known" as const;
       }
-      facts.push({ text: clean, topic: topic.replace(/\s+/g, " ").trim().slice(0, 40) || "general", createdAt: now.toISOString(), uses: 1, lastUsedAt: null });
+      facts.push({ text: clean, topic: topic.replace(/\s+/g, " ").trim().slice(0, 40) || "general", createdAt: now.toISOString(), uses: 1, lastUsedAt: null, ...(worked ? { worked: true as const } : {}) });
       await this.writeFacts(save, facts, now);
       return "kept" as const;
     });
@@ -313,7 +343,7 @@ export class PersonaLedger {
     return join(this.root, "saves", save);
   }
   public savePath(save: string, file: string): string { return join(this.saveDirectory(save), file); }
-  public async saves(): Promise<string[]> { return (await safeReaddir(join(this.root, "saves"))).filter((save) => SAVE_SEGMENT.test(save)).sort(); }
+  public async saves(): Promise<string[]> { return (await safeReaddir(join(this.root, "saves"))).filter((save) => SAVE_SEGMENT.test(save) && save !== PERSONA_SAVE).sort(); }
 
   /** Atomically replace one ledger file. */
   public async writeJson(path: string, value: unknown): Promise<void> {

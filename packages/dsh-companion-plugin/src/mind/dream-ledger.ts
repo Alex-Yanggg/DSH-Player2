@@ -20,14 +20,15 @@ export interface LedgerEdits {
   readonly story: string | null;
   readonly traits: readonly TraitEdit[];
   readonly forget: readonly string[];
-  /** Durable lessons the day taught (P2-0020 T1): save facts, or persona-library promotions. */
+  /** Durable lessons the day taught (P2-0020 T1), as save facts; the code rule promotes (P2-0021). */
   readonly lessons: readonly LessonEdit[];
 }
 
 export interface LessonEdit {
-  readonly where: "save" | "persona";
   readonly text: string;
   readonly topic: string;
+  /** The day showed this approach working in this save. */
+  readonly worked?: true;
 }
 
 export type TraitEdit =
@@ -66,11 +67,11 @@ export function ledgerDigest(episodes: readonly Episode[], traits: readonly Trai
 
 /** The instruction lines that teach the `dream_commit` arguments. */
 export const DREAM_LEDGER_INSTRUCTIONS = [
-  'When something is worth keeping, call dream_commit once with {"story":"<=600 chars or null","traits":[...],"forget":["ep-…"],"lessons":[{"where":"save"|"persona","text":"...","topic":"..."}]}.',
+  'When something is worth keeping, call dream_commit once with {"story":"<=600 chars or null","traits":[...],"forget":["ep-…"],"lessons":[{"text":"...","topic":"...","worked":true?}]}.',
   '- story: rewrite our story so far in your own voice when today changed it; null keeps it. Mention only what the episodes and the existing story support.',
   '- traits: {"op":"add","text":"...","scope":"person","episodeIds":["ep-…","ep-…"]} needs two independent episodes (or one player correction); fewer keeps it as a candidate. {"op":"strengthen"|"weaken"|"retire","id":"tr-…","episodeIds":["ep-…"]} changes an existing trait and needs at least one episode.',
   "- forget: trivial episode ids not worth keeping; receipts are never forgotten.",
-  '- lessons: durable facts and policies the day taught, one sentence each. "save" for facts of this world (places, schedules, what blocks what); "persona" only when today showed an approach working that would serve on every save. Nothing new learned: omit the field.',
+  '- lessons: durable facts and policies the day taught about this world, one sentence each. Mark "worked": true only when today really showed the approach working; a lesson that proves out in two different saves joins your library on its own. Nothing new learned: omit the field.',
   "Do not call dream_commit when nothing changed. Every id you write must appear above.",
 ];
 
@@ -94,9 +95,9 @@ export function parseLedgerEdits(raw: unknown): LedgerEdits | null {
   const forget = Array.isArray(value.forget) ? value.forget.filter((id): id is string => typeof id === "string") : [];
   const lessons: LessonEdit[] = [];
   for (const item of Array.isArray(value.lessons) ? value.lessons : []) {
-    const edit = item as { where?: unknown; text?: unknown; topic?: unknown };
-    if (typeof edit.text === "string" && edit.text.trim() !== "" && (edit.where === "save" || edit.where === "persona")) {
-      lessons.push({ where: edit.where, text: edit.text, topic: typeof edit.topic === "string" ? edit.topic : "general" });
+    const edit = item as { text?: unknown; topic?: unknown; worked?: unknown };
+    if (typeof edit.text === "string" && edit.text.trim() !== "") {
+      lessons.push({ text: edit.text, topic: typeof edit.topic === "string" ? edit.topic : "general", ...(edit.worked === true ? { worked: true as const } : {}) });
     }
   }
   return { story, traits, forget, lessons };

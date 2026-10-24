@@ -24,11 +24,22 @@ export async function ledgerMarkdown(ledger: PersonaLedger, companionName: strin
     lines.push(`- ${trait.text} — ${trait.status === "active" ? "已确立" : "观察中"}，置信度 ${trait.confidence.toFixed(2)}，范围 ${trait.scope}，证据 ${trait.evidence.join("、")}`);
   }
   lines.push("");
+  const personaLessons = await ledger.facts("persona");
+  if (personaLessons.length > 0) {
+    lines.push("## 跨每个存档记住的", "");
+    for (const lesson of personaLessons) lines.push(`- ${lesson.text} — ${lesson.topic}${lesson.uses > 1 ? `，用过 ${lesson.uses} 次` : ""}`);
+    lines.push("");
+  }
   for (const save of await ledger.saves()) {
-    const [story, mood, read] = await Promise.all([ledger.story(save), ledger.mood(save, now), ledger.episodes(save)]);
+    const [story, mood, read, facts] = await Promise.all([ledger.story(save), ledger.mood(save, now), ledger.episodes(save), ledger.facts(save)]);
     lines.push(`## 存档 ${save}`, "");
     lines.push(`**我们的故事：**${story === null || story.text.trim() === "" ? "（还没有）" : story.text}`, "");
     lines.push(`**此刻心情：**${describeMood(mood)}`, "");
+    if (facts.length > 0) {
+      lines.push("**这个存档教会它的：**", "");
+      for (const fact of facts) lines.push(`- ${fact.text} — ${fact.topic}`);
+      lines.push("");
+    }
     lines.push(`**经历（最近 ${Math.min(EPISODES_LISTED, read.episodes.length)} / 共 ${read.episodes.length} 条${read.skipped > 0 ? `，${read.skipped} 行损坏已跳过` : ""}）：**`, "");
     for (const episode of read.episodes.slice(-EPISODES_LISTED).reverse()) {
       lines.push(`- \`${episode.id}\` ${episode.gameDay === null ? "" : `第 ${episode.gameDay} 天 · `}${episode.kind} · ${episode.summary}`);
