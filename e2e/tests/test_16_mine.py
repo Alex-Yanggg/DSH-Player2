@@ -15,7 +15,7 @@ pytestmark = pytest.mark.mine
 
 COPPER = "(O)378"
 WANTED = 10
-DAYS = 3
+DAYS = 5
 BEDTIME = 2200
 
 
