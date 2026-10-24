@@ -221,7 +221,7 @@ export function apply(ctx: Context, config: Config): void {
     }, "player2-companion.plan");
     ctx.effect(() => ctx.tools.register(defineTool({
       name: "plan_set",
-      description: "Hand a plan to your body: an ordered list of steps it keeps working while you rest — each step is one walk {x,y,location?,mode?}, one raw input {steps,until?} (button ids: body_controls), or a wait {minutes} — with what it expects to change (at {x,y,location?}, holding {name,atLeast?}). An empty steps list takes the plan back and wakes you. You are woken when the plan finishes or a step keeps failing.",
+      description: "Hand a plan to your body: an ordered list of steps it keeps working while you rest. Each step is an object {tool, args, expect?, label?}: one walk (tool body_walk_to, args {x,y,location?,mode?}), one raw input (tool body_input, args {steps,until?}; button ids: body_controls), or a wait (tool wait, args {minutes}) — and expect, the change it must show (at {x,y,location?}, holding {name,atLeast?}). The tool's arguments live inside args. An empty steps list takes the plan back and wakes you. You are woken when the plan finishes or a step keeps failing.",
       parameters: {
         approach: { type: "string", required: true, description: "One line: what this plan tries." },
         steps: {

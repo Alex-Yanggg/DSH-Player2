@@ -121,6 +121,13 @@ describe("the plan board", () => {
     expect(made.board.set("rethink", [])).toContain("Plan cleared");
     expect(made.board.wakePending()).toBe(true);
   });
+
+  it("refuses a step whose arguments are not inside args, teaching the shape", () => {
+    const made = board(open());
+    // The live failure: the tool's arguments spread beside args instead of inside it.
+    expect(() => made.board.set("bad shape", [{ tool: "body_input", steps: [{ press: ["A"], ms: 50 }] }] as never)).toThrow(/inside args/);
+    expect(() => made.board.set("no args", [{ tool: "body_walk_to" }] as never)).toThrow(/inside args/);
+  });
 });
 
 describe("the async claim on the sim (idle ratio, actions per game minute)", () => {

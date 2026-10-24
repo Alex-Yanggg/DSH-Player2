@@ -69,7 +69,7 @@ export class PlanBoard {
     for (const step of steps.slice(0, MAX_STEPS)) {
       const label = (step.label ?? step.tool).replace(/\s+/g, " ").trim().slice(0, 80) || step.tool;
       const signature = stepSignature(step);
-      if (signature === null) throw new Error(`refused: step ${prepared.length + 1} (${label}) has args this body cannot act on`);
+      if (signature === null) throw new Error(`refused: step ${prepared.length + 1} (${label}) has args this body cannot act on. A step is {"tool":"body_walk_to"|"body_input"|"wait","args":{...},"expect":{...},"label":"..."} — the tool's own arguments go inside args, never beside it.`);
       prepared.push({ ...step, label, signature });
     }
     if (this.plan !== null) this.facts.push("Your previous plan was replaced before it finished.");
@@ -139,7 +139,7 @@ export class PlanBoard {
       return { outcome: run.status === "done" ? "ok" : run.status, report: `let the world run ~${minutes} minute(s) (${run.status})` };
     }
     if (step.tool === "body_walk_to") {
-      const args = step.args as { x: number; y: number; location?: string; mode?: "stand" | "adjacent" };
+      const args = (step.args ?? {}) as { x: number; y: number; location?: string; mode?: "stand" | "adjacent" };
       this.controls ??= controlsOf(await this.body.declaration());
       const result = await walkTo(this.body, this.controls, () => this.body.world(), { x: Number(args.x), y: Number(args.y), mode: args.mode === "adjacent" ? "adjacent" : "stand", ...(typeof args.location === "string" ? { location: args.location } : {}) });
       return { outcome: result.ok ? "ok" : `not reached (${result.reason})`, report: `${result.ok ? "OK" : "NOT REACHED"}: ${result.reason}. Now at ${result.location ?? "?"} (${result.x ?? "?"},${result.y ?? "?"}).` };
@@ -172,6 +172,8 @@ export class PlanBoard {
 
 /** A stable signature for the stuck detector: the tool plus what it acts on, not the label. */
 function stepSignature(step: PlanStepInput): string | null {
+  const args = step.args;
+  if (args === undefined || args === null || typeof args !== "object" || Array.isArray(args)) return null;
   switch (step.tool) {
     case "wait": return Number.isFinite(Number(step.args.minutes)) ? `wait ${Number(step.args.minutes)}m` : null;
     case "body_walk_to": {
