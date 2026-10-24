@@ -26,7 +26,9 @@ import { parsePersonaPack, type PersonaPack } from "@dsh-player2/contracts";
 import { GameBody, type BodyPort } from "./body/port.js";
 import { PersonaDice, tendencyLines, turnNudges } from "./body/knobs.js";
 import { loadReflexTable, ReflexBody } from "./body/reflex.js";
+import { Gate, PlanBoard, type PlanStepInput } from "./body/plan.js";
 import { PtcRunner, skillHands, SkillStore, type PtcLike } from "./body/skills.js";
+import { StuckWatch } from "./body/stuck.js";
 import { createBodyTools, textOutput } from "./body/tools.js";
 import { DEFAULT_GAME, MindCore, type PreparedDream, type PreparedMind } from "./mind/core.js";
 import { DREAM_LEDGER_INSTRUCTIONS } from "./mind/dream-ledger.js";
@@ -38,6 +40,8 @@ export { PersonaDice, tendencyLines, turnNudges } from "./body/knobs.js";
 export { SimAdapter, type SimLocation, type SimOptions } from "./body/sim-adapter.js";
 export { ReflexBody, ReflexEngine, loadReflexTable, nearestMonster, renderFact, roleButtons } from "./body/reflex.js";
 export { PtcRunner, skillHands, SkillStore, type PtcLike, type SkillHands, type SkillRecord, type SkillRunner } from "./body/skills.js";
+export { StuckWatch, stateDigest, stuckFact, STUCK_HITS, type StuckAttempt } from "./body/stuck.js";
+export { Gate, PlanBoard, type PlanStepInput } from "./body/plan.js";
 export { Toy2Adapter, TOY2_GOAL } from "./body/toy2.js";
 export { createBodyTools, BODY_TOOL_NAMES, renderObservation, inventoryDiff, type BodyContext } from "./body/tools.js";
 
@@ -128,6 +132,13 @@ export function apply(ctx: Context, config: Config): void {
       onError: (error) => console.error(`player2-companion: reflex state poll failed: ${messageOf(error)}`),
     });
   const saves = new Map<string, SaveState>();
+  /** The stuck detector over the acting tools; the plan executor holds while it says so. */
+  const stuckWatch = body === undefined ? null : new StuckWatch();
+  /** One controller between the plan executor and the mind's acting tools. */
+  const gate = new Gate();
+  /** The plan board's skill seam; set at mount only when DSH's program seam exists. */
+  let boardSkills: () => SkillStore | undefined = () => undefined;
+  let planBoard: PlanBoard | null = null;
   let skillsOf: ((agent: Agent | undefined) => SkillStore | undefined) | undefined;
   /** Where skill programs execute, for the mind's skills note (set at mount when the seam exists). */
   let skillPath = "none";
@@ -156,9 +167,36 @@ export function apply(ctx: Context, config: Config): void {
   };
 
   if (body !== undefined) {
-    for (const tool of createBodyTools({ body })) {
+    for (const tool of createBodyTools({ body, watch: stuckWatch ?? undefined, gate })) {
       ctx.effect(() => ctx.tools.register(tool), `player2-companion.tool.${tool.name}`);
     }
+    // The plan board (P2-0020 T3): the mind hands down steps; this code keeps
+    // the body working them between and during model turns.
+    planBoard = new PlanBoard(body, stuckWatch!, gate, () => boardSkills());
+    ctx.effect(() => {
+      planBoard!.start();
+      return () => planBoard!.stop();
+    }, "player2-companion.plan");
+    ctx.effect(() => ctx.tools.register(defineTool({
+      name: "plan_set",
+      description: "Hand a plan to your body: an ordered list of steps it keeps working while you think, search or talk. Each step is one body tool call (body_walk_to, body_input), a skill_run, or a wait {minutes} — with what it expects to change (at {x,y,location?}, holding {name,atLeast?}). A step whose expected change fails to show stops the body and tells you. An empty steps list takes the plan back.",
+      parameters: {
+        approach: { type: "string", required: true, description: "One line: what this plan tries." },
+        steps: {
+          type: "array", required: true, description: "Up to 16 steps, in order.",
+          items: { type: "object", additionalProperties: true, properties: { label: { type: "string" }, tool: { type: "string" }, args: { type: "object", additionalProperties: true }, expect: { type: "object", additionalProperties: true } } },
+        },
+      },
+      output: textOutput,
+      execute: async (args) => planBoard!.set(String(args.approach ?? ""), (Array.isArray(args.steps) ? args.steps : []) as PlanStepInput[]),
+    })), "player2-companion.tool.plan_set");
+    ctx.effect(() => ctx.tools.register(defineTool({
+      name: "plan_status",
+      description: "Where the plan you handed down stands: which step is next, what finished, whether the body is on hold.",
+      parameters: {},
+      output: textOutput,
+      execute: async () => planBoard!.status(),
+    })), "player2-companion.tool.plan_status");
     // The skill tier runs model-written programs only through DSH's own PTC
     // seam; a mount without that seam ships no skill tools at all, never a
     // local stand-in executor. The chosen path is logged once at mount.
@@ -167,14 +205,23 @@ export function apply(ctx: Context, config: Config): void {
     if (skillRunner !== undefined) {
       console.log(`player2-companion: skills execute via ${skillRunner.path}.`);
       skillPath = skillRunner.path;
+      const storeOfState = (state: SaveState): SkillStore | undefined => {
+        const library = state.mind?.library;
+        return library === undefined ? undefined : state.skills ??= new SkillStore(library.skillsDir(), game, skillRunner);
+      };
       const skillStoreOf = (agent: Agent): SkillStore => {
-        const state = stateOf(agent);
-        const library = state?.mind?.library;
-        if (state === undefined || library === undefined) throw new Error("this save has no persona library; skills cannot be used");
-        state.skills ??= new SkillStore(library.skillsDir(), game, skillRunner);
-        return state.skills;
+        const store = storeOfState(stateOf(agent)!);
+        if (store === undefined) throw new Error("this save has no persona library; skills cannot be used");
+        return store;
       };
       skillsOf = (agent: Agent | undefined): SkillStore | undefined => agent === undefined ? undefined : skillStoreOf(agent);
+      boardSkills = () => {
+        for (const state of saves.values()) {
+          const store = storeOfState(state);
+          if (store !== undefined) return store;
+        }
+        return undefined;
+      };
       ctx.effect(() => ctx.tools.register(defineTool({
         name: "skill_save",
         description: `Save a reusable skill from body work you just did: a small JS program (the body of an async function) that calls the hands helpers — hands.observe(), hands.find({kind,name}), hands.map({x,y,radius}), hands.locations(), hands.walkTo({x,y,location,mode}), hands.controls(), hands.input({steps,until}). It runs once against the body right now; only a clean replay is saved. In skill_run, your args object arrives as args.`,
@@ -194,7 +241,12 @@ export function apply(ctx: Context, config: Config): void {
           args: { type: "object", additionalProperties: true, description: "Values the skill's code reads as args." },
         },
         output: textOutput,
-        execute: async (args, exec) => skillStoreOf(exec.agent!).run(String(args.name), args.args ?? {}, exec.signal),
+        execute: async (args, exec) => {
+          const before = await body.state();
+          const result = await gate.run(() => skillStoreOf(exec.agent!).run(String(args.name), args.args ?? {}, exec.signal));
+          stuckWatch?.record("skill_run", String(args.name), result.startsWith(`Skill ${args.name} ran`) ? "ok" : result.slice(0, 120), before, await body.state().catch(() => undefined));
+          return result;
+        },
       })), "player2-companion.tool.skill_run");
     }
     ctx.effect(() => ctx.tools.register(defineTool({
@@ -293,6 +345,9 @@ export function apply(ctx: Context, config: Config): void {
         // The reflex tier always tells the mind what fired; this is that telling.
         lines.push("Your body acted on reflex (instincts you did not choose in this moment):", ...reflexFacts.splice(0).map((fact) => `- ${fact}`));
       }
+      const stuck = stuckWatch?.take() ?? null;
+      if (stuck !== null) lines.push(stuck);
+      for (const fact of planBoard?.drain() ?? []) lines.push(fact);
       const store = skillsOf?.(payload.agent);
       const skills = store === undefined ? [] : await store.list().catch(() => []);
       if (skills.length > 0) {
@@ -407,6 +462,8 @@ const HANDS_POLICY_LINES = [
   "A paused game is the player stepping away, not a failure: stop and wait; the game resumes you.",
   "Cheat inputs stay off unless the player explicitly allows them; record their words with cheat_grant.",
   "Your body has instincts of its own: when something urgent happens (you are hurt, cornered or stuck) it acts on reflex before you can think, and a note tells you what it did. Take that as fact and carry on from where your body now stands.",
+  "When the same action keeps meeting an unchanged world, your body calls it stuck and stops: treat that note as fact, do not repeat the action. Step back and look again, search the web when the world does not explain itself, write down what you learn (lesson_learn), and go at it another way — or wait when the world says the blocker clears on its own.",
+  "You can hand routine work to your body: plan_set gives it ordered steps (walks, raw inputs, skill runs, waits) with the change each expects, and it keeps working them while you think or talk — check plan_status, and take the plan back with an empty steps list. A step that fails to change the world stops the body and tells you; reflexes still take over when something urgent happens.",
   "Work you have already done through your body does not need redoing call by call: once a way of doing something has worked, save it as a skill (skill_save, which rehearses it once and keeps only what worked) and next time one skill_run does the whole thing. A skill that fails is marked stale; fix it by saving the same name again.",
 ];
 

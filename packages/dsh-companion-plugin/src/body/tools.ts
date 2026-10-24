@@ -3,15 +3,22 @@ import type { BodyInputStep, BodyItem, BodyState, BodyUntil, BodyWorld } from "@
 import type { BodyPort, BodyRun } from "./port.js";
 import { controlsOf, type Controls } from "./navigation.js";
 import { walkTo } from "./walk.js";
+import type { Gate } from "./plan.js";
+import type { StuckWatch } from "./stuck.js";
 
 /**
  * The companion's hands as DSH tools: raw perception, raw input on the body's
  * own controller, and the navigation helper built on them. Every call runs
  * under the caller's own cancellation, so a cancelled turn stops the body too.
  * The adapter itself refuses cheat inputs while no cheat switch is on.
+ * Acting tools report to the stuck watch (P2-0020 T2): the same action on an
+ * unchanged world is a wall, and the third one stops the body. They queue on
+ * the plan gate, so the plan executor (T3) and the mind never pull at once.
  */
 export interface BodyContext {
   readonly body: BodyPort;
+  readonly watch?: StuckWatch;
+  readonly gate?: Gate;
 }
 
 export const BODY_TOOL_NAMES = {
@@ -32,6 +39,8 @@ export function createBodyTools(hands: BodyContext) {
   let world: BodyWorld | undefined;
   const controlsNow = async () => (controls ??= controlsOf(await hands.body.declaration()));
   const loadWorld = async () => (world ??= await hands.body.world());
+  /** The acting tools queue on the plan gate, so the executor and the mind never pull at once. */
+  const throughGate = <T>(work: () => Promise<T>): Promise<T> => hands.gate === undefined ? work() : hands.gate.run(work);
   return [
     defineTool({
       name: BODY_TOOL_NAMES.observe,
@@ -80,10 +89,12 @@ export function createBodyTools(hands: BodyContext) {
         mode: { type: "string", enum: ["stand", "adjacent"], description: "Default stand." },
       },
       output: textOutput,
-      execute: async (args, exec) => {
+      execute: (args, exec) => throughGate(async () => {
+        const before = await hands.body.state();
         const result = await walkTo(hands.body, await controlsNow(), loadWorld, { x: args.x, y: args.y, mode: args.mode === "adjacent" ? "adjacent" : "stand", ...(args.location ? { location: args.location } : {}) }, exec.signal);
+        hands.watch?.record(BODY_TOOL_NAMES.walk, `${args.x},${args.y}@${args.location ?? ""}:${args.mode ?? "stand"}`, result.ok ? "ok" : `not reached (${result.reason})`, before, result.x === null ? undefined : await hands.body.state());
         return `${result.ok ? "OK" : "NOT REACHED"}: ${result.reason}. Now at ${result.location ?? "?"} (${result.x ?? "?"},${result.y ?? "?"}) after ${result.legs} leg(s), ${Math.round(result.ms / 100) / 10} s.${eventsLine(result.events)}`;
-      },
+      }),
     }),
     defineTool({
       name: BODY_TOOL_NAMES.controls,
@@ -110,13 +121,20 @@ export function createBodyTools(hands: BodyContext) {
         until: { type: "object", additionalProperties: true, description: "Optional stop conditions." },
       },
       output: textOutput,
-      execute: async (args, exec) => {
+      execute: (args, exec) => throughGate(async () => {
         const before = await hands.body.state();
         const run = await hands.body.run(args.steps as BodyInputStep[], { ...(args.until ? { until: args.until as BodyUntil } : {}), signal: exec.signal });
+        hands.watch?.record(BODY_TOOL_NAMES.input, stepsDigest(args.steps as BodyInputStep[]), run.status === "done" ? "ok" : `${run.status}${run.reason ? ` (${run.reason})` : ""}`, before, run.state);
         return describeRun(run, before);
-      },
+      }),
     }),
   ] as const;
+}
+
+/** A stable short signature of one raw input sequence, so a resubmission matches. */
+export function stepsDigest(steps: readonly BodyInputStep[]): string {
+  const text = steps.map((s) => `${(s.hold ?? []).join("+")}|${(s.press ?? []).join("+")}|${s.ms}`).join(";").slice(0, 120);
+  return `${steps.length} step(s): ${text}`;
 }
 
 /** The `world_find` search shared by the tools and the skill hands. */
