@@ -11,6 +11,12 @@
  * - Goals are DSH's own (`create_goal`, the round driver); the body tools
  *   reach the game's local MCP endpoint.
  *
+ * The mind works the body only through `plan_set` (P2-0021): handing a plan
+ * down disarms DSH's goal driver, the plan board executes the steps in code
+ * without a model turn, and the mind is woken — by re-arming the goal, or by
+ * a follow-up turn when no goal stands — when the plan finishes, the stuck
+ * detector fires, a reflex fires, or a world event or chat arrives.
+ *
  * @module @dsh-player2/dsh-companion-plugin
  */
 
@@ -26,8 +32,7 @@ import { parsePersonaPack, type PersonaPack } from "@dsh-player2/contracts";
 import { GameBody, type BodyPort } from "./body/port.js";
 import { PersonaDice, tendencyLines, turnNudges } from "./body/knobs.js";
 import { loadReflexTable, ReflexBody } from "./body/reflex.js";
-import { Gate, PlanBoard, type PlanStepInput } from "./body/plan.js";
-import { PtcRunner, skillHands, SkillStore, type PtcLike } from "./body/skills.js";
+import { PlanBoard, type PlanStepInput } from "./body/plan.js";
 import { StuckWatch } from "./body/stuck.js";
 import { createBodyTools, textOutput } from "./body/tools.js";
 import { DEFAULT_GAME, MindCore, type PreparedDream, type PreparedMind } from "./mind/core.js";
@@ -39,11 +44,10 @@ export { GameBody, sleep, type BodyPort, type BodyRun, type RunOptions } from ".
 export { PersonaDice, tendencyLines, turnNudges } from "./body/knobs.js";
 export { SimAdapter, type SimLocation, type SimOptions } from "./body/sim-adapter.js";
 export { ReflexBody, ReflexEngine, loadReflexTable, nearestMonster, renderFact, roleButtons } from "./body/reflex.js";
-export { PtcRunner, skillHands, SkillStore, type PtcLike, type SkillHands, type SkillRecord, type SkillRunner } from "./body/skills.js";
 export { StuckWatch, stateDigest, stuckFact, STUCK_HITS, type StuckAttempt } from "./body/stuck.js";
-export { Gate, PlanBoard, type PlanStepInput } from "./body/plan.js";
+export { PlanBoard, type PlanStepInput } from "./body/plan.js";
 export { Toy2Adapter, TOY2_GOAL } from "./body/toy2.js";
-export { createBodyTools, BODY_TOOL_NAMES, renderObservation, inventoryDiff, type BodyContext } from "./body/tools.js";
+export { createBodyTools, BODY_TOOL_NAMES, renderObservation } from "./body/tools.js";
 
 declare module "@deepseek-ai/dsh-llm" {
   interface MessageSourceMap {
@@ -98,7 +102,6 @@ export function readMarker(text: string): TurnMarker | null {
 /** What one save's session carries between hooks and tools. */
 interface SaveState {
   readonly mind: MindCore | null;
-  skills: SkillStore | null;
   day: number | null;
   attendedTurn: number;
   lastText: string;
@@ -112,6 +115,12 @@ interface SaveState {
 interface GoalAccess {
   get(agent: Agent): { id: never; revision: number; phase: string } | undefined;
   resume(agent: Agent, ref: { id: never; revision: number }): unknown;
+  disarm(agent: Agent): unknown;
+}
+
+/** The agent registry this plugin wakes the mind through. */
+interface AgentAccess {
+  list(): Agent[];
 }
 
 export function apply(ctx: Context, config: Config): void {
@@ -121,33 +130,62 @@ export function apply(ctx: Context, config: Config): void {
   const knobs = persona.knobs;
   const game = config.gameId ?? DEFAULT_GAME;
   const rawBody: BodyPort | undefined = config.body ?? ((config.gameUrl ?? "") !== "" ? new GameBody(config.gameUrl!, config.gameToken ?? "") : undefined);
-  // The reflex tier wraps the body when the game ships a table; without one the
-  // mind stays alone. Fired rows are queued for the next step of any session.
   const reflexFacts: string[] = [];
   const reflexTable = rawBody === undefined ? null : loadReflexTable(game);
   const body: BodyPort | undefined = rawBody === undefined || reflexTable === null ? rawBody
     : new ReflexBody(rawBody, {
       table: reflexTable,
-      onFact: (fact) => { reflexFacts.push(fact); },
+      onFact: (fact) => { reflexFacts.push(fact); wakeAll(); },
       onError: (error) => console.error(`player2-companion: reflex state poll failed: ${messageOf(error)}`),
     });
   const saves = new Map<string, SaveState>();
-  /** The stuck detector over the acting tools; the plan executor holds while it says so. */
+  /** The stuck detector over the plan's steps; a wall stops the body and wakes the mind. */
   const stuckWatch = body === undefined ? null : new StuckWatch();
-  /** One controller between the plan executor and the mind's acting tools. */
-  const gate = new Gate();
-  /** The plan board's skill seam; set at mount only when DSH's program seam exists. */
-  let boardSkills: () => SkillStore | undefined = () => undefined;
-  let planBoard: PlanBoard | null = null;
-  let skillsOf: ((agent: Agent | undefined) => SkillStore | undefined) | undefined;
-  /** Where skill programs execute, for the mind's skills note (set at mount when the seam exists). */
-  let skillPath = "none";
-  if (body instanceof ReflexBody) {
-    ctx.effect(() => {
-      body.start();
-      return () => body.stop();
-    }, "player2-companion.reflexes");
-  }
+  const agents = () => (ctx as unknown as { agents?: AgentAccess }).agents;
+
+  /**
+   * Wakes the mind of one agent: re-arm DSH's goal driver (the round fires and
+   * the pre-step hook delivers the queued facts), or, when no goal stands, a
+   * follow-up turn carrying the facts. Sleeping on it: a running turn drains
+   * the facts at its next pre-step, and the wake is retried once it ends.
+   */
+  let retryWake = false;
+  const wake = (agent: Agent): void => {
+    if (agent.status !== "idle") { retryWake = true; return; }
+    retryWake = false;
+    const news = reflexFacts.length > 0 || (stuckWatch?.hasFact() ?? false) || (planBoard?.wakePending() ?? false);
+    if (!news) return;
+    const goals = (ctx as unknown as { get(name: string): unknown }).get("goals") as GoalAccess | undefined;
+    const goal = goals?.get(agent);
+    if (goal !== undefined && goal.phase !== "complete") {
+      try {
+        goals!.resume(agent, { id: goal.id, revision: goal.revision });
+        return;
+      } catch (error) {
+        // Out of rounds or an invalid phase: fall through to a follow-up turn.
+        console.error(`player2-companion: goal not re-armed: ${messageOf(error)}`);
+      }
+    }
+    const stuck = stuckWatch?.take() ?? null;
+    const lines = [
+      ...(stuck !== null ? [stuck] : []),
+      ...planBoard?.drain() ?? [],
+      ...reflexFacts.splice(0).map((fact) => `Your body acted on reflex (instincts you did not choose in this moment): ${fact}`),
+    ].filter((line) => line !== "");
+    if (lines.length === 0) return;
+    try {
+      agent.followup(createUserMessage({ content: [{ type: "text", text: lines.join("\n") }], source: { kind: "player2" } }));
+    } catch (error) {
+      console.error(`player2-companion: the mind could not be woken: ${messageOf(error)}`);
+    }
+  };
+  const wakeAll = (): void => {
+    for (const agent of agents()?.list() ?? []) wake(agent);
+  };
+  // A wake that landed on a running turn is retried once that turn ends.
+  ctx.on("agent/status", ({ agent, status }) => {
+    if (status === "idle" && retryWake) wake(agent);
+  });
 
   const stateOf = (agent: Agent | undefined): SaveState | undefined => {
     if (agent === undefined) return undefined;
@@ -160,26 +198,27 @@ export function apply(ctx: Context, config: Config): void {
       } catch (error) {
         console.error(`player2-companion: no memory for session ${id}: ${messageOf(error)}`);
       }
-      state = { mind, skills: null, day: null, attendedTurn: -1, lastText: "" };
+      state = { mind, day: null, attendedTurn: -1, lastText: "" };
       saves.set(id, state);
     }
     return state;
   };
 
+  let planBoard: PlanBoard | null = null;
   if (body !== undefined) {
-    for (const tool of createBodyTools({ body, watch: stuckWatch ?? undefined, gate })) {
+    for (const tool of createBodyTools(body)) {
       ctx.effect(() => ctx.tools.register(tool), `player2-companion.tool.${tool.name}`);
     }
-    // The plan board (P2-0020 T3): the mind hands down steps; this code keeps
-    // the body working them between and during model turns.
-    planBoard = new PlanBoard(body, stuckWatch!, gate, () => boardSkills());
+    // The small brain: the mind hands down steps; this code keeps the body
+    // working them without a model turn, and wakes the mind when done.
+    planBoard = new PlanBoard(body, stuckWatch!, wakeAll);
     ctx.effect(() => {
       planBoard!.start();
       return () => planBoard!.stop();
     }, "player2-companion.plan");
     ctx.effect(() => ctx.tools.register(defineTool({
       name: "plan_set",
-      description: "Hand a plan to your body: an ordered list of steps it keeps working while you think, search or talk. Each step is one body tool call (body_walk_to, body_input), a skill_run, or a wait {minutes} — with what it expects to change (at {x,y,location?}, holding {name,atLeast?}). A step whose expected change fails to show stops the body and tells you. An empty steps list takes the plan back.",
+      description: "Hand a plan to your body: an ordered list of steps it keeps working while you rest — each step is one walk {x,y,location?,mode?}, one raw input {steps,until?} (button ids: body_controls), or a wait {minutes} — with what it expects to change (at {x,y,location?}, holding {name,atLeast?}). An empty steps list takes the plan back and wakes you. You are woken when the plan finishes or a step keeps failing.",
       parameters: {
         approach: { type: "string", required: true, description: "One line: what this plan tries." },
         steps: {
@@ -188,67 +227,20 @@ export function apply(ctx: Context, config: Config): void {
         },
       },
       output: textOutput,
-      execute: async (args) => planBoard!.set(String(args.approach ?? ""), (Array.isArray(args.steps) ? args.steps : []) as PlanStepInput[]),
-    })), "player2-companion.tool.plan_set");
-    ctx.effect(() => ctx.tools.register(defineTool({
-      name: "plan_status",
-      description: "Where the plan you handed down stands: which step is next, what finished, whether the body is on hold.",
-      parameters: {},
-      output: textOutput,
-      execute: async () => planBoard!.status(),
-    })), "player2-companion.tool.plan_status");
-    // The skill tier runs model-written programs only through DSH's own PTC
-    // seam; a mount without that seam ships no skill tools at all, never a
-    // local stand-in executor. The chosen path is logged once at mount.
-    const ptc = ptcOf(ctx);
-    const skillRunner = ptc === undefined ? undefined : new PtcRunner(ptc, skillHands(body));
-    if (skillRunner !== undefined) {
-      console.log(`player2-companion: skills execute via ${skillRunner.path}.`);
-      skillPath = skillRunner.path;
-      const storeOfState = (state: SaveState): SkillStore | undefined => {
-        const library = state.mind?.library;
-        return library === undefined ? undefined : state.skills ??= new SkillStore(library.skillsDir(), game, skillRunner);
-      };
-      const skillStoreOf = (agent: Agent): SkillStore => {
-        const store = storeOfState(stateOf(agent)!);
-        if (store === undefined) throw new Error("this save has no persona library; skills cannot be used");
-        return store;
-      };
-      skillsOf = (agent: Agent | undefined): SkillStore | undefined => agent === undefined ? undefined : skillStoreOf(agent);
-      boardSkills = () => {
-        for (const state of saves.values()) {
-          const store = storeOfState(state);
-          if (store !== undefined) return store;
+      execute: async (args, exec) => {
+        if (exec.agent === undefined) throw new Error("no agent to hand the plan from");
+        const steps = (Array.isArray(args.steps) ? args.steps : []) as PlanStepInput[];
+        const reply = planBoard!.set(String(args.approach ?? ""), steps);
+        const goals = (ctx as unknown as { get(name: string): unknown }).get("goals") as GoalAccess | undefined;
+        if (steps.length === 0) wake(exec.agent);
+        else {
+          try { goals?.disarm(exec.agent); } catch (error) {
+            console.error(`player2-companion: goal not disarmed: ${messageOf(error)}`);
+          }
         }
-        return undefined;
-      };
-      ctx.effect(() => ctx.tools.register(defineTool({
-        name: "skill_save",
-        description: `Save a reusable skill from body work you just did: a small JS program (the body of an async function) that calls the hands helpers — hands.observe(), hands.find({kind,name}), hands.map({x,y,radius}), hands.locations(), hands.walkTo({x,y,location,mode}), hands.controls(), hands.input({steps,until}). It runs once against the body right now; only a clean replay is saved. In skill_run, your args object arrives as args.`,
-        parameters: {
-          name: { type: "string", required: true, description: "Lowercase letters, digits and dashes, e.g. water-the-crops." },
-          purpose: { type: "string", required: true, description: "One line saying when this skill helps, 3-160 characters." },
-          code: { type: "string", required: true, description: "The program; return a short string summary of what it did." },
-        },
-        output: textOutput,
-        execute: async (args, exec) => skillStoreOf(exec.agent!).save(String(args.name), String(args.purpose), String(args.code)),
-      })), "player2-companion.tool.skill_save");
-      ctx.effect(() => ctx.tools.register(defineTool({
-        name: "skill_run",
-        description: "Run one of your saved skills by name, passing args as JSON. A skill that fails is reported with its error and marked stale; repair it by saving the same name again with skill_save.",
-        parameters: {
-          name: { type: "string", required: true },
-          args: { type: "object", additionalProperties: true, description: "Values the skill's code reads as args." },
-        },
-        output: textOutput,
-        execute: async (args, exec) => {
-          const before = await body.state();
-          const result = await gate.run(() => skillStoreOf(exec.agent!).run(String(args.name), args.args ?? {}, exec.signal));
-          stuckWatch?.record("skill_run", String(args.name), result.startsWith(`Skill ${args.name} ran`) ? "ok" : result.slice(0, 120), before, await body.state().catch(() => undefined));
-          return result;
-        },
-      })), "player2-companion.tool.skill_run");
-    }
+        return reply;
+      },
+    })), "player2-companion.tool.plan_set");
     ctx.effect(() => ctx.tools.register(defineTool({
       name: "cheat_grant",
       description: "Record the player's own words allowing (granted true) or taking back (granted false) cheat inputs in this save. Only when the player clearly said so; never on your own initiative.",
@@ -283,7 +275,7 @@ export function apply(ctx: Context, config: Config): void {
 
   ctx.effect(() => ctx.tools.register(defineTool({
     name: "lesson_learn",
-    description: "Keep one durable lesson this save taught you: a fact about this world (what blocks what, when something opens, where things come from) or a way of working that succeeded here. One sentence. Your lessons come back to you at the start of a sitting and in your dream; the dream alone promotes one into your library for every save.",
+    description: "Keep one durable lesson this save taught you: a fact about this world (what blocks what, when something opens, where things come from) or a way of working that succeeded here. One sentence. Your lessons come back to you at the start of a sitting and in your dream.",
     parameters: {
       text: { type: "string", required: true, description: "One sentence, at most 240 characters." },
       topic: { type: "string", description: "A short tag, e.g. 'north pass', 'the mines'." },
@@ -303,7 +295,7 @@ export function apply(ctx: Context, config: Config): void {
     parameters: {
       story: { type: "string", description: "Our story so far, rewritten in your own voice, at most 600 characters; omit to keep it." },
       traits: { type: "array", items: { type: "object", additionalProperties: true }, description: "Trait edits as described in the dream." },
-      lessons: { type: "array", items: { type: "object", additionalProperties: true }, description: 'Durable lessons the day taught: {"where":"save"|"persona","text":"...","topic":"..."}. "persona" only when today showed the approach working; it then serves on every save.' },
+      lessons: { type: "array", items: { type: "object", additionalProperties: true }, description: 'Durable lessons the day taught: {"text":"...","topic":"...","worked":true?}. Mark worked only when today showed the approach working; lessons that proved out in two saves join your library on their own.' },
       forget: { type: "array", items: { type: "string" }, description: "Trivial episode ids." },
     },
     output: textOutput,
@@ -348,11 +340,6 @@ export function apply(ctx: Context, config: Config): void {
       const stuck = stuckWatch?.take() ?? null;
       if (stuck !== null) lines.push(stuck);
       for (const fact of planBoard?.drain() ?? []) lines.push(fact);
-      const store = skillsOf?.(payload.agent);
-      const skills = store === undefined ? [] : await store.list().catch(() => []);
-      if (skills.length > 0) {
-        lines.push(`Your saved skills, distilled from your own past work (skill_run by name, with args; they execute via ${skillPath}):`, ...skills.map((skill) => `- ${skill.name}${skill.stale !== null ? " (stale: repair with skill_save or stop using it)" : ""}: ${skill.purpose}${typeof skill.game === "string" && skill.game !== game ? ` (learned in ${skill.game})` : ""}`));
-      }
       if (state.mind !== null && (marker?.kind === "chat" || marker?.kind === "day-start")) {
         const prepared = await state.mind.prepareTurn(marker.kind, marker.text, game, state.day, new Date());
         state.open = { occasion: marker.kind, turn: payload.turn, prepared };
@@ -399,12 +386,6 @@ export function apply(ctx: Context, config: Config): void {
     text: [...COMPANION_POLICY_LINES, ...(body === undefined ? [] : HANDS_POLICY_LINES), "Your tendencies:", ...tendencyLines(knobs), languageLine(config.responseLanguage)].join("\n"),
   }), "player2-companion.policy");
   ctx.effect(() => ctx.systemPrompt.section({ name: "player2:companion-soul", order: 0, text: personaText(persona) }), "player2-companion.soul");
-}
-
-/** DSH's own PTC execution seam, when the running profile composes one; absent under a bare mount. */
-function ptcOf(ctx: Context): PtcLike | undefined {
-  const ptc = (ctx as unknown as { get(name: string): unknown }).get("ptcRuntime") as PtcLike | undefined;
-  return ptc !== undefined && typeof ptc.resolve === "function" && typeof ptc.run === "function" ? ptc : undefined;
 }
 
 /** Re-arms a goal the paused game stopped; the player unpausing is the human edge. */
@@ -454,17 +435,13 @@ export const COMPANION_POLICY_LINES = [
 ];
 
 const HANDS_POLICY_LINES = [
-  "You are a farmer in the player's world, like a co-op friend: your own character, inventory and screen. world_* tools show the raw game state as you see it; body_input presses buttons on your own controller (body_controls lists them, emotes included: a feeling can be shown without words) and body_walk_to walks you there. The game does what your buttons do, menus and shops included; a machine works like a counter - walk to it, face it, press the action button, and use the menu it opens; things that block the way (rocks, boulders) are worked with the tool made for them: stand next to the tile, face it, and swing with the use button. If a place seems to have only one way in and out, look for a machine or a hole that goes deeper. No tool knows what anything is for: you plan, using what you know about the game, and a web search when unsure (a hint to check against the state, never fact).",
+  "You are a farmer in the player's world, like a co-op friend: your own character, inventory and screen. world_* tools show the raw game state as you see it; body_controls lists the buttons your plan steps can hold or press, emotes included. The game does what the buttons do, menus and shops included; a machine works like a counter — walk to it, face it, press the action button, and use the menu it opens; things that block the way (rocks, boulders) are worked with the tool made for them: stand next to the tile, face it, and swing with the use button. If a place seems to have only one way in and out, look for a machine or a hole that goes deeper. No tool knows what anything is for: you plan, using what you know about the game, and a web search when unsure (a hint to check against the state, never fact).",
   "The world keeps running while the player chats, looks at a menu or is away, as in co-op. The night ends only once every farmer is in bed, so the player waits for you at bedtime.",
   "When the player asks for something that takes real play (get, grow, gather, fetch, fight, build, reach), their words are your authorization: create a goal for it right away in their own words and start. How you pursue it is your call, in character. When they tell you to stop or drop it, pause or complete the goal.",
-  "Work in short loops: observe, do one step, observe again. Be honest when something fails or the game refuses, and adapt; never claim progress the state does not show. During goal rounds stay quiet unless you have something to tell the player. When the next stretch of work is routine and already clear to you — a long walk, a round of watering, waiting out something that opens later — hand it to your body with plan_set instead of driving every step yourself, and use your own turns to think ahead.",
+  "Your body is a small brain of its own, and all of its work goes through plan_set: hand it the whole routine stretch in one plan — walks, raw inputs, waits, each with the change it expects — then end your turn and rest. The body works the steps without you and you are woken when the plan finishes, when the same action keeps meeting an unchanged world (a wall: treat that note as fact, never repeat it — look again, search the web when the world does not explain itself, write down what you learn with lesson_learn, and plan another way), when your body acts on reflex, or when something happens in the world or the player speaks. Spend your own turns thinking ahead, not driving every step.",
   "When the player talks to you, you stop to listen and answer at once in one short line of your own (yes, no, or a question) before you call any tool, so they know you heard; afterwards act, and carry your goal on unless they asked you to stop.",
   "A paused game is the player stepping away, not a failure: stop and wait; the game resumes you.",
   "Cheat inputs stay off unless the player explicitly allows them; record their words with cheat_grant.",
-  "Your body has instincts of its own: when something urgent happens (you are hurt, cornered or stuck) it acts on reflex before you can think, and a note tells you what it did. Take that as fact and carry on from where your body now stands.",
-  "When the same action keeps meeting an unchanged world, your body calls it stuck and stops: treat that note as fact, do not repeat the action. Step back and look again, search the web when the world does not explain itself, write down what you learn (lesson_learn), and go at it another way — or wait when the world says the blocker clears on its own.",
-  "You can hand routine work to your body: plan_set gives it ordered steps (walks, raw inputs, skill runs, waits) with the change each expects, and it keeps working them while you think or talk — check plan_status, and take the plan back with an empty steps list. A step that fails to change the world stops the body and tells you; reflexes still take over when something urgent happens.",
-  "Work you have already done through your body does not need redoing call by call: once a way of doing something has worked, save it as a skill (skill_save, which rehearses it once and keeps only what worked) and next time one skill_run does the whole thing. A skill that fails is marked stale; fix it by saving the same name again.",
 ];
 
 function messageText(message: UserMessage): string {

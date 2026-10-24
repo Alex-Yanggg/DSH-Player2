@@ -85,8 +85,11 @@ describe("Player2 companion inside the ACP profile", () => {
     const sim = new SimAdapter({ locations: [{ name: "Farm", rows: ["..."], warps: [], objects: [], characters: [] }], body: { location: "Farm", x: 0, y: 0, items: [] } });
     const withBody = await createComposition({ body: sim });
     const names = withBody.tools.schemas().map((tool) => tool.name);
-    expect(names).toEqual(expect.arrayContaining(["world_observe", "body_walk_to", "body_input", "cheat_grant", "remember"]));
+    expect(names).toEqual(expect.arrayContaining(["world_observe", "world_find", "plan_set", "cheat_grant", "remember"]));
+    expect(names).not.toContain("body_input");
+    expect(names).not.toContain("body_walk_to");
     expect(renderPrompt(await withBody.systemPrompt.assemble())).toContain("create a goal for it right away");
+    expect(renderPrompt(await withBody.systemPrompt.assemble())).toContain("plan_set");
   });
 
   it("keeps what the companion nominates in the save's ledger and refuses a dream commit outside a dream", async () => {

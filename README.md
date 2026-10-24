@@ -58,7 +58,7 @@ Every persona has five knobs: talkativeness, help-seeking, risk, obedience and s
 | 💬 | Native chat | F2 opens a compact chat window with scrollback and input recall; the companion's words appear sentence by sentence as it thinks. |
 | 🎯 | Goals from your words | “给我弄 3 根防风草” becomes a DSH goal the companion pursues across days: it finds seeds, tills, plants, waters and sleeps. “给我挖 10 块铜矿” sends it down the mine with its own pickaxe. Pausing the game holds the goal. |
 | ⚡ | Reflexes | When it is hurt, cornered or stuck, its body acts before it can think: a small per-game table of instincts (eat, swing, step away, unstick) plays raw buttons in under a second and then tells it what happened. |
-| 🛠️ | Skills | A way of working it just did can be saved as a skill and replayed for one tool call next time. A skill is rehearsed before it is kept; one that fails is reported and marked stale for it to repair. |
+| 🧠 | Plans | Routine work is handed to its body as a plan: ordered steps, each with the change it expects. The body works the plan on its own while the mind rests, and the mind is woken when the plan finishes, a step keeps failing, a reflex fires, or something happens. |
 | 🧑‍🌾 | Its own body | The companion joins your save as a hidden co-op farmer with its own inventory and virtual controller. The host keeps the whole window. |
 | 👀 | Awareness | Raw state export plus world facts it could not see itself: you went to bed, got badly hurt, caught a fish, reached a new mine level. |
 | 😊 | Expression | Native co-op emotes, persona voice and catchphrases, a relationship arc. |

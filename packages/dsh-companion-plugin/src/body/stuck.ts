@@ -94,6 +94,11 @@ export class StuckWatch {
     return fact;
   }
 
+  /** True while an undelivered stuck fact waits. */
+  public hasFact(): boolean {
+    return this.fact !== null;
+  }
+
   /** True while the wall stands: the plan executor holds its steps. */
   public isHolding(): boolean {
     return this.holding;

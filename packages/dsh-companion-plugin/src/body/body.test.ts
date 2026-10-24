@@ -65,7 +65,7 @@ afterEach(async () => {
 const exec = { callId: "call-1", signal: new AbortController().signal };
 
 function tool(name: string) {
-  const found = createBodyTools({ body: client }).find((t) => t.name === name);
+  const found = createBodyTools(client).find((t) => t.name === name);
   if (!found) throw new Error(name);
   const run = found as unknown as { execute(args: Record<string, unknown>, exec: unknown): Promise<string> };
   return { execute: (args: Record<string, unknown>) => run.execute(args, exec) };
@@ -160,28 +160,31 @@ describe("walk helper over raw input", () => {
   });
 });
 
-/** Walks next to a tile, selects a toolbar slot (0-based) and presses one button, as the model would. */
-async function act(x: number, y: number, button: string, slot?: number): Promise<string> {
-  expect(await tool(BODY_TOOL_NAMES.walk).execute({ x, y, mode: "adjacent" })).toMatch(/^OK/);
+/** Walks next to a tile, selects a toolbar slot (0-based) and presses one button — the work a plan step plays. */
+async function act(x: number, y: number, button: string, slot?: number): Promise<string[]> {
+  const walked = await walkTo(client, controlsOf(await client.declaration()), () => client.world(), { x, y, mode: "adjacent" });
+  expect(walked.ok, walked.reason).toBe(true);
   const cycle = slot === undefined ? [] : [{ press: [`Slot${slot + 1}`], ms: 0 }];
-  return tool(BODY_TOOL_NAMES.input).execute({ steps: [...cycle, { press: [button], ms: 0 }] });
+  const run = await client.run([...cycle, { press: [button], ms: 0 }]);
+  return run.events.map((e) => `${e.kind}: ${e.detail}`);
 }
 
-describe("body tools", () => {
-  it("tills, plants, waters and harvests a carrot with controller buttons", async () => {
-    expect(await act(4, 7, "ControllerX", 0)).toMatch(/Hoe/);
-    expect(await act(4, 7, "ControllerA", 2)).toMatch(/planted/);
-    expect(await act(4, 7, "ControllerX", 1)).toMatch(/Watering Can/);
+describe("the game answers the body's buttons", () => {
+  it("tills, plants, waters and harvests a carrot", async () => {
+    expect((await act(4, 7, "ControllerX", 0)).join(" ")).toContain("Hoe");
+    expect((await act(4, 7, "ControllerA", 2)).join(" ")).toContain("planted");
+    expect((await act(4, 7, "ControllerX", 1)).join(" ")).toContain("Watering Can");
     sim.growAll();
-    expect(await act(4, 7, "ControllerA")).toMatch(/harvested/);
+    expect((await act(4, 7, "ControllerA")).join(" ")).toContain("harvested");
     expect(sim.body.items.some((i) => i?.name === "Carrot")).toBe(true);
   });
 
   it("the game refuses cheat inputs while the switch is off and allows them on grant", async () => {
-    const input = tool(BODY_TOOL_NAMES.input);
-    expect(await input.execute({ steps: [{ hold: ["DPadUp", "NoClip"], ms: 100 }] })).toMatch(/cheat-off/);
+    const refused = await client.run([{ hold: ["DPadUp", "NoClip"], ms: 100 }]);
+    expect(refused.reason).toMatch(/cheat-off/);
     await sim.grantCheats(true);
-    expect(await input.execute({ steps: [{ hold: ["DPadUp", "NoClip"], ms: 100 }] })).not.toMatch(/cheat-off/);
+    const allowed = await client.run([{ hold: ["DPadUp", "NoClip"], ms: 100 }]);
+    expect(allowed.status).toBe("done");
   });
 
   it("lists the controller", async () => {
@@ -195,23 +198,23 @@ describe("body tools", () => {
 
 describe("shop counter", () => {
   it("opens with the action button, shows the stock, and buys with the same buttons", async () => {
-    expect(await act(17, 1, "ControllerA")).toMatch(/menu-opened/);
+    expect((await act(17, 1, "ControllerA")).join(" ")).toContain("menu-opened");
     const look = await tool(BODY_TOOL_NAMES.observe).execute({});
     expect(look).toMatch(/#0 Parsnip Seeds 20g/);
     expect(look).toMatch(/Potato Seeds 50g \(1 left\)/);
-    const input = tool(BODY_TOOL_NAMES.input);
-    await input.execute({ steps: [{ press: ["ControllerA"], ms: 0 }, { press: ["ControllerA"], ms: 0 }] });
+    await client.run([{ press: ["ControllerA"], ms: 0 }, { press: ["ControllerA"], ms: 0 }]);
     expect(sim.body.items.find((i) => i?.name === "Parsnip Seeds")?.stack).toBe(2);
     expect(sim.player.money).toBe(460);
-    const sold = await input.execute({ steps: [{ hold: ["DPadDown"], ms: 17 }, { press: ["ControllerA"], ms: 0 }, { press: ["ControllerA"], ms: 0 }, { press: ["ControllerB"], ms: 0 }] });
-    expect(sold).toMatch(/sold-out/);
+    const sold = await client.run([{ hold: ["DPadDown"], ms: 17 }, { press: ["ControllerA"], ms: 0 }, { press: ["ControllerA"], ms: 0 }, { press: ["ControllerB"], ms: 0 }]);
+    expect(sold.events.map((e) => e.kind)).toContain("sold-out");
     expect(sim.body.items.find((i) => i?.name === "Potato Seeds")?.stack).toBe(1);
   });
 
   it("reports when the wallet is short", async () => {
     sim.player.money = 10;
     await act(17, 1, "ControllerA");
-    expect(await tool(BODY_TOOL_NAMES.input).execute({ steps: [{ press: ["ControllerA"], ms: 0 }] })).toMatch(/cant-afford/);
+    const run = await client.run([{ press: ["ControllerA"], ms: 0 }]);
+    expect(run.events.map((e) => e.kind)).toContain("cant-afford");
   });
 });
 
