@@ -1,0 +1,1 @@
+{"content":"The right side is behind a Gold Door. Let me check the door and the notice board.","toolCalls":[{"id":"call_00_n1njamg96qj8Rg3kN4wX2040","name":"world_observe","args":{"radius":12}}],"ms":1221,"cached":false,"usage":{"prompt":3015,"completion":57}}

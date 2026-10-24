@@ -3,40 +3,44 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { runOnce, type Approach, type ScenarioName } from "./lib/harness.ts";
 import { aggregate, metricsCsv, runMatrix } from "./lib/runner.ts";
-import { runHandCoded } from "./lib/approach-handcoded.ts";
 import { runLlmBaseline } from "./lib/approach-llm.ts";
-import { runSkills } from "./lib/approach-skills.ts";
-import { runLlmBt } from "./lib/approach-llm-bt.ts";
-import { runModes } from "./lib/approach-modes.ts";
-import { runGoap } from "./lib/approach-goap.ts";
-import { runHybrid } from "./lib/approach-hybrid.ts";
-import { toy2Approaches } from "./toy2/ports.ts";
+import { runReflect } from "./lib/approach-reflect.ts";
+import { runLibrary } from "./lib/approach-library.ts";
+import { runCurriculum } from "./lib/approach-curriculum.ts";
+import { runActionRate } from "./lib/approach-actionrate.ts";
+import { runCombo } from "./lib/approach-combo.ts";
+import { countLoc } from "./lib/loc.ts";
 
 /**
- * The bench runner. One command reruns everything:
- *   npx -y tsx bench/run.ts all
+ * The round-2 bench runner (self-improvement options). One command reruns everything:
+ *   npx -y tsx run.ts all
  * Options:
- *   --seeds N          runs per approach x scenario (default 10)
- *   --concurrency N    parallel runs (default 3)
- *   --approaches a,b   subset (default: the finalist set)
- *   --scenarios a,b    farm,mine (default both)
- *   --skip-prime       do not re-author the on-disk skill libraries first
- *   --toy2-only        only run the toy2 porting verification
- * Raw records land in ../results/runs.json (+ runs-toy2.json), aggregates in
- * ../results/summary.json, and the metric table in ../results/metrics.csv.
+ *   --seeds N          runs per approach x scenario (default 10; for the warm
+ *                      library the seeds ARE successive sessions on one save)
+ *   --concurrency N    parallel runs (default 3; the warm library always runs
+ *                      sequentially because its sessions share one store)
+ *   --approaches a,b   subset (default: llm baseline + options a-e)
+ *   --scenarios a,b    subset (default: locked,wall,toy2-locked,toy2-wall)
+ * Raw records land in ../results/runs.json, aggregates in ../results/summary.json,
+ * the metric table in ../results/metrics.csv, and loc accounting in ../results/loc.json.
+ *
+ * The warm library accumulates across seeds BY DESIGN (seed 1 discovers, seeds
+ * 2..N start with what earlier sessions learned); library-cold keys its store
+ * per seed as the control. The prior round's farm/mine/toy2 numbers are cited
+ * from origin/behavior-research (research/behavior-debate/results) and not rerun.
  */
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const RESULTS = path.join(ROOT, "results");
 
 export const APPROACHES: Record<string, Approach> = {
-  llm: { id: "llm", label: "Pure LLM tool calling (baseline)", blurb: "model owns the loop through the product's tools", run: runLlmBaseline },
-  "llm-bt": { id: "llm-bt", label: "LLM-authored behavior trees", blurb: "BT as JSON data + fixed interpreter", run: runLlmBt },
-  modes: { id: "modes", label: "Reflex/modes layer under the LLM", blurb: "LLM authors a mode table; fixed selector executes", run: runModes },
-  skills: { id: "skills", label: "LLM-written code skills + library", blurb: "model authors a skill once; library retrieves", run: runSkills },
-  goap: { id: "goap", label: "GOAP planner + LLM goal translation", blurb: "fixed planner over a per-game domain; LLM translates goals", run: runGoap },
-  hybrid: { id: "hybrid", label: "Hybrid: LLM directive + reflex executor + skills", blurb: "one authoring call: mode table + skills; executor owns control", run: runHybrid },
-  handcoded: { id: "handcoded", label: "Hand-written state machines", blurb: "fixed per-scenario controllers, no model", run: runHandCoded },
+  llm: { id: "llm", label: "Pure LLM tool calling (baseline)", blurb: "round-1 baseline, reference rows only", run: runLlmBaseline },
+  reflect: { id: "reflect", label: "(a) Stuck detector + reflect-and-search", blurb: "Reflexion/ExpeL-style lessons + simulated wiki search, within one run", run: runReflect },
+  library: { id: "library", label: "(b) Persona-level library shared across sessions", blurb: "save-keyed lessons loaded into the prompt each session", run: (ctx) => runLibrary(ctx) },
+  "library-cold": { id: "library-cold", label: "(b-control) Same library, cold save per seed", blurb: "isolates what the shared library itself buys", run: (ctx) => runLibrary(ctx, { cold: true }) },
+  curriculum: { id: "curriculum", label: "(c) Exploration-first curriculum", blurb: "survey the world, then work the goal with the field guide", run: runCurriculum },
+  actionrate: { id: "actionrate", label: "(d) Batched plans (PTC-style)", blurb: "one model call plans several body actions", run: runActionRate },
+  combo: { id: "combo", label: "(e) Library + reflect-and-search + batching", blurb: "options b + a + d in one plugin", run: runCombo },
 };
 
 function arg(name: string, fallback: string): string {
@@ -46,55 +50,52 @@ function arg(name: string, fallback: string): string {
 
 const seeds = Number(arg("seeds", "10"));
 const concurrency = Number(arg("concurrency", "3"));
-const approachIds = arg("approaches", "llm,llm-bt,modes,skills,goap,hybrid,handcoded").split(",");
-const scenarioNames = arg("scenarios", "farm,mine").split(",") as ScenarioName[];
+const approachIds = arg("approaches", "llm,reflect,library,library-cold,curriculum,actionrate,combo").split(",");
+const scenarioNames = arg("scenarios", "locked,wall,toy2-locked,toy2-wall").split(",") as ScenarioName[];
 const skipPrime = process.argv.includes("--skip-prime");
-const toy2Only = process.argv.includes("--toy2-only");
 
 async function main(): Promise<void> {
   const started = Date.now();
   await mkdir(RESULTS, { recursive: true });
 
-  if (!toy2Only) {
-    // Prime the on-disk libraries (skills, hybrid directives) so run 1 of the
-    // matrix is an authoring run and runs 2..N measure retrieval — unless told
-    // not to, in which case whatever is on disk is reused.
-    if (!skipPrime) {
-      await rm(path.join(RESULTS, "skills"), { recursive: true, force: true }).catch(() => undefined);
-      for (const id of ["skills", "hybrid"]) {
-        if (!approachIds.includes(id)) continue;
-        console.log(`[prime] ${id} farm seed 1 (authors the on-disk library)`);
-        const record = await runOnce(APPROACHES[id], "farm", 1);
-        console.log(`[prime] ${id}: ok=${record.ok} llmCalls=${record.llmCalls}`);
+  // The warm library's sessions share one store: reset it so seed 1 is always
+  // the discovery session, then run it sequentially below.
+  const warmSelected = approachIds.includes("library");
+  if (warmSelected && !skipPrime) {
+    await rm(path.join(RESULTS, "library"), { recursive: true, force: true }).catch(() => undefined);
+  }
+
+  const parallelIds = approachIds.filter((id) => id !== "library");
+  const parallel = parallelIds.map((id) => APPROACHES[id]).filter((approach): approach is Approach => approach !== undefined);
+  if (parallel.length === 0 && !warmSelected) throw new Error(`no known approaches in: ${approachIds.join(", ")}`);
+  const seedList = Array.from({ length: seeds }, (_, index) => index + 1);
+
+  const records = [];
+  if (parallel.length > 0) {
+    console.log(`[matrix] ${parallel.map((a) => a.id).join(", ")} x ${scenarioNames.join(",")} x seeds 1..${seeds} (concurrency ${concurrency})`);
+    records.push(...await runMatrix(parallel, scenarioNames, seedList, {
+      concurrency,
+      onRecord: (record) => console.log(`[run] ${record.approach}/${record.scenario}#${record.seed}: ok=${record.ok} llm=${record.llmCalls} repFail=${record.repeatedFailures} wall=${Math.round(record.wallMs / 100) / 10}s${record.error === null ? "" : ` ERROR ${record.error.slice(0, 60)}`}`),
+    }));
+  }
+
+  // The warm library runs as successive sessions on one save, in seed order.
+  if (warmSelected) {
+    for (const scenario of scenarioNames) {
+      for (const seed of seedList) {
+        const record = await runOnce(APPROACHES.library, scenario, seed);
+        records.push(record);
+        console.log(`[library] ${scenario}#${record.seed}: ok=${record.ok} llm=${record.llmCalls} repFail=${record.repeatedFailures} wall=${Math.round(record.wallMs / 100) / 10}s`);
       }
     }
-
-    const approaches = approachIds.map((id) => APPROACHES[id]).filter((approach): approach is Approach => approach !== undefined);
-    if (approaches.length === 0) throw new Error(`no known approaches in: ${approachIds.join(", ")}`);
-    console.log(`[matrix] ${approaches.map((a) => a.id).join(", ")} x ${scenarioNames.join(",")} x seeds 1..${seeds} (concurrency ${concurrency})`);
-    const records = await runMatrix(approaches, scenarioNames, Array.from({ length: seeds }, (_, index) => index + 1), {
-      concurrency,
-      onRecord: (record) => console.log(`[run] ${record.approach}/${record.scenario}#${record.seed}: ok=${record.ok} llm=${record.llmCalls} wall=${Math.round(record.wallMs / 100) / 10}s${record.error === null ? "" : ` ERROR ${record.error.slice(0, 60)}`}`),
-    });
-    await writeFile(path.join(RESULTS, "runs.json"), JSON.stringify(records, null, 1), "utf8");
-    const aggregates = aggregate(records);
-    await writeFile(path.join(RESULTS, "summary.json"), JSON.stringify({ model: "deepseek-chat (served as deepseek-flash), temperature 0, cached with latency replay", aggregates }, null, 1), "utf8");
-    await writeFile(path.join(RESULTS, "metrics.csv"), metricsCsv(aggregates), "utf8");
-    console.log(`[done] ${records.length} runs in ${Math.round((Date.now() - started) / 1000)}s -> results/runs.json, summary.json, metrics.csv`);
   }
 
-  // toy2 porting verification: 3 seeds per ported approach.
-  const toy2Seeds = [1, 2, 3];
-  const toy2Records = [];
-  for (const [id, approach] of Object.entries(toy2Approaches(APPROACHES))) {
-    for (const seed of toy2Seeds) {
-      const record = await runOnce(approach, "toy2", seed);
-      toy2Records.push(record);
-      console.log(`[toy2] ${id}#${seed}: ok=${record.ok} llm=${record.llmCalls} wall=${Math.round(record.wallMs / 100) / 10}s`);
-    }
-  }
-  await writeFile(path.join(RESULTS, "runs-toy2.json"), JSON.stringify(toy2Records, null, 1), "utf8");
-  console.log(`[toy2 done] ${toy2Records.length} runs -> results/runs-toy2.json`);
+  await writeFile(path.join(RESULTS, "runs.json"), JSON.stringify(records, null, 1), "utf8");
+  const aggregates = aggregate(records);
+  await writeFile(path.join(RESULTS, "summary.json"), JSON.stringify({ model: "deepseek-chat (served as deepseek-flash), temperature 0, cached with latency replay", aggregates }, null, 1), "utf8");
+  await writeFile(path.join(RESULTS, "metrics.csv"), metricsCsv(aggregates), "utf8");
+  await countLoc();
+  console.log(`[done] ${records.length} runs in ${Math.round((Date.now() - started) / 1000)}s -> results/runs.json, summary.json, metrics.csv, loc.json`);
 }
 
 await main();

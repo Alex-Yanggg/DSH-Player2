@@ -1,0 +1,1 @@
+{"content":"Now the third wood at (9,1).","toolCalls":[{"id":"call_00_6II3GjL3JKGBW2eBIuQ93054","name":"body_walk_to","args":{"mode":"adjacent","x":9,"y":1}}],"ms":1238,"cached":false,"usage":{"prompt":2865,"completion":81}}

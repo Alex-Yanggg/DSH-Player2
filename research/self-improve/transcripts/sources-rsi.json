@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://arxiv.org/abs/2609.15364",
+    "fetchedAt": "2026-10-24",
+    "note": "RSIAgent abstract page (v2): title, authors, 2026-09-14 v1 date, full abstract with OSWorld-v2 / Agent's Last Exam and GPT-6 headline claim."
+  },
+  {
+    "url": "https://arxiv.org/html/2609.15364v2",
+    "fetchedAt": "2026-10-24",
+    "note": "RSIAgent full text: Aether AI/UCSD/UIC affiliations (no Zhipu), curriculum/actor/verifier loop, BRS+DRS stages, memory distill+reconcile, Table 1 scores, ablations, Section 7 limitations."
+  },
+  {
+    "url": "https://www.sohu.com/a/1091850030_610300",
+    "fetchedAt": "2026-10-24",
+    "note": "QbitAI article (2026-10-23) announcing HarnessPro: Tang Jie/Zhao co-corresponding authors, four-role loop, 10 unit tests per task claim, 53% SWE-Bench Pro cost cut, repo and arXiv links."
+  },
+  {
+    "url": "https://arxiv.org/abs/2610.26770",
+    "fetchedAt": "2026-10-24",
+    "note": "HarnessPro abstract page: exact title, author list, v1 2026-10-19 / v2 2026-10-20, code URL, +2.0pp / -26.1% vs RHO headline, 'under review' comment."
+  },
+  {
+    "url": "https://github.com/pzs19/HarnessPro",
+    "fetchedAt": "2026-10-24",
+    "note": "HarnessPro repo: MIT license, 65 stars / 7 forks / 1 commit, three-tier Lite/Medium/Heavy harnesses, repo layout, Linux+Python 3.12/3.13+Docker requirements, no Zhipu/zai-org mention."
+  },
+  {
+    "url": "https://github.com/zai-org",
+    "fetchedAt": "2026-10-24",
+    "note": "zai-org org page (53 repos): no RSI/self-evolution repository exists; closest is ZCode 'coding agent harness'. Confirms HarnessPro is not hosted as an official Z.ai org release."
+  },
+  {
+    "url": "https://arxiv.org/html/2610.26770v2",
+    "fetchedAt": "2026-10-24",
+    "note": "HarnessPro full text: affiliations (Tsinghua, Z.AI for Yukuo Cen, SJTU, Warwick, Kling AI), harness definition, Algorithm 1 roles, test synthesis 41.7%->83.3% recall, Pareto selection equations, Table 2/3 numbers."
+  },
+  {
+    "url": "https://pzs19.github.io/HarnessPro/",
+    "fetchedAt": "2026-10-24",
+    "note": "Project page: headline results (Heavy 80.8%/$0.72 on TB2, Medium 79.0%/$1.26 on SWE-Bench Pro), benchmark task counts (59/100/100), arXiv/GitHub badges still 'soon', no license stated."
+  },
+  {
+    "url": "https://huggingface.co/papers/2610.26770",
+    "fetchedAt": "2026-10-24",
+    "note": "Attempted HF papers page; tool resolved the request to arXiv HTML content instead, so no HF-specific data (upvotes/discussion) was obtainable. arXiv timestamp shown: Tue, 20 Oct 2026."
+  }
+]

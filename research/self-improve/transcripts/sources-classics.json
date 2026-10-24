@@ -1,0 +1,112 @@
+[
+  {
+    "url": "https://arxiv.org/abs/2303.11366",
+    "fetchedAt": "2026-10-24",
+    "note": "Reflexion abs page: title, authors, v1-v4 history, abstract (HumanEval 91% vs GPT-4 80%), no venue in comments field"
+  },
+  {
+    "url": "https://arxiv.org/abs/2305.16291",
+    "fetchedAt": "2026-10-24",
+    "note": "Voyager abs page: title, authors, v1-v2 history, abstract (3.3x items, 2.3x distance, 15.3x faster tech tree), project-site link"
+  },
+  {
+    "url": "https://arxiv.org/abs/2308.10144",
+    "fetchedAt": "2026-10-24",
+    "note": "ExpeL abs page: title, authors, v1-v3 history, comments field confirms AAAI-24 acceptance"
+  },
+  {
+    "url": "https://arxiv.org/abs/2409.07429",
+    "fetchedAt": "2026-10-24",
+    "note": "Agent Workflow Memory abs page: title, authors, single v1 2024-09-11, abstract (24.6% / 51.1% relative gains), no venue field"
+  },
+  {
+    "url": "https://arxiv.org/abs/2310.10134",
+    "fetchedAt": "2026-10-24",
+    "note": "CLIN abs page: exact title 'CLIN: A Continually Learning Language Agent for Rapid Task Adaptation and Generalization', 8 authors, v1 2023-10-16, abstract (+23 pts over Reflexion, +4/+13 zero-shot transfer, +17/+7 more via memory updates)"
+  },
+  {
+    "url": "https://arxiv.org/abs/2304.03442",
+    "fetchedAt": "2026-10-24",
+    "note": "Generative Agents abs page: title, authors, v1-v2 history, full abstract, no venue field"
+  },
+  {
+    "url": "https://arxiv.org/abs/2310.15034",
+    "fetchedAt": "2026-10-24",
+    "note": "WRONG candidate id suggested by a web search; actually a probability-theory paper (Brownian motions) - rejected, not CLIN"
+  },
+  {
+    "url": "https://export.arxiv.org/api/query?search_query=ti:%22Continually+Learning+Language+Agent%22&max_results=5",
+    "fetchedAt": "2026-10-24",
+    "note": "arXiv export API for CLIN title lookup: HTTP 429 Too Many Requests on three attempts; abandoned for the arXiv search UI"
+  },
+  {
+    "url": "https://api.semanticscholar.org/graph/v1/paper/search?query=CLIN+Continually+Learning+Language+Agent+Rapid+Task+Adaptation&fields=title,authors,year,venue,externalIds,abstract",
+    "fetchedAt": "2026-10-24",
+    "note": "Semantic Scholar search API: HTTP 429, no content retrieved"
+  },
+  {
+    "url": "https://arxiv.org/search/?searchtype=all&query=%22Continually+Learning+Language+Agent%22",
+    "fetchedAt": "2026-10-24",
+    "note": "arXiv search UI: single hit identified the correct CLIN id 2310.10134, authors, and abstract snippet with ScienceWorld transfer numbers"
+  },
+  {
+    "url": "https://arxiv.org/html/2409.07429v1",
+    "fetchedAt": "2026-10-24",
+    "note": "AWM full text (arXiv HTML): workflow induction/abstraction rules, offline vs online loops with success-gated induction, WebArena 35.5 vs BrowserGym 23.5, Mind2Web step SR 45.1 vs 36.2, 5.9 vs 7.9 steps, limitations"
+  },
+  {
+    "url": "https://ar5iv.labs.arxiv.org/html/2303.11366",
+    "fetchedAt": "2026-10-24",
+    "note": "Reflexion full text (ar5iv): actor/evaluator/self-reflection loop, episodic memory window Omega=1-3, ALFWorld 130/134, Rust ablations (0.60 vs 0.68), WebShop 4-trial failure, flaky-test 16.3% FP, starchat-beta no gain"
+  },
+  {
+    "url": "https://ar5iv.labs.arxiv.org/html/2305.16291",
+    "fetchedAt": "2026-10-24",
+    "note": "Voyager full text (ar5iv): curriculum novelty search + warm-up schedule, skill library (ada-002 embeddings, top-5 retrieval, GPT-4 self-verification critic), 4-stuck-round rule, ablations (-93% random curriculum, -73% no self-verification, 5.7x GPT-4), 15x cost, new-world transfer 3/3"
+  },
+  {
+    "url": "https://ar5iv.labs.arxiv.org/html/2308.10144",
+    "fetchedAt": "2026-10-24",
+    "note": "ExpeL full text (ar5iv): experience pool via Reflexion-style gathering, ADD/EDIT/UPVOTE/DOWNVOTE insight operators with importance-count eviction, Faiss kNN successful-trajectory retrieval, ALFWorld 59.0 vs ReAct 40.0, HotpotQA 39.0 vs 28.0, FEVER transfer 70 vs 63, limitations"
+  },
+  {
+    "url": "https://ar5iv.labs.arxiv.org/html/2310.10134",
+    "fetchedAt": "2026-10-24",
+    "note": "CLIN full text (ar5iv): causal-abstraction memory templates ('NECESSARY' / 'DOES NOT CONTRIBUTE' + uncertainty markers), memory-generator update loop over last trial + 3 recent memories, meta-memory with prioritized replay for cross-episode transfer, 69.5 vs 39.4 Gen-Adapt, controller ablation -18.1, stale-retrieval limitation"
+  },
+  {
+    "url": "https://ar5iv.labs.arxiv.org/html/2304.03442",
+    "fetchedAt": "2026-10-24",
+    "note": "Generative Agents full text (ar5iv): memory stream objects, retrieval = recency(0.995 decay) + importance(1-10) + relevance(cosine), all-alpha-1 weighted sum, reflection threshold 150 (100 records -> 3 questions -> 5 cited insights), TrueSkill 29.89 vs 21.21 ablated (d=8.16), limitations incl. thousands-of-dollars cost"
+  },
+  {
+    "url": "https://proceedings.mlr.press/v267/wang25bx.html",
+    "fetchedAt": "2026-10-24",
+    "note": "PMLR v267 proceedings page confirming Agent Workflow Memory at ICML 2025 (pp. 63897-63911)"
+  },
+  {
+    "url": "https://allenai.github.io/clin/",
+    "fetchedAt": "2026-10-24",
+    "note": "CLIN project page: architecture description (controller/executor/simulator/memory generator, meta-memory), headline numbers, code link; cites arXiv only, no venue stated on page"
+  },
+  {
+    "url": "https://openreview.net/forum?id=ehfRiF0R3a",
+    "fetchedAt": "2026-10-24",
+    "note": "Voyager OpenReview forum (probable TMLR submission): returned only a bot-verification screen; venue/decision could not be verified"
+  },
+  {
+    "url": "https://www.cis.upenn.edu/~ccb/publications/clin-continual-learning-from-interactions.pdf",
+    "fetchedAt": "2026-10-24",
+    "note": "CLIN PDF at UPenn: fetch failed - WebFetch cannot parse application/pdf; COLM 2024 header corroborated only via search-index snippets of this file"
+  },
+  {
+    "url": "https://api.semanticscholar.org/graph/v1/paper/arXiv:2305.16291?fields=title,venue,year,externalIds,citationCount",
+    "fetchedAt": "2026-10-24",
+    "note": "Semantic Scholar lookup for Voyager venue: HTTP 429, no content retrieved; Voyager venue left unconfirmed"
+  },
+  {
+    "url": "https://github.com/MineDojo/Voyager",
+    "fetchedAt": "2026-10-24",
+    "note": "Voyager GitHub repo: README cites the paper only as an arXiv preprint (no peer-reviewed venue), ~7.3k stars, includes skill_library directory"
+  }
+]

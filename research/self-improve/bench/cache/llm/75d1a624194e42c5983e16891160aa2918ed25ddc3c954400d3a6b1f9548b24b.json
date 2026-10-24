@@ -1,0 +1,1 @@
+{"content":"Got 1 Wood. Now the Wood at (4,6).","toolCalls":[{"id":"call_00_wwRRu0L6r4ETSBzYycVM3170","name":"plan_submit","args":{"steps":[{"args":{"mode":"adjacent","x":4,"y":6},"tool":"body_walk_to"},{"args":{"steps":[{"ms":100,"press":["KeyE"]}]},"tool":"body_input"},{"args":{},"tool":"world_observe"}]}}],"ms":1470,"cached":false,"usage":{"prompt":2958,"completion":125}}

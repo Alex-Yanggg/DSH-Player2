@@ -1,0 +1,19 @@
+{
+  "pages": [
+    {
+      "url": "https://keycraftGuide.example/gold-door",
+      "title": "Gold Door - Keycraft Guide",
+      "text": "The Gold Door between the two workshop rooms stays locked until the key vendor's first visit. The vendor arrives on the morning of day 3 and leaves a Gold Key near the door for the taking. Before day 3 the door cannot be opened, no matter what; spend the time gathering whatever is on your side."
+    },
+    {
+      "url": "https://keycraftGuide.example/crown-recipe",
+      "title": "Crown - Keycraft Guide",
+      "text": "The Crown is crafted at the workbench from 3 Wood and 2 Stone. Press KeyC next to the bench with the materials in your pack. The bench room also holds most of the workshop's materials."
+    },
+    {
+      "url": "https://keycraftGuide.example/notices",
+      "title": "Workshop Notices - Keycraft Guide",
+      "text": "Workshop notice boards can be read by facing them and pressing KeyE. They post vendor schedules, including the key vendor's day-3 visit."
+    }
+  ]
+}

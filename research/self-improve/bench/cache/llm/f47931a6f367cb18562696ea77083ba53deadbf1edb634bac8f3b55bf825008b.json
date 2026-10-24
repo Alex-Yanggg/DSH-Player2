@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_d41uubBgt5zlokuBk4zO8113","name":"guide_write","args":{"topic":"shrine lever","note":"The Shrine Lever at Riverbank (1,1) opens the Great Gate at (5,7) when pulled with the action button."}},{"id":"call_01_YnfVBbosDAUf6sPntQVC0237","name":"world_map","args":{"radius":12}}],"ms":1174,"cached":false,"usage":{"prompt":3017,"completion":110}}

@@ -1,0 +1,1 @@
+{"content":"I'll start by looking at the world state.","toolCalls":[{"id":"call_00_iWbrC9vsMntajc5ErHTw9885","name":"world_observe","args":{"radius":15}},{"id":"call_01_RHqC3KrPRuM8yMiHlMJK5264","name":"world_locations","args":{}}],"ms":1411,"cached":false,"usage":{"prompt":2091,"completion":61}}

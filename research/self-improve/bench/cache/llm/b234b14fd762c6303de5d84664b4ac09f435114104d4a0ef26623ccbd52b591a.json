@@ -1,0 +1,1 @@
+{"content":"It's day 3, so the Gold Key should be available. Let me check the map and controls.","toolCalls":[{"id":"call_00_rOJrfNetuBI4wBYTFba80321","name":"world_map","args":{"radius":10}},{"id":"call_01_DpbX80JPuwSn0mzB8qEt4651","name":"body_controls","args":{}}],"ms":1183,"cached":false,"usage":{"prompt":1954,"completion":71}}

@@ -1,0 +1,1 @@
+{"content":"I need 3 Wood and 2 Stone. Let me check the map and gather materials.","toolCalls":[{"id":"call_00_S1I1UzVr2e3rNmzbjYur5687","name":"world_map","args":{"radius":12}}],"ms":731,"cached":false,"usage":{"prompt":2006,"completion":55}}

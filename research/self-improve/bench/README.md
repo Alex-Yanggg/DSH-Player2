@@ -1,6 +1,98 @@
 # The behavior-architecture bench
 
-One command reruns everything (from `research/behavior-debate/bench/`):
+This is the round-1 bench (copied from `origin/behavior-research:
+research/behavior-debate/bench`, unmodified) **extended for the round-2
+self-improvement options**. The round-1 farm/mine/toy2 numbers are cited from
+`origin/behavior-research:research/behavior-debate/results/` and are NOT rerun
+here; the round-2 runner covers the new scenarios only.
+
+## Round 2: the self-improvement matrix
+
+One command reruns everything (from `research/self-improve/bench/`):
+
+```
+npx -y tsx run.ts all
+```
+
+Flags: `--seeds N` (default 10), `--concurrency N` (default 3), `--approaches
+a,b` (subset of `llm,reflect,library,library-cold,curriculum,actionrate,combo`),
+`--scenarios a,b` (subset of `locked,wall,toy2-locked,toy2-wall`),
+`--skip-prime` (keep the warm library on disk). The warm `library` always runs
+sequentially in seed order — its seeds ARE successive sessions on one save, and
+the store is reset first (seed 1 discovers, seeds 2..N start with what earlier
+sessions learned). `library-cold` keys its store per seed as the control.
+Outputs: `../results/runs.json`, `../results/summary.json`,
+`../results/metrics.csv`, `../results/loc.json`.
+
+Scenario mechanics validation (no LLM): `npx -y tsx check-scenarios.ts`.
+Plumbing smoke tests (not recorded results): `npx tsx smoke.ts
+lockedreflect|walllibrary|toy2-lockedcurriculum|... [seed]` — fast mode runs
+the sim ~17x faster than the recorded real-time pace. Typecheck:
+`npx tsc -p tsconfig.json`.
+
+### Round-2 scenarios
+
+Both mirror the P2-0019 mine failure: a delegated goal the companion cannot
+reach, where the missing fact is knowable only from the world or the wiki.
+
+- **locked / toy2-locked (locked area).** The goal stands behind a pass that is
+  closed until the morning of day 5 (day 3 for the toy2 vendor). The condition
+  is stated nowhere in the goal text. Discoverable by exploring (a readable
+  notice board near the start) or via the scenario's simulated wiki. Until the
+  day arrives, walks into the closure end "blocked" — retries are exactly the
+  repeated-failure behavior the metric targets. The closure lifts by itself;
+  a `wait_minutes` tool lets an informed approach pass time deliberately.
+- **wall / toy2-wall (repeated wall).** The direct route always fails: a Clay
+  Golem holds the only bridge, is immune to the starter weapon (each swing is a
+  failing task and drains health), and never moves. Success requires switching
+  approach: pull the Shrine Lever in the west grove (toy2: give up the fused
+  Silver Door and open the Loose Panel). The lever/panel is visible on the map
+  and documented in the wiki.
+
+Both scenarios run twice — on the plugin's sim (`lib/locked.ts`, `lib/wall.ts`:
+subclass + wrapper around the UNMODIFIED `sim-adapter.ts`, exactly like the
+round-1 mine wrapper) and on a second toy game (Keycraft variants,
+`toy2/variants.ts`, same port shape as `toy2/game.ts`). Sim clocks: day = 1 +
+floor(tick/350) with timeOfDay kept consistent (1 tick = 4 game minutes); day 5
+begins at tick 1400. The wiki is a deterministic offline corpus
+(`lib/corpus/<scenario>.json`, `lib/web-sim.ts`): `web_search` returns
+keyword-ranked title/url/snippet hits, `web_fetch` returns page text. No
+network is made; the corpus is scenario fixture data like the map rows.
+
+### Round-2 approaches (`lib/approach-*.ts` over the shared loop `lib/driven.ts`)
+
+- **llm** — the round-1 pure-LLM baseline (one added rule: the turn ends when
+  the goal check holds), reference rows on the new scenarios.
+- **reflect (option a)** — stuck detector (consecutive failing body tasks with
+  the same first-press/first-hold signature) + reflect-and-search: lessons
+  saved in-run, simulated wiki search/fetch, wait_minutes.
+- **library (option b)** — persona-level lessons keyed by the scenario's save
+  id, loaded transparently into the prompt each session, grown via
+  library_learn; `library-cold` is the per-seed control.
+- **curriculum (option c)** — exploration-first survey phase (guide_write +
+  curriculum_done, bounded by a turn budget) before working the goal with the
+  field guide injected.
+- **actionrate (option d)** — plan_submit batching: one model call plans up to
+  8 body-tool calls, a plugin-side executor runs them in order (stopping on the
+  first failure) and returns a digest.
+- **combo (option e)** — library + stuck-reflect-with-search + plan batching.
+
+### Round-2 metrics (per approach x scenario, 10 seeds)
+
+Beyond the round-1 columns: `repeated_failures_mean` — failing tasks whose
+signature (first press, else first hold, plus arrive/warp target) repeats,
+counted beyond each signature's first failure ("same failing action retried");
+`recovery_ticks_mean` — game ticks from the first failure of the dominant
+failing signature to the first success after its last failure, over runs that
+recovered; `actions_per_game_minute` — done body tasks per game minute (4 game
+minutes per sim tick). Round-1 columns (success rate, llm calls, wall clock,
+idle/gap ratios, stuck events) are unchanged. loc.json adds the round-2
+approaches; `lib/driven.ts` counts as shared infrastructure except its
+`[plan-submit]` region, which is charged to actionrate and combo.
+
+## Round 1 (unchanged, from origin/behavior-research)
+
+One command reran everything (from `research/behavior-debate/bench/`):
 
 ```
 npx -y tsx run.ts all

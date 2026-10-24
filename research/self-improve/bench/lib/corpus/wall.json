@@ -1,0 +1,24 @@
+{
+  "pages": [
+    {
+      "url": "https://valley-wiki.example/clay-golem",
+      "title": "Clay Golem - Valley Wiki",
+      "text": "The Clay Golem that guards the old bridge is immune to every starter weapon; striking it does nothing and only invites its counterattack. It never leaves the bridge. The safe route to the sanctuary is the great gate on the south wall of the east bank: pull the Shrine Lever hidden in the west grove and the gate grinds open. The bridge route cannot be forced."
+    },
+    {
+      "url": "https://valley-wiki.example/shrine-lever",
+      "title": "Shrine Lever - Valley Wiki",
+      "text": "The Shrine Lever hides in the grove at the map's west end, tile x 1, y 1. Stand next to it, face it, and press the action button to pull it. Pulling the lever opens the Great Gate on the south-east wall (tile x 5, y 7), which lets travelers reach the shrine bell without ever crossing the guarded bridge."
+    },
+    {
+      "url": "https://valley-wiki.example/shrine-bell",
+      "title": "Shrine Bell - Valley Wiki",
+      "text": "The shrine bell hangs in the sanctuary at tile x 11, y 1, east of the river. Visitors reach it through the Great Gate after pulling the Shrine Lever in the west grove; the bridge golem cannot be bypassed any other way."
+    },
+    {
+      "url": "https://valley-wiki.example/river-fishing",
+      "title": "River Fishing - Valley Wiki",
+      "text": "The river that splits the meadow holds carp all year. Fishing is a fine way to pass time, though it does not get anyone across."
+    }
+  ]
+}

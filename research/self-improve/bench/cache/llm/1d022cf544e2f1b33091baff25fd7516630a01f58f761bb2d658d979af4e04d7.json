@@ -1,0 +1,1 @@
+{"content":"The panel opened a way between rooms. Let me check the map now.","toolCalls":[{"id":"call_00_MrgSCf6dsSBdrcNhceqS4607","name":"world_map","args":{"radius":12}}],"ms":1100,"cached":false,"usage":{"prompt":2466,"completion":51}}

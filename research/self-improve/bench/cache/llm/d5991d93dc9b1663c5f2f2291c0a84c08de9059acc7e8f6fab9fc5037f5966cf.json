@@ -1,0 +1,1 @@
+{"content":"I have Wood x3 and Stone x2. Now to the workbench.","toolCalls":[{"id":"call_00_rKUe3U2fQ3oGNe3u6zO13461","name":"body_walk_to","args":{"mode":"adjacent","x":10,"y":5}}],"ms":1093,"cached":false,"usage":{"prompt":4250,"completion":87}}

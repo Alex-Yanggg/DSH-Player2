@@ -1,0 +1,1 @@
+{"content":"Time jumped to day 7. Let me check the rockslide state.","toolCalls":[{"id":"call_00_PQZLMbE86B800noZvnvY8484","name":"world_find","args":{"kind":"rock"}},{"id":"call_01_HkMC8tdIv1bB9zkXk1c59033","name":"world_map","args":{"radius":12}}],"ms":1268,"cached":false,"usage":{"prompt":3086,"completion":80}}

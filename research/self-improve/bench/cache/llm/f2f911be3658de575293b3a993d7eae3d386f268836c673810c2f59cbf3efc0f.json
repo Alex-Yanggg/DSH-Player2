@@ -1,0 +1,1 @@
+{"content":"I'll start by looking around and checking the world layout.","toolCalls":[{"id":"call_00_wBS09XZbqd4facti1txh8585","name":"world_observe","args":{}},{"id":"call_01_MZWIrzmINETkQdCgLYgy8854","name":"world_locations","args":{}}],"ms":939,"cached":false,"usage":{"prompt":1642,"completion":47}}

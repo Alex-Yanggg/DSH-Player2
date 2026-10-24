@@ -1,0 +1,1 @@
+{"content":"Now let me try the Gold Door to confirm it's locked.","toolCalls":[{"id":"call_00_vfnMApgcpXmdlyfo8Kny8241","name":"body_walk_to","args":{"mode":"adjacent","x":7,"y":6}}],"ms":963,"cached":false,"usage":{"prompt":2668,"completion":84}}

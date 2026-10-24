@@ -1,8 +1,11 @@
 import { buildFarm, FARM_GOAL_TEXT, type FarmWorld } from "./farm.ts";
 import { buildMine, MINE_GOAL_TEXT, type MineWorld } from "./mine.ts";
-import { InstrumentedPort, type BenchPort, type BenchState } from "./port.ts";
+import { buildLocked, LOCKED_GOAL_TEXT, type LockedWorld } from "./locked.ts";
+import { buildWall, WALL_GOAL_TEXT, type WallWorld } from "./wall.ts";
+import { InstrumentedPort, type BenchPort, type BenchState, type TaskOutcome } from "./port.ts";
 import { ModelClient } from "./model.ts";
 import { Toy2Adapter, TOY2_GOAL_TEXT, toy2Success } from "../toy2/game.ts";
+import { buildToy2Locked, buildToy2Wall, TOY2_VARIANT_GOAL_TEXT, type VariantWorld } from "../toy2/variants.ts";
 
 /**
  * The run harness: builds a scenario world, wraps the (unmodified) SimAdapter
@@ -21,7 +24,7 @@ import { Toy2Adapter, TOY2_GOAL_TEXT, toy2Success } from "../toy2/game.ts";
  *   recoveries the approach self-reported (replans, re-authors, watchdogs).
  */
 
-export type ScenarioName = "farm" | "mine" | "toy2";
+export type ScenarioName = "farm" | "mine" | "toy2" | "locked" | "wall" | "toy2-locked" | "toy2-wall";
 
 export interface TaskSpec {
   scenario: ScenarioName;
@@ -35,6 +38,12 @@ export interface RunContext {
   model: ModelClient;
   task: TaskSpec;
   seed: number;
+  /**
+   * The game's own save identity when the scenario declares one (the real mod
+   * reads it from the game); null for scenarios that have none. The library
+   * option keys its cross-session store on this.
+   */
+  saveId: string | null;
   signal: AbortSignal;
   noteRecovery(reason: string): void;
   log(line: string): void;
@@ -72,6 +81,20 @@ export interface RunRecord {
   taskCount: number;
   interruptEvents: number;
   notedRecoveries: number;
+  /** Body tasks that finished "done". */
+  doneTasks: number;
+  /**
+   * Same failing action retried: failing tasks whose first-step signature
+   * repeats, counted beyond the first attempt of each signature.
+   */
+  repeatedFailures: number;
+  /**
+   * When the run succeeded after repeated failures: sim ticks (game minutes)
+   * from the first failure of the dominant failing signature to the first
+   * successful task after the last failure of that signature. Null when no
+   * repeated failure or no recovery.
+   */
+  recoveryTicks: number | null;
   healthEnd: number | null;
   hits: number;
   error: string | null;
@@ -84,11 +107,15 @@ export interface Toy2World {
   isSuccess(state: BenchState): boolean;
 }
 
-export type World = FarmWorld | MineWorld | Toy2World;
+export type World = FarmWorld | MineWorld | Toy2World | LockedWorld | WallWorld | VariantWorld;
 
 export function buildWorld(scenario: ScenarioName, seed: number): World {
   if (scenario === "farm") return buildFarm(seed);
   if (scenario === "mine") return buildMine(seed);
+  if (scenario === "locked") return buildLocked(seed);
+  if (scenario === "wall") return buildWall(seed);
+  if (scenario === "toy2-locked") return buildToy2Locked(seed);
+  if (scenario === "toy2-wall") return buildToy2Wall(seed);
   const adapter = new Toy2Adapter();
   return { adapter, goalText: TOY2_GOAL_TEXT, isSuccess: (state: BenchState) => toy2Success(state) };
 }
@@ -96,6 +123,9 @@ export function buildWorld(scenario: ScenarioName, seed: number): World {
 export function taskOf(scenario: ScenarioName): TaskSpec {
   if (scenario === "farm") return { scenario, goalText: FARM_GOAL_TEXT, budgetMs: 210_000, maxModelCalls: 45 };
   if (scenario === "mine") return { scenario, goalText: MINE_GOAL_TEXT, budgetMs: 150_000, maxModelCalls: 35 };
+  if (scenario === "locked") return { scenario, goalText: LOCKED_GOAL_TEXT, budgetMs: 240_000, maxModelCalls: 45 };
+  if (scenario === "wall") return { scenario, goalText: WALL_GOAL_TEXT, budgetMs: 180_000, maxModelCalls: 40 };
+  if (scenario === "toy2-locked" || scenario === "toy2-wall") return { scenario, goalText: TOY2_VARIANT_GOAL_TEXT, budgetMs: 240_000, maxModelCalls: 45 };
   return { scenario, goalText: TOY2_GOAL_TEXT, budgetMs: 210_000, maxModelCalls: 45 };
 }
 
@@ -182,6 +212,7 @@ export async function runOnce(approach: Approach, scenario: ScenarioName, seed: 
       model,
       task,
       seed,
+      saveId: (world as { saveId?: string }).saveId ?? null,
       signal: controller.signal,
       noteRecovery: (reason) => { port.noteRecovery(reason); logs(`[recovery] ${reason}`); },
       log: logs,
@@ -202,6 +233,24 @@ export async function runOnce(approach: Approach, scenario: ScenarioName, seed: 
   await adapter.stop();
 
   const interruptEvents = port.taskOutcomes.filter((outcome) => outcome.status === "interrupted" || outcome.status === "failed").length;
+  const doneTasks = port.taskOutcomes.filter((outcome) => outcome.status === "done").length;
+  const failing = port.taskOutcomes.filter((outcome) => outcome.status === "interrupted" || outcome.status === "failed" || outcome.status === "timeout");
+  const failingBySignature = new Map<string, TaskOutcome[]>();
+  for (const outcome of failing) {
+    const bucket = failingBySignature.get(outcome.signature) ?? [];
+    bucket.push(outcome);
+    failingBySignature.set(outcome.signature, bucket);
+  }
+  const repeatedFailures = [...failingBySignature.values()].reduce((sum, bucket) => sum + Math.max(0, bucket.length - 1), 0);
+  let recoveryTicks: number | null = null;
+  let dominant: TaskOutcome[] | undefined;
+  for (const bucket of failingBySignature.values()) if (dominant === undefined || bucket.length > dominant.length) dominant = bucket;
+  if (ok && dominant !== undefined && dominant.length >= 2) {
+    const firstFailTick = Math.min(...dominant.map((outcome) => outcome.tick));
+    const lastFailTick = Math.max(...dominant.map((outcome) => outcome.tick));
+    const successTick = port.taskOutcomes.find((outcome) => outcome.status === "done" && outcome.tick > lastFailTick)?.tick;
+    if (successTick !== undefined) recoveryTicks = Math.max(0, successTick - firstFailTick);
+  }
   return {
     approach: approach.id,
     scenario,
@@ -220,6 +269,9 @@ export async function runOnce(approach: Approach, scenario: ScenarioName, seed: 
     taskCount: port.taskOutcomes.length,
     interruptEvents,
     notedRecoveries: port.recoveries.length,
+    doneTasks,
+    repeatedFailures,
+    recoveryTicks,
     healthEnd: finalState.body?.health ?? null,
     hits: engine?.events.filter((event) => event.kind === "hit").length ?? 0,
     error,

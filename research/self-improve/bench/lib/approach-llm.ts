@@ -86,5 +86,8 @@ export async function runLlmBaseline(ctx: RunContext): Promise<boolean> {
       ctx.log(`${call.name}(${JSON.stringify(call.args).slice(0, 100)}) -> ${result.slice(0, 140).replace(/\n/g, " ")}`);
       messages.push({ role: "tool", tool_call_id: call.id, content: result.slice(0, 4_000) });
     }
+    // DSH-style goal latching: once the delegated goal's own check holds, the
+    // turn ends instead of burning more model calls (same rule every option gets).
+    if (await ctx.goalCheck()) { ctx.log("goal condition holds; ending the turn"); return true; }
   }
 }

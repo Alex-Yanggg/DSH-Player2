@@ -1,0 +1,1 @@
+{"content":"The hoe didn't break the rock. Let me try the action button (ControllerA) on it, and also check if there's a weapon slot. Let me try ControllerA first.","toolCalls":[{"id":"call_00_IB2vf5QiTt1Kabj461ud2065","name":"body_input","args":{"steps":[{"press":["ControllerA"],"ms":300}]}}],"ms":993,"cached":false,"usage":{"prompt":3302,"completion":87}}

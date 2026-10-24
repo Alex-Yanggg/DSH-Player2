@@ -1,0 +1,1 @@
+{"content":"The rockslide at (11,4) blocks the only corridor. Let me check what tools/controls I have — maybe the hoe can clear it.","toolCalls":[{"id":"call_00_0tFnoSfjJSzHzVyGUO494627","name":"body_controls","args":{}},{"id":"call_01_i3CZ7QE0sDzhgWrIbyQk8661","name":"world_observe","args":{"radius":3}}],"ms":1352,"cached":false,"usage":{"prompt":2220,"completion":82}}

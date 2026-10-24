@@ -16,6 +16,13 @@ export interface TaskOutcome {
   reason: string | null;
   steps: number;
   ms: number;
+  /** Sim tick when the task settled (1 tick = 1 game minute in the new scenarios). */
+  tick: number;
+  /**
+   * First-step button pattern + arrive/warp target, so the runner can count
+   * "same failing action retried": failing tasks whose signature repeats.
+   */
+  signature: string;
 }
 
 export interface BenchPort extends Omit<BodyPort, "state"> {
@@ -78,7 +85,7 @@ export class InstrumentedPort implements BenchPort {
   public async run(steps: readonly BodyInputStep[], runOptions: RunOptions = {}): Promise<BodyRun> {
     const started = Date.now();
     const run = await this.inner.run(steps, runOptions);
-    const outcome: TaskOutcome = { seq: run.seq, status: run.status, reason: run.reason, steps: steps.length, ms: Date.now() - started };
+    const outcome: TaskOutcome = { seq: run.seq, status: run.status, reason: run.reason, steps: steps.length, ms: Date.now() - started, tick: run.state?.tick ?? 0, signature: taskSignature(steps, runOptions) };
     this.taskOutcomes.push(outcome);
     this.options.onTaskEnd?.(outcome);
     return run;
@@ -91,4 +98,17 @@ export class InstrumentedPort implements BenchPort {
   public async grantCheats(granted: boolean, quote: string): Promise<string> {
     return this.inner.grantCheats(granted, quote);
   }
+}
+
+/** The repeat-failure signature: the task's first press (any), else its first hold, plus any arrive/warp stop condition. */
+function taskSignature(steps: readonly BodyInputStep[], runOptions: RunOptions): string {
+  const parts: string[] = [];
+  for (const step of steps) {
+    if (step.press !== undefined && step.press.length > 0) { parts.push(`p:${step.press.join("+")}`); break; }
+  }
+  if (parts.length === 0 && steps[0]?.hold !== undefined && steps[0].hold.length > 0) parts.push(`h:${steps[0].hold.join("+")}`);
+  const until = runOptions.until;
+  if (until?.arrive !== undefined) parts.push(`a:${until.arrive.location ?? ""}:${until.arrive.x},${until.arrive.y}`);
+  if (until?.warped === true) parts.push("w");
+  return parts.join("|") || "none";
 }

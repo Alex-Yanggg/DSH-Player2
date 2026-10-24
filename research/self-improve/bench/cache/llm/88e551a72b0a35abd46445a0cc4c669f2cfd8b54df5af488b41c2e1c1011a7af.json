@@ -1,0 +1,1 @@
+{"content":"It's now day 5 and the rockslide is gone (only 1 chest, 1 notice remain). Let me walk to the chest tile.","toolCalls":[{"id":"call_00_NLNZxbDajKe9eLEC85mc6378","name":"body_walk_to","args":{"mode":"stand","x":11,"y":1}}],"ms":1407,"cached":false,"usage":{"prompt":4280,"completion":101}}

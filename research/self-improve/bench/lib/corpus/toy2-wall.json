@@ -1,0 +1,19 @@
+{
+  "pages": [
+    {
+      "url": "https://keycraftGuide.example/silver-door",
+      "title": "Silver Door - Keycraft Guide",
+      "text": "The Silver Door on the south corridor has no key anywhere in the game; its lock is fused shut and no amount of retrying opens it. Crafters use the back way instead: a Loose Panel in the top corridor (tile x 7, y 3) comes off with a single KeyE press and opens the passage between the rooms."
+    },
+    {
+      "url": "https://keycraftGuide.example/crown-recipe",
+      "title": "Crown - Keycraft Guide",
+      "text": "The Crown is crafted at the workbench from 3 Wood and 2 Stone. Press KeyC next to the bench with the materials in your pack. The bench room holds the workshop's wood and stone."
+    },
+    {
+      "url": "https://keycraftGuide.example/panels",
+      "title": "Loose Panels - Keycraft Guide",
+      "text": "Every Keycraft workshop has one Loose Panel — an object on the map that looks like clutter but opens with KeyE. Check the top corridor wall."
+    }
+  ]
+}

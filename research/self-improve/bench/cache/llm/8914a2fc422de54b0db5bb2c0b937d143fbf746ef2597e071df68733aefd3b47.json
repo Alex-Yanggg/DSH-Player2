@@ -1,0 +1,1 @@
+{"content":"I'll start by looking at the world and my controls.","toolCalls":[{"id":"call_00_GvTzlus9jmqOCoo1iuQj0439","name":"world_observe","args":{}},{"id":"call_01_5ofPRhCia4PYtbzofCcs4575","name":"body_controls","args":{}}],"ms":773,"cached":false,"usage":{"prompt":1830,"completion":47}}

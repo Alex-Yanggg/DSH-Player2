@@ -1,0 +1,1 @@
+{"content":"Door opened. Now collect the remaining materials: Wood (9,1), Stone (10,1), Stone (9,8).","toolCalls":[{"id":"call_00_mBhpRuThfCjBH9D9ZVbT5161","name":"body_walk_to","args":{"mode":"adjacent","x":9,"y":1}}],"ms":1097,"cached":false,"usage":{"prompt":3999,"completion":98}}

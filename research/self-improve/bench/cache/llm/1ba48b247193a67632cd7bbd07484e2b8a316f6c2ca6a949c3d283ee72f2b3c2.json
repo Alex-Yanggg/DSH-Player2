@@ -1,0 +1,1 @@
+{"content":"The rockslide clears on the morning of day 5. Let me read the notice board to confirm, then wait.","toolCalls":[{"id":"call_00_391nxZ6kmDOokJnUp9m28326","name":"body_walk_to","args":{"mode":"adjacent","x":3,"y":7}}],"ms":1679,"cached":false,"usage":{"prompt":2857,"completion":95}}

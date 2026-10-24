@@ -1,0 +1,1 @@
+{"content":"There's a Gold Key at (5,1). Let me grab it, then read the notice.","toolCalls":[{"id":"call_00_AYp2vL3N2GrugGMwMuLE3986","name":"body_walk_to","args":{"mode":"adjacent","x":5,"y":1}}],"ms":1007,"cached":false,"usage":{"prompt":3304,"completion":92}}

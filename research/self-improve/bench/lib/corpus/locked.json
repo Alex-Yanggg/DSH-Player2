@@ -1,0 +1,19 @@
+{
+  "pages": [
+    {
+      "url": "https://valley-wiki.example/rockslide-pass",
+      "title": "Rockslide Pass - Valley Wiki",
+      "text": "The Rockslide Pass is the only path from the south meadow to the Old Shrine in the north-east. A rockslide closed the pass in early spring. The repair crew clears it on the morning of day 5; before day 5 nothing can get through and every attempt to push past the rocks is wasted time. Once the pass opens, the shrine chest is a short walk north up the east corridor (tile x 11). While the pass is closed, the south meadow's soil is fine for early crops."
+    },
+    {
+      "url": "https://valley-wiki.example/old-shrine",
+      "title": "Old Shrine - Valley Wiki",
+      "text": "The Old Shrine chest stands at the north-east end of the pass, tile x 11, y 1. Travelers can reach it only after the Rockslide Pass reopens on day 5 of spring. The notice board by the meadow well posts the same repair schedule for anyone who walks up and reads it."
+    },
+    {
+      "url": "https://valley-wiki.example/spring-crops",
+      "title": "Spring Crops - Valley Wiki",
+      "text": "Parsnips are the classic first-week crop: till with the hoe, plant the seed, water the soil, and the crop matures overnight if it was watered. Watered soil is what matters; unwatered crops stall."
+    }
+  ]
+}

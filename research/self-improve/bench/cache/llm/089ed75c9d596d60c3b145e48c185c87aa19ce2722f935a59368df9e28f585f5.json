@@ -1,0 +1,1 @@
+{"content":"Let me walk adjacent to the rockslide and try using the hoe (ControllerX) on it.","toolCalls":[{"id":"call_00_2FWbYEH8k1D7xJPygqVW4306","name":"body_walk_to","args":{"mode":"adjacent","x":11,"y":4}}],"ms":1028,"cached":false,"usage":{"prompt":2860,"completion":91}}

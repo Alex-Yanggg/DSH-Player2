@@ -1,0 +1,1 @@
+{"content":"I'll start by surveying my surroundings.","toolCalls":[{"id":"call_00_K8RA2pYN7JLTDGYWfDii1899","name":"world_observe","args":{}},{"id":"call_01_Z4apdhy76tDJF4bUZ78R7326","name":"world_map","args":{}}],"ms":1181,"cached":false,"usage":{"prompt":1647,"completion":42}}

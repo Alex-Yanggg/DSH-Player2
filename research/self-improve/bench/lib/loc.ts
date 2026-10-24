@@ -81,6 +81,19 @@ export async function countLoc(): Promise<Record<string, Record<string, unknown>
   await core("hybrid", "lib/approach-hybrid.ts");
   await core("handcoded", "lib/approach-handcoded.ts");
 
+  // Round-2 option prototypes. lib/driven.ts is shared infrastructure (the
+  // tool loop every LLM option would have in some form, like capabilities.ts)
+  // EXCEPT the [plan-submit] region, which is option (d)'s own mechanism and
+  // is charged to actionrate and combo below.
+  await core("reflect", "lib/approach-reflect.ts");
+  await core("library", "lib/approach-library.ts");
+  await core("curriculum", "lib/approach-curriculum.ts");
+  await core("actionrate", "lib/approach-actionrate.ts");
+  await core("combo", "lib/approach-combo.ts");
+  const planSubmit = await countRegions("lib/driven.ts", "// [plan-submit]", "// [/plan-submit]");
+  table.actionrate.loc_core = (table.actionrate.loc_core as number) + planSubmit;
+  table.combo.loc_core = (table.combo.loc_core as number) + planSubmit;
+
   // Per-game data (goap domains are shipped data; other approaches ship none).
   table.goap.loc_data = await countLines("domains/farm.json") + await countLines("domains/mine.json");
   table.llm.loc_data = 0;
@@ -89,6 +102,7 @@ export async function countLoc(): Promise<Record<string, Record<string, unknown>
   table.skills.loc_data = 0;
   table.hybrid.loc_data = 0;
   table.handcoded.loc_data = 0;
+  for (const id of ["reflect", "library", "curriculum", "actionrate", "combo"]) table[id].loc_data = 0;
 
   // toy2 porting cost.
   for (const id of ["llm", "llm-bt", "modes", "skills", "hybrid"]) {

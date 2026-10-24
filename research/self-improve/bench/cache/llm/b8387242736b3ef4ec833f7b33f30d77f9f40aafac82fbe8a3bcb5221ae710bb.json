@@ -1,0 +1,1 @@
+{"content":"The panel is now open. Let me walk to the Wood at (10,3).","toolCalls":[{"id":"call_00_R5CE9S8g787l7XTjvZl33286","name":"body_walk_to","args":{"mode":"adjacent","x":10,"y":3}}],"ms":979,"cached":false,"usage":{"prompt":2791,"completion":89}}
