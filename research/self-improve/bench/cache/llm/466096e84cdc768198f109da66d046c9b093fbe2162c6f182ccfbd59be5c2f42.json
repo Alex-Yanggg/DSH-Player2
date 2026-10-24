@@ -1,0 +1,1 @@
+{"content":"Let me collect the nearest Wood at (9,8) and Stone at (11,8).","toolCalls":[{"id":"call_00_VuF4V9HkPLMRkt9S7E268588","name":"body_walk_to","args":{"x":9,"y":8,"mode":"adjacent"}}],"ms":1090,"cached":false,"usage":{"prompt":1978,"completion":91}}

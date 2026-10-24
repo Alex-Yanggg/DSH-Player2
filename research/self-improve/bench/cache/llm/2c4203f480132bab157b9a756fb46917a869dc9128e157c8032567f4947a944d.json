@@ -1,0 +1,1 @@
+{"content":"The rockslide is still there. Let me check the notice board for hints about clearing it.","toolCalls":[{"id":"call_00_pY8v5V4IUK2e3mc3knxp0227","name":"body_walk_to","args":{"mode":"adjacent","x":3,"y":7}}],"ms":1253,"cached":false,"usage":{"prompt":3272,"completion":90}}

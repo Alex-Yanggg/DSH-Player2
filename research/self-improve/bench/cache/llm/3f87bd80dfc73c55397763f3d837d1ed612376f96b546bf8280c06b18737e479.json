@@ -1,0 +1,1 @@
+{"content":"The Gold Door needs a gold key. Let me check the notice board and search for a key.","toolCalls":[{"id":"call_00_p1ruezKLej25FHfyso8h3464","name":"world_find","args":{"name":"key"}},{"id":"call_01_8nQqkWFD1kyPewBiA1Tx8867","name":"world_find","args":{"kind":"item"}}],"ms":1021,"cached":false,"usage":{"prompt":3394,"completion":86}}

@@ -1,0 +1,1 @@
+{"content":"The wall at x=8 blocks the right side. Let me check the door and panel.","toolCalls":[{"id":"call_00_Nu6GNKbLFwiGoNsIoPdP1286","name":"world_find","args":{"kind":"door"}},{"id":"call_01_l5VbApzNDvEHhEOl2TxN9983","name":"world_find","args":{"kind":"panel"}}],"ms":1083,"cached":false,"usage":{"prompt":2317,"completion":85}}

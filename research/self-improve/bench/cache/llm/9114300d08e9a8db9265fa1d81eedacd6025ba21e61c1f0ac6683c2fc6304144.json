@@ -1,0 +1,1 @@
+{"content":"The Gold Door at (7,6) blocks the right side. Let me try interacting with it.","toolCalls":[{"id":"call_00_Xz0S8Q5hVTNNxcG8vGrq6610","name":"body_walk_to","args":{"mode":"adjacent","x":7,"y":6}}],"ms":969,"cached":false,"usage":{"prompt":2602,"completion":92}}

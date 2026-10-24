@@ -1,0 +1,1 @@
+{"content":"The door is locked. Let me try the Loose Panel at (7,3).","toolCalls":[{"id":"call_00_vH9eWhOQSLZzbXMpD1jA4280","name":"body_walk_to","args":{"mode":"adjacent","x":7,"y":3}}],"ms":952,"cached":false,"usage":{"prompt":2367,"completion":89}}

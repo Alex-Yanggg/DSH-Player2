@@ -1,0 +1,1 @@
+{"content":"Let me get the wood at (9,1) first.","toolCalls":[{"id":"call_00_atggiZ8yMXyiuwRMNa365520","name":"body_walk_to","args":{"mode":"adjacent","x":9,"y":1}}],"ms":942,"cached":false,"usage":{"prompt":4093,"completion":84}}

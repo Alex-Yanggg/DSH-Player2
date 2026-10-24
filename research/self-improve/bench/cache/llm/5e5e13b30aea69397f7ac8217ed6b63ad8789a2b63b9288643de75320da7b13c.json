@@ -1,0 +1,1 @@
+{"content":"Let me see all materials and the map.","toolCalls":[{"id":"call_00_iVx530pc6L6RhQxq6zbt9397","name":"world_find","args":{"kind":"material"}},{"id":"call_01_FYlFLlnOZEir01G4tqaX5524","name":"world_map","args":{}}],"ms":891,"cached":false,"usage":{"prompt":1707,"completion":58}}

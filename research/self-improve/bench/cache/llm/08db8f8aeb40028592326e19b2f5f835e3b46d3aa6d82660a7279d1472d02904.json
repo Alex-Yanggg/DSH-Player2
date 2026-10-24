@@ -1,0 +1,1 @@
+{"content":"Now the two stones at (10,1) and (9,8).","toolCalls":[{"id":"call_00_G6RzkHBc7nrSb2nBk7df6678","name":"body_walk_to","args":{"mode":"adjacent","x":10,"y":1}}],"ms":1070,"cached":false,"usage":{"prompt":4606,"completion":87}}

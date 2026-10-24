@@ -1,0 +1,1 @@
+{"content":"Door opened. Now let me gather the remaining materials: 1 more Wood and 2 Stone.","toolCalls":[{"id":"call_00_Mr7yXm643G6CePRHLYdO3428","name":"world_find","args":{"kind":"material"}}],"ms":1018,"cached":false,"usage":{"prompt":4357,"completion":57}}

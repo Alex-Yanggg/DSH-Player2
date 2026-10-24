@@ -1,0 +1,1 @@
+{"content":"Lever pulled. Now to the gate at (5,7).","toolCalls":[{"id":"call_00_jZVHs3aSuYZvngWJ7Tr30472","name":"body_walk_to","args":{"mode":"adjacent","x":5,"y":7}}],"ms":1111,"cached":false,"usage":{"prompt":3968,"completion":85}}

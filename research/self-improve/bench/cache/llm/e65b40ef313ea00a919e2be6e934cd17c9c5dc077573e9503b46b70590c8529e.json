@@ -1,0 +1,1 @@
+{"content":"The rockslide blocks the only corridor. Let me check the wiki for how to clear a rockslide.","toolCalls":[{"id":"call_00_hPvwELmKOssfTyu5ezjC2230","name":"web_search","args":{"queries":["rockslide clear","rockslide block path","Old Shrine chest"]}}],"ms":1071,"cached":false,"usage":{"prompt":2402,"completion":76}}

@@ -1,0 +1,1 @@
+{"content":"I'll collect the materials. Starting with the nearest wood.","toolCalls":[{"id":"call_00_ipzhKHY95pDasCcGmgzI7845","name":"body_walk_to","args":{"x":10,"y":3,"mode":"adjacent"}}],"ms":1148,"cached":false,"usage":{"prompt":1981,"completion":83}}

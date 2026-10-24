@@ -1,0 +1,1 @@
+{"content":"It's day 5 and the rockslide is gone. Now I'll walk to the chest tile.","toolCalls":[{"id":"call_00_ZJQKK2PTUgLzxiKNVPw19928","name":"body_walk_to","args":{"mode":"stand","x":11,"y":1}}],"ms":1190,"cached":false,"usage":{"prompt":4546,"completion":91}}

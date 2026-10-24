@@ -1,0 +1,1 @@
+{"content":"The rockslide at (11,4) blocks the corridor to the chest. Let me check the notice board and try the rock.","toolCalls":[{"id":"call_00_Jt5iMq1P4mDHZ3ZLj0Ys6670","name":"body_walk_to","args":{"x":3,"y":7,"mode":"adjacent"}}],"ms":1032,"cached":false,"usage":{"prompt":2229,"completion":98}}

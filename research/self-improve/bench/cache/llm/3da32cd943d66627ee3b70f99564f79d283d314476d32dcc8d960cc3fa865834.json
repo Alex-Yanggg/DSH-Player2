@@ -1,0 +1,1 @@
+{"content":"There's no bed or time-skip object in the Meadow. The rockslide only clears on day 5, and I have no way to advance days from here. Let me try waiting in place to see if time passes.","toolCalls":[{"id":"call_00_HkCwHk4UEto3hd8YLdGA9889","name":"body_input","args":{"steps":[{"ms":5000}]}}],"ms":1145,"cached":false,"usage":{"prompt":3772,"completion":89}}

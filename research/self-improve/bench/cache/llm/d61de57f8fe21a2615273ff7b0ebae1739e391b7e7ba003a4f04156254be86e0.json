@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_RvpI9b1GAoGy2TEU5izh3751","name":"world_observe","args":{"radius":20}},{"id":"call_01_ntnXK2AGfDW2tiekSCus9398","name":"web_search","args":{"queries":["controller buttons action button ids","Great Gate open blocked"]}}],"ms":1204,"cached":false,"usage":{"prompt":2532,"completion":80}}

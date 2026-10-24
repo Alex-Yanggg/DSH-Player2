@@ -1,0 +1,1 @@
+{"content":"It's now day 10 and the rockslide is gone. Let me walk to the chest.","toolCalls":[{"id":"call_00_LBsZ5hDzCWk7rCZsqGEX9659","name":"body_walk_to","args":{"mode":"stand","x":11,"y":1}}],"ms":1167,"cached":false,"usage":{"prompt":4130,"completion":90}}

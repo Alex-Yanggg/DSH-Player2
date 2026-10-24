@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_l03jo6Zc0P7OB5kmp77Z5573","name":"web_fetch","args":{"url":"https://valley-wiki.example/shrine-lever"}},{"id":"call_01_4epobPyr71d3q1AXdPib2706","name":"web_fetch","args":{"url":"https://valley-wiki.example/shrine-bell"}}],"ms":1018,"cached":false,"usage":{"prompt":3089,"completion":89}}

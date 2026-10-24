@@ -1,0 +1,1 @@
+{"content":"There's a wall at x=8 with a gap at y=6 (the Gold Door). Let me check the door.","toolCalls":[{"id":"call_00_iEMf9UuGpBPCme6sJFKP5771","name":"body_walk_to","args":{"mode":"adjacent","x":7,"y":6}}],"ms":932,"cached":false,"usage":{"prompt":2589,"completion":97}}

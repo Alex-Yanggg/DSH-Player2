@@ -1,0 +1,1 @@
+{"content":"Completely immobile. Let me check the full map once more — maybe there's a wall I'm missing, or the notice board is a 1-tile object and I'm truly embedded.","toolCalls":[{"id":"call_00_j1X0wiIJjMxdPj8jMJCo2205","name":"world_map","args":{"radius":12}}],"ms":1589,"cached":false,"usage":{"prompt":3981,"completion":76}}

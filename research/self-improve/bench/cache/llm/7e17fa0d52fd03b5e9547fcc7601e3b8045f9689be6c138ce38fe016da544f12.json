@@ -1,0 +1,1 @@
+{"content":"Door opened. Now I need 1 more Wood and 2 Stone. Let me check what's available on the right side.","toolCalls":[{"id":"call_00_loTyUiSEoGM2UN3u5AYS6194","name":"world_find","args":{"kind":"material"}}],"ms":1179,"cached":false,"usage":{"prompt":3962,"completion":63}}

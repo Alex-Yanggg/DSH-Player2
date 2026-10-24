@@ -1,0 +1,1 @@
+{"content":"The gold door blocks the path. Let me check the map.","toolCalls":[{"id":"call_00_20laDevFFasSv8TOzEEe1006","name":"world_map","args":{"radius":12}}],"ms":831,"cached":false,"usage":{"prompt":2437,"completion":49}}

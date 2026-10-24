@@ -1,0 +1,1 @@
+{"content":"Now open the Gold Door at (7,6).","toolCalls":[{"id":"call_00_7dL3eG1utmNtBM563OYY1906","name":"body_walk_to","args":{"mode":"adjacent","x":7,"y":6}}],"ms":912,"cached":false,"usage":{"prompt":4469,"completion":82}}

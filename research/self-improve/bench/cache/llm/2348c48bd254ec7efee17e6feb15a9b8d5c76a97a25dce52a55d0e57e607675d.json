@@ -1,0 +1,1 @@
+{"content":"The notice says the rockslide clears on the morning of day 5 — the shrine is unreachable until then. Let me check the current day and whether time can pass.","toolCalls":[{"id":"call_00_80mJNthL7MuRJ9DZ5OnO9840","name":"world_observe","args":{"radius":2}}],"ms":970,"cached":false,"usage":{"prompt":3368,"completion":73}}

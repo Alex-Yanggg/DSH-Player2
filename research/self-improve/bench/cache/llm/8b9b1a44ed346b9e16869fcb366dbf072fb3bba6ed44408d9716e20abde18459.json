@@ -1,0 +1,1 @@
+{"content":"The rockslide at (11,4) blocks the corridor to the chest. Let me check my controls and try walking there.","toolCalls":[{"id":"call_00_w1FIh5x8Q6zSv6b8NoeG0704","name":"body_controls","args":{}},{"id":"call_01_wHJaPJsDcvHROEDl1atE3214","name":"body_walk_to","args":{"x":11,"y":3,"mode":"stand"}}],"ms":904,"cached":false,"usage":{"prompt":2229,"completion":109}}

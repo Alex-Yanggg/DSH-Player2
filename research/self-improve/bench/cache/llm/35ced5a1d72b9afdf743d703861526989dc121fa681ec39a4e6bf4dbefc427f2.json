@@ -1,0 +1,1 @@
+{"content":"Door opened. Now grab the wood at (9,1).","toolCalls":[{"id":"call_00_G1J0o6wskq8XUVrIqxuV6476","name":"body_walk_to","args":{"mode":"adjacent","x":9,"y":1}}],"ms":1252,"cached":false,"usage":{"prompt":4174,"completion":84}}

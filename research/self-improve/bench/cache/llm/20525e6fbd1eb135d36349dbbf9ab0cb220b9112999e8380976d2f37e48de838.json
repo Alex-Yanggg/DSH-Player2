@@ -1,0 +1,1 @@
+{"content":"I'll start by looking around and checking my inventory.","toolCalls":[{"id":"call_00_dMQShQvVNlWNLDo1PHex2097","name":"world_observe","args":{}},{"id":"call_01_XC0DEbsVkNqtt6Q3HhIm6561","name":"body_controls","args":{}}],"ms":1078,"cached":false,"usage":{"prompt":1379,"completion":46}}

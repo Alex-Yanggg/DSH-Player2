@@ -1,0 +1,1 @@
+{"content":"I'm not moving at all. Let me check the map more carefully around me.","toolCalls":[{"id":"call_00_D05pVylTnwq7DuK85vLb3091","name":"world_map","args":{"radius":3}}],"ms":980,"cached":false,"usage":{"prompt":3117,"completion":53}}

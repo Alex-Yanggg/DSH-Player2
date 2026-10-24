@@ -1,0 +1,1 @@
+{"content":"The rock is still there. Let me try the action button while facing it again, and also check the notice board for hints.","toolCalls":[{"id":"call_00_RZnnyHHWlUh5SLmkiKbX3036","name":"body_input","args":{"steps":[{"press":["ControllerA"],"ms":500}]}}],"ms":1058,"cached":false,"usage":{"prompt":3000,"completion":75}}

@@ -1,0 +1,1 @@
+{"content":"The gold key isn't in the Workshop and there are no exits. Let me check the notice board for hints.","toolCalls":[{"id":"call_00_6GwBAyqOSyPq60ldAX999225","name":"body_walk_to","args":{"mode":"adjacent","x":2,"y":7}}],"ms":1081,"cached":false,"usage":{"prompt":3032,"completion":94}}

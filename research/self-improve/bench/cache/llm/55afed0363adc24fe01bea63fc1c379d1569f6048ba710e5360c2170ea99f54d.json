@@ -1,0 +1,1 @@
+{"content":"The rockslide at (11,4) blocks the only passage north. Let me try interacting with it — perhaps the hoe or action button clears it.","toolCalls":[{"id":"call_00_klq4wyBTflfuhREohm5d8158","name":"body_walk_to","args":{"mode":"adjacent","x":11,"y":4}}],"ms":1224,"cached":false,"usage":{"prompt":2233,"completion":102}}

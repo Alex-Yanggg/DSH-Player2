@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_0VmqofcR5HVMjP4BI0o33589","name":"web_fetch","args":{"url":"https://valley-wiki.example/controls"}},{"id":"call_01_s71Ie782Z6RZCoKu88KQ4454","name":"web_fetch","args":{"url":"https://valley-wiki.example/clay-golem"}}],"ms":1361,"cached":false,"usage":{"prompt":3890,"completion":85}}

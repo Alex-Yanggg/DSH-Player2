@@ -1,0 +1,1 @@
+{"content":"Let me try interacting with the rockslide — maybe the hoe or action button clears it.","toolCalls":[{"id":"call_00_E0xKWHGTzbaHF9lwMYWa7365","name":"body_input","args":{"steps":[{"press":["ControllerA"],"ms":300},{"press":["ControllerX"],"ms":300}]}}],"ms":988,"cached":false,"usage":{"prompt":2939,"completion":80}}

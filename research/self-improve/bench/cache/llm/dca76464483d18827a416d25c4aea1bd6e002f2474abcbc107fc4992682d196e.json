@@ -1,0 +1,1 @@
+{"content":"The rockslide blocks the only passage. Let me try interacting with it — maybe the hoe or action button clears it.","toolCalls":[{"id":"call_00_tGdTx2Yh3h1ayumTVC6U3957","name":"body_walk_to","args":{"x":11,"y":4,"mode":"adjacent"}}],"ms":1080,"cached":false,"usage":{"prompt":2225,"completion":95}}

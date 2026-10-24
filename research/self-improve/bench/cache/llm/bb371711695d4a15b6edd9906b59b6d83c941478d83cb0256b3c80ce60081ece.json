@@ -1,0 +1,1 @@
+{"content":"The door needs a silver key. Let me check the loose panel.","toolCalls":[{"id":"call_00_V1OhnpTzTdhmyOiUALa64975","name":"body_walk_to","args":{"mode":"adjacent","x":7,"y":3}}],"ms":1154,"cached":false,"usage":{"prompt":2686,"completion":85}}

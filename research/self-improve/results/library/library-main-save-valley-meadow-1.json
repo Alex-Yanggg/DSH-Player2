@@ -1,0 +1,20 @@
+{
+  "saveId": "valley-meadow-1",
+  "lessons": [
+    {
+      "lesson": "In the Meadow, the rockslide at (11,4) blocks the only path to the Old Shrine chest at (11,1); the notice board says the repair crew clears it on the morning of day 5.",
+      "topic": "north pass rockslide",
+      "session": 1
+    },
+    {
+      "lesson": "In the Meadow, a rockslide at (11,4) blocks the only path to the Old Shrine chest at (11,1).",
+      "topic": "distilled",
+      "session": 1
+    },
+    {
+      "lesson": "The Meadow notice board says the repair crew clears the rockslide on the morning of day 5.",
+      "topic": "distilled",
+      "session": 1
+    }
+  ]
+}

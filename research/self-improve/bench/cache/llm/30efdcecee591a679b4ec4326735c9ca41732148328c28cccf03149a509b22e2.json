@@ -1,0 +1,1 @@
+{"content":"The lever at (1,1) likely opens the gate. Let me pull it.","toolCalls":[{"id":"call_00_Hy38t2Dkr7qO8Vok7uWZ8214","name":"body_walk_to","args":{"mode":"adjacent","x":1,"y":1}}],"ms":1259,"cached":false,"usage":{"prompt":2260,"completion":89}}

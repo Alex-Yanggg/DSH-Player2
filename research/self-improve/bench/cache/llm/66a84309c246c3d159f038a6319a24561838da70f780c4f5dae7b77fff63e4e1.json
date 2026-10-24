@@ -1,0 +1,1 @@
+{"content":"The gate opened. Now I'll head through it toward the bell.","toolCalls":[{"id":"call_00_JnAsCjmElylRVUKdubTx9781","name":"body_walk_to","args":{"mode":"stand","x":5,"y":7}}],"ms":1289,"cached":false,"usage":{"prompt":2675,"completion":84}}

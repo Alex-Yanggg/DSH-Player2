@@ -1,0 +1,1 @@
+{"content":"I'm standing on the wood tile. Let me step off and face it.","toolCalls":[{"id":"call_00_USJssNwKdqX4gWXLq0xY1058","name":"body_walk_to","args":{"mode":"adjacent","x":9,"y":8}}],"ms":953,"cached":false,"usage":{"prompt":3875,"completion":87}}

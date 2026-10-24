@@ -1,0 +1,1 @@
+{"content":"I'm stuck at (2,7). Let me check the map.","toolCalls":[{"id":"call_00_4F1W29Dua4n0FGb8IMFf2955","name":"world_map","args":{"radius":10}}],"ms":1252,"cached":false,"usage":{"prompt":1994,"completion":51}}

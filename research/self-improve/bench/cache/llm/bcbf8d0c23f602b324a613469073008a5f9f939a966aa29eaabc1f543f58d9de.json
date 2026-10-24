@@ -1,0 +1,1 @@
+{"content":"The map shows me at (2,7) with open tiles around. But movement isn't working. Let me try longer holds.","toolCalls":[{"id":"call_00_ZWTPAO4RgvEtiI2oGXbb7785","name":"body_input","args":{"steps":[{"hold":["KeyD"],"ms":1000}]}}],"ms":1181,"cached":false,"usage":{"prompt":3238,"completion":77}}

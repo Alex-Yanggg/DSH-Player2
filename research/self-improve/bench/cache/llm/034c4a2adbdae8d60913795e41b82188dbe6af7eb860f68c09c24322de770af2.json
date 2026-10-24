@@ -1,0 +1,1 @@
+{"content":"I'll start by looking at the world around the body and the map.","toolCalls":[{"id":"call_00_eqNmhhGLfsFzQA84f0NU2387","name":"world_observe","args":{"radius":20}},{"id":"call_01_lCAafMqeAYLxXSRo5KMv1666","name":"world_map","args":{"radius":20}}],"ms":1112,"cached":false,"usage":{"prompt":1039,"completion":81}}

@@ -1,0 +1,1 @@
+{"content":"No pickaxe in the toolbar. Let me try the action button on the rockslide — it may be clearable by interaction.","toolCalls":[{"id":"call_00_7beg9ipvyNtm8FqhBNpB3487","name":"body_walk_to","args":{"mode":"adjacent","x":11,"y":4}}],"ms":1061,"cached":false,"usage":{"prompt":2726,"completion":97}}

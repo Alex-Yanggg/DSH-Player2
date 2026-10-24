@@ -1,0 +1,1 @@
+{"content":"The rockslide blocks the only path. Let me check the wiki for how to clear a rockslide.","toolCalls":[{"id":"call_00_J8uCHDwjAmnRQkBkePjc1705","name":"web_search","args":{"queries":["rockslide clear blocked path","rockslide tool pickaxe"]}}],"ms":1004,"cached":false,"usage":{"prompt":2666,"completion":73}}

@@ -1,0 +1,1 @@
+{"content":"The notice board interact failed with \"unknown-input: notice_board\" — the button id \"left\" isn't valid for it. Let me check the current state and figure out valid button ids.","toolCalls":[{"id":"call_00_7LQQpWxbs07MiDwYR5QL9244","name":"world_observe","args":{"radius":20}}],"ms":1145,"cached":false,"usage":{"prompt":3212,"completion":77}}

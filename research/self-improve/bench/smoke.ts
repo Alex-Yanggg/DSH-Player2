@@ -11,6 +11,7 @@ import { runLibrary } from "./lib/approach-library.ts";
 import { runCurriculum } from "./lib/approach-curriculum.ts";
 import { runActionRate } from "./lib/approach-actionrate.ts";
 import { runCombo } from "./lib/approach-combo.ts";
+import { runAsync } from "./lib/approach-async.ts";
 import { toy2Approaches } from "./toy2/ports.ts";
 
 /** Plumbing smoke tests, not recorded results. Usage: npx tsx smoke.ts <which> [seed] */
@@ -27,6 +28,8 @@ const library: Approach = { id: "library", label: "(b) Persona-level library", b
 const curriculum: Approach = { id: "curriculum", label: "(c) Exploration-first curriculum", blurb: "survey then work", run: runCurriculum };
 const actionrate: Approach = { id: "actionrate", label: "(d) Batched plans", blurb: "PTC-style batching", run: runActionRate };
 const combo: Approach = { id: "combo", label: "(e) Combo", blurb: "b + a + d", run: runCombo };
+const asyncCode: Approach = { id: "async", label: "(e) Async big/small brain", blurb: "code small brain", run: (ctx) => runAsync(ctx) };
+const asyncLlm: Approach = { id: "async-llm", label: "(e) Async big/small brain", blurb: "cheap-model small brain", run: (ctx) => runAsync(ctx, { llmSmallBrain: true }) };
 const APPROACH_REGISTRY: Record<string, Approach> = { llm: llmBaseline, "llm-bt": llmBt, modes, skills, goap, hybrid, handcoded: handCoded };
 
 const which = process.argv[2] ?? "farm";
@@ -66,6 +69,8 @@ const registry: Record<string, Entry> = {
     [`${scenario}curriculum`, { approach: curriculum, scenario, fast: true }],
     [`${scenario}actionrate`, { approach: actionrate, scenario, fast: true }],
     [`${scenario}combo`, { approach: combo, scenario, fast: true }],
+    [`${scenario}async`, { approach: asyncCode, scenario, fast: true }],
+    [`${scenario}asyncllm`, { approach: asyncLlm, scenario, fast: true }],
   ]).reduce<Record<string, Entry>>((map, [key, entry]) => { map[key] = entry; return map; }, {}),
 };
 const entry = registry[which] ?? registry.farm;

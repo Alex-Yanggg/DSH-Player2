@@ -1,0 +1,1 @@
+{"content":"The panel opened a passage. Now I can reach the right side. Let me collect materials.","toolCalls":[{"id":"call_00_rwVMCyd54cEbv9jKKels6631","name":"body_walk_to","args":{"mode":"stand","x":9,"y":8}}],"ms":891,"cached":false,"usage":{"prompt":3656,"completion":89}}

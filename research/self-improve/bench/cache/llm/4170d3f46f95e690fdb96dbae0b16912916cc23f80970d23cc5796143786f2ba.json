@@ -1,0 +1,1 @@
+{"content":"I'll gather materials. First the Wood at (9,8).","toolCalls":[{"id":"call_00_SWeAXo0jRGU8L8ARD1iL5133","name":"body_walk_to","args":{"x":9,"y":8,"mode":"adjacent"}}],"ms":964,"cached":false,"usage":{"prompt":1972,"completion":85}}

@@ -1,0 +1,1 @@
+{"content":"Let me check the state again — perhaps the player moved or something changed.","toolCalls":[{"id":"call_00_8vXkUxXS9Nd3k1JBx1Rb7449","name":"world_observe","args":{}}],"ms":1026,"cached":false,"usage":{"prompt":8483,"completion":37}}

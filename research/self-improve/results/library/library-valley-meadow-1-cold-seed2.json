@@ -1,0 +1,10 @@
+{
+  "saveId": "valley-meadow-1-cold-seed2",
+  "facts": [
+    {
+      "lesson": "In the Meadow, the north pass to the Old Shrine (chest at x11,y1) is blocked by a rockslide at (11,4) until the repair crew clears it on the morning of day 5; pushing rocks does nothing.",
+      "topic": "north pass rockslide",
+      "session": 1
+    }
+  ]
+}

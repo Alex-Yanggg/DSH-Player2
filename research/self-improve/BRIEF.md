@@ -51,14 +51,35 @@ should own that growth loop?
 
 ## The options (one advocate each)
 
+**Owner amendment (2026-10-24, mid-research):** the owner has AGREED the option
+(b) baseline design and REDEFINED option (e). Both are binding for the debate.
+
+- **(b) library — the agreed three-layer memory.** Layer 1: the persona
+  library (lessons, skills, character) shared ACROSS saves. Layer 2: save
+  memory keyed by the game's own `uniqueIDForThisGame` — no watermarking.
+  Layer 3: the session — one DSH session covers one play sitting; it loads
+  both layers at start and distils new lessons back at end. Advocate (b)
+  defends this design's mechanics (what gets distilled when, how wrong or
+  stale lessons are corrected, how the layers stay inspectable) and its
+  extension to a second game (the persona layer carries game-generic
+  knowledge; save memory bootstraps per save).
+- **(e) async — big-brain/small-brain, because "intelligence must stay
+  online".** The big brain is the DSH session model: it plans, reflects and
+  web-searches ASYNCHRONOUSLY and never blocks the body. The small brain is
+  fast and lives in the plugin: it keeps acting on the current plan, skills
+  and reflexes, and it detects repeated failure itself (e.g. the same wall
+  three times) and escalates to the big brain. Plans and status pass between
+  them through the plugin. Everything stays inside the DSH plugin, no
+  hardcoded game facts. The bench measures actions per game minute, idle
+  ratio and recovery time, and whether the small brain can be a cheap model
+  (DSH flash model or a subagent — benched as a minimal-prompt model loop)
+  or must be pure code. The original task's "combinations" idea survives as
+  the bench's static-composition reference row (`combo`: library + reflect +
+  batching); it is NOT a debated option.
+
 - **(a) reflect — Stuck detector + reflect-and-search** (Reflexion/ExpeL
   style): detect repeated failure, step back, write lessons, search the web for
   world facts, act differently.
-- **(b) library — Persona-level library shared across saves** (one DSH session
-  per save): lessons (and skills?) that persist per save and load
-  transparently each session. Must address: how a save is identified (the
-  game's own unique save id vs watermarking), how loading stays transparent,
-  what is shared vs kept local, and privacy (player data stays local).
 - **(c) curriculum — Exploration-first** (Voyager-style automatic curriculum):
   "learn the world before the goal"; surveys, field guides, curiosity. Must
   address: who pays for exploration, when it ends, the permission boundary
@@ -68,9 +89,6 @@ should own that growth loop?
   batched plans (PTC), skills, the reflex tier, streaming tool calls. Must
   argue how rate relates to learning itself (nothing learns while the body
   idles at 0.9), and honestly confront "this fixes throughput, not knowledge".
-- **(e) combo — Combinations**: pick a SPECIFIC composition (e.g. library +
-  reflect + batching), defend why the composition beats each part alone and
-  where you draw the line (what you deliberately leave out and why).
 
 Every option must be implementable as a DSH plugin from the verified seams
 (no second harness, no hardcoded game facts — runtime-learned data in plugin
@@ -118,7 +136,7 @@ You may fetch more sources yourself (see mechanics).
 ## Debate mechanics
 
 - Each advocate writes `transcripts/advocate-<name>.md` (name: reflect,
-  library, curriculum, actionrate, combo): **Claim** (one paragraph),
+  library, curriculum, actionrate, async): **Claim** (one paragraph),
   **Mechanism** (how the loop actually works, concretely — what is detected,
   what is stored, what is retrieved when, where it lives), **How it fits the
   DSH seams** (which verified seams, what code/data lives where), **Best

@@ -1,0 +1,8 @@
+{
+  "lessons": [
+    "When a path is blocked by a scheduled obstacle, check notice boards for timing and plan around the stated clear time rather than brute-forcing.",
+    "When given a reach-a-tile goal, navigate with directional DPad inputs and use ControllerA for interactions; verify arrival by standing on the target tile.",
+    "Short sequences of directional moves plus an interact press are often enough to complete simple navigation goals; don't overcomplicate with extra actions."
+  ],
+  "character": []
+}

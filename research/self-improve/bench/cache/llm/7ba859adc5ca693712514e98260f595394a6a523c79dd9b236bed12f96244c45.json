@@ -1,0 +1,1 @@
+{"content":"I have 2 Wood and 1 Stone. I need 1 more Wood and 1 more Stone. Let me get the Wood at (9,8) and Stone at (11,8).","toolCalls":[{"id":"call_00_Pw2ajaAlQalLSrQAyz6C3134","name":"body_walk_to","args":{"mode":"adjacent","x":9,"y":8}}],"ms":1027,"cached":false,"usage":{"prompt":3534,"completion":112}}

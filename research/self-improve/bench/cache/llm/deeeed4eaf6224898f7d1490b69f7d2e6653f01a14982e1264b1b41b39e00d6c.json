@@ -1,0 +1,1 @@
+{"content":"The map shows a wall at x=8 with a gap at y=6 (where the Gold Door is). Let me try the door.","toolCalls":[{"id":"call_00_xSAzjc89SGZYhUKJzo1A9753","name":"body_walk_to","args":{"mode":"adjacent","x":7,"y":6}}],"ms":911,"cached":false,"usage":{"prompt":3159,"completion":100}}

@@ -1,0 +1,1 @@
+{"content":"Let me see the full map and find all materials.","toolCalls":[{"id":"call_00_4ghhyUa5iGrTiEnB228x9246","name":"world_map","args":{"radius":10}},{"id":"call_01_q0dqxQfcMmCMtrMPf8w69246","name":"world_find","args":{"kind":"material","limit":40}}],"ms":1312,"cached":false,"usage":{"prompt":1707,"completion":92}}

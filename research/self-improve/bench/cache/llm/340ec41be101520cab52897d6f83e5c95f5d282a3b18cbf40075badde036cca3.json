@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_M9sSaYm72wlFY7FMClX96606","name":"web_fetch","args":{"url":"https://keycraftGuide.example/gold-door"}},{"id":"call_01_KEZXOGrkjXqTxVqNwxsc6650","name":"web_fetch","args":{"url":"https://keycraftGuide.example/crown-recipe"}}],"ms":1035,"cached":false,"usage":{"prompt":3606,"completion":84}}

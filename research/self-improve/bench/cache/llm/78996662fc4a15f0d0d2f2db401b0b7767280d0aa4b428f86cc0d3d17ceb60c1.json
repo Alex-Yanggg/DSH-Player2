@@ -1,0 +1,1 @@
+{"content":"Door opened. Now I need 1 more Wood and 2 Stone. Let me find materials.","toolCalls":[{"id":"call_00_Oxxf8CMWaB874dBpV78a9453","name":"world_find","args":{"kind":"material","limit":40}}],"ms":1082,"cached":false,"usage":{"prompt":4651,"completion":73}}

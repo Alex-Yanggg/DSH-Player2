@@ -1,0 +1,1 @@
+{"content":"It's now day 6 — the rockslide should be cleared. Let me check.","toolCalls":[{"id":"call_00_IdWrUnBvdfR1ovdi670D8410","name":"world_observe","args":{"radius":15}}],"ms":984,"cached":false,"usage":{"prompt":3751,"completion":56}}

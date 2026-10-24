@@ -1,0 +1,1 @@
+{"content":"The rockslide is gone. Now let me walk to the chest tile.","toolCalls":[{"id":"call_00_lxJ0lUFFxvz6sGPeXkCz7037","name":"body_walk_to","args":{"mode":"stand","x":11,"y":1}}],"ms":1016,"cached":false,"usage":{"prompt":3713,"completion":85}}

@@ -1,0 +1,1 @@
+{"content":"I have 2 Wood, need 3. The remaining wood is at (9,1) behind the door. Let me open the door first.","toolCalls":[{"id":"call_00_6dLaUOjQ0HxwoKLIaOZg3316","name":"body_walk_to","args":{"mode":"adjacent","x":7,"y":6}}],"ms":1256,"cached":false,"usage":{"prompt":3941,"completion":102}}

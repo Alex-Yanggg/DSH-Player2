@@ -1,0 +1,1 @@
+{"content":"I'm not moving. The notice board blocks. Let me try pressing E to interact with it, or try other directions.","toolCalls":[{"id":"call_00_w1VtHiUjRzwXVif62rax6514","name":"body_input","args":{"steps":[{"hold":["KeyW"],"ms":500}]}}],"ms":1141,"cached":false,"usage":{"prompt":3046,"completion":74}}

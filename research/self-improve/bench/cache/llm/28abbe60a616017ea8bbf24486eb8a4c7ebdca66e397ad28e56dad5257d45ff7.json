@@ -1,0 +1,1 @@
+{"content":"Wood +2. Now the Stone at (10,1).","toolCalls":[{"id":"call_00_fkVPLGGGGMAbfKLjA17Q1646","name":"body_walk_to","args":{"mode":"adjacent","x":10,"y":1}}],"ms":1166,"cached":false,"usage":{"prompt":3305,"completion":84}}

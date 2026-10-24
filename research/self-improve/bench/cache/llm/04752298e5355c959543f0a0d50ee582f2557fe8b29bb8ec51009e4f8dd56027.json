@@ -1,0 +1,1 @@
+{"content":"Gate is open. Now head to the gate at (5,7).","toolCalls":[{"id":"call_00_9Wp7e50jen1irSNGgERT9716","name":"body_walk_to","args":{"mode":"stand","x":5,"y":7}}],"ms":1036,"cached":false,"usage":{"prompt":3955,"completion":85}}

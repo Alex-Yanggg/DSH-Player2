@@ -1,0 +1,1 @@
+{"content":"I need to pick up 3 Wood and 2 Stone. Let me find all materials.","toolCalls":[{"id":"call_00_7oq0FZmdJ1ol0Pd1VXHa5073","name":"world_find","args":{"kind":"material"}}],"ms":1012,"cached":false,"usage":{"prompt":1717,"completion":56}}

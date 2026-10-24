@@ -1,0 +1,1 @@
+{"content":"The chest is at (11,1) in this same Meadow. I'll walk to it.","toolCalls":[{"id":"call_00_I2UMabhkz5J6ujuAzh3c6956","name":"body_walk_to","args":{"x":11,"y":1,"mode":"stand"}}],"ms":1329,"cached":false,"usage":{"prompt":1803,"completion":90}}

@@ -1,0 +1,1 @@
+{"content":"The Gold Door is locked. Let me check the notice board for hints about the key.","toolCalls":[{"id":"call_00_dkCs7YyHh5rcS6Jj3Lgd9329","name":"body_walk_to","args":{"mode":"adjacent","x":2,"y":7}}],"ms":944,"cached":false,"usage":{"prompt":2821,"completion":89}}

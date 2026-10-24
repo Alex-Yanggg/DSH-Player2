@@ -1,0 +1,1 @@
+{"content":"Let me pick up the nearest wood at (2,2).","toolCalls":[{"id":"call_00_ra9ogaEjOAvZiJqsghGq3070","name":"body_walk_to","args":{"x":2,"y":2,"mode":"adjacent"}}],"ms":838,"cached":false,"usage":{"prompt":2475,"completion":84}}

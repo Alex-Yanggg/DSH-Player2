@@ -1,0 +1,1 @@
+{"content":"Still at (2,7). Let me try the walk_to helper again — maybe it can now route around.","toolCalls":[{"id":"call_00_4oxPjRg9VvGL2O4bm3qT7949","name":"body_walk_to","args":{"mode":"stand","x":3,"y":7}}],"ms":1760,"cached":false,"usage":{"prompt":4292,"completion":93}}

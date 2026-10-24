@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_GY6vAaBWjFtX7M26lRUX3441","name":"world_find","args":{"kind":"material"}},{"id":"call_01_eoLCnTba5XNt5cc9mpv23328","name":"world_map","args":{"radius":10}}],"ms":903,"cached":false,"usage":{"prompt":2159,"completion":66}}

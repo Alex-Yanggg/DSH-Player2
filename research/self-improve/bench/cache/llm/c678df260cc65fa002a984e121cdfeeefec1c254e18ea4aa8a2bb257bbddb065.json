@@ -1,0 +1,1 @@
+{"content":"Door opened. Now gather the remaining materials.","toolCalls":[{"id":"call_00_PkOWRl8IBC7a0jWlkKMh2063","name":"body_walk_to","args":{"mode":"adjacent","x":9,"y":1}}],"ms":926,"cached":false,"usage":{"prompt":5176,"completion":80}}

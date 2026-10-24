@@ -1,0 +1,1 @@
+{"content":"Now the Stone at (11,8).","toolCalls":[{"id":"call_00_1dWR8V0wyGEuojP6l74P8679","name":"body_walk_to","args":{"mode":"adjacent","x":11,"y":8}}],"ms":843,"cached":false,"usage":{"prompt":2834,"completion":80}}

@@ -1,0 +1,1 @@
+{"content":"Now I need 2 more Wood and 1 more Stone.","toolCalls":[{"id":"call_00_gfNcnWlazFulAxVoznow7189","name":"body_walk_to","args":{"mode":"adjacent","x":10,"y":3}}],"ms":1034,"cached":false,"usage":{"prompt":3765,"completion":84}}

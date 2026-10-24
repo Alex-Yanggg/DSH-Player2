@@ -1,0 +1,1 @@
+{"content":"I'll start by looking around and checking the map.","toolCalls":[{"id":"call_00_TPnydJBBCPd0sq2yOKlS7925","name":"world_observe","args":{}},{"id":"call_01_Mz94T8nONeGQnW9vErCh8723","name":"world_locations","args":{}}],"ms":860,"cached":false,"usage":{"prompt":1374,"completion":46}}

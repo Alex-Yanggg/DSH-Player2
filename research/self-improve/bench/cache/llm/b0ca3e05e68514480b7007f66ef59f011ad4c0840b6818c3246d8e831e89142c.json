@@ -1,0 +1,1 @@
+{"content":"Let me collect the nearest wood first.","toolCalls":[{"id":"call_00_CDVYvqd4W9TmjO72Zjpt4325","name":"body_walk_to","args":{"x":4,"y":6,"mode":"adjacent"}}],"ms":1095,"cached":false,"usage":{"prompt":1868,"completion":79}}

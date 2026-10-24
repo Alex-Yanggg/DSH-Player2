@@ -1,0 +1,1 @@
+{"content":"Door open. Now grab the third Wood at (9,1) and the two Stones.","toolCalls":[{"id":"call_00_gkClUB1bM1C3Uhcshbdn6195","name":"body_walk_to","args":{"mode":"adjacent","x":9,"y":1}}],"ms":1297,"cached":false,"usage":{"prompt":4682,"completion":90}}

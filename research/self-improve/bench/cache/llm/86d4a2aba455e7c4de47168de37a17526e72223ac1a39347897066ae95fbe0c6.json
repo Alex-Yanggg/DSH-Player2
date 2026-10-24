@@ -1,0 +1,1 @@
+{"content":"The right side is behind a Gold Door. Let me check the wiki about it.","toolCalls":[{"id":"call_00_9BMoYFdOmIGRbooGJLuk3783","name":"web_search","args":{"queries":["Gold Door workshop","gold door locked key"]}}],"ms":1319,"cached":false,"usage":{"prompt":2990,"completion":64}}

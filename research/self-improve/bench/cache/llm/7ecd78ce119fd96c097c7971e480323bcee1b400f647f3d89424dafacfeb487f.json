@@ -1,0 +1,1 @@
+{"content":"Let me walk to the rock and try the action button on it.","toolCalls":[{"id":"call_00_wpiLt1Y2gc1wge9YZz1o7470","name":"body_walk_to","args":{"mode":"adjacent","x":11,"y":4}}],"ms":1302,"cached":false,"usage":{"prompt":2466,"completion":85}}

@@ -1,0 +1,1 @@
+{"content":"The button id \"left\" is invalid. Let me check the wiki for the correct input/button names.","toolCalls":[{"id":"call_00_ePu5dlpkLjokp6RJCNCz8213","name":"web_search","args":{"queries":["controls button ids use tool interact","how to use hoe plant seeds controls"]}}],"ms":1345,"cached":false,"usage":{"prompt":3153,"completion":75}}

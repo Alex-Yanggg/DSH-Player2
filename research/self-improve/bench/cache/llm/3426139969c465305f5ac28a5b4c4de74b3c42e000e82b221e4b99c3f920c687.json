@@ -1,0 +1,1 @@
+{"content":"I'm next to the notice board at (3,7). Let me read it.","toolCalls":[{"id":"call_00_IqHp0eBwrHtkymEcRMIc1130","name":"body_input","args":{"steps":[{"press":["ControllerA"],"ms":100}]}}],"ms":886,"cached":false,"usage":{"prompt":3369,"completion":67}}

@@ -1,0 +1,27 @@
+[
+  {
+    "url": "https://voyager.minedojo.org",
+    "fetchedAt": "2026-10-24",
+    "note": "Voyager project page: automatic curriculum as 'an in-context form of novelty search', state-grounded task proposals, self-verification critic, 3.3x unique items and up to 15.3x tech-tree results."
+  },
+  {
+    "url": "https://arxiv.org/abs/1901.10995",
+    "fetchedAt": "2026-10-24",
+    "note": "Go-Explore (Ecoffet et al.): remember previously visited states, first return to a promising state then explore from it; Montezuma's Revenge mean over 43,000 (~4x prior SOTA)."
+  },
+  {
+    "url": "https://arxiv.org/abs/1705.05363",
+    "fetchedAt": "2026-10-24",
+    "note": "Curiosity-driven exploration by self-supervised prediction (Pathak et al., ICML 2017): prediction-error intrinsic reward; no-reward exploration learns navigation/combat; sparse-reward runs reach goals with far fewer interactions."
+  },
+  {
+    "url": "https://arxiv.org/abs/2107.12808",
+    "fetchedAt": "2026-10-24",
+    "note": "Open-Ended Learning Leads to Generally Capable Agents (DeepMind XLand): dynamically generated task distributions so the agent never stops learning; zero-shot generalization to held-out games."
+  },
+  {
+    "url": "https://arxiv.org/abs/2312.14878",
+    "fetchedAt": "2026-10-24",
+    "note": "Pangu-Agent (Christianos et al.): fine-tunable generalist agent; agents 'perform and adapt far better when organised reasoning and prior knowledge are embedded'."
+  }
+]

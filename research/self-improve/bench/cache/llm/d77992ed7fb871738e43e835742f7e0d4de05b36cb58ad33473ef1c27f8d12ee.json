@@ -1,0 +1,1 @@
+{"content":"I have Wood x3 and Stone x2, and I'm next to the workbench. Now craft with KeyC.","toolCalls":[{"id":"call_00_5ABkhRR9uin19m0mKuQ47659","name":"body_input","args":{"steps":[{"press":["KeyC"],"ms":400}]}}],"ms":1054,"cached":false,"usage":{"prompt":4278,"completion":74}}

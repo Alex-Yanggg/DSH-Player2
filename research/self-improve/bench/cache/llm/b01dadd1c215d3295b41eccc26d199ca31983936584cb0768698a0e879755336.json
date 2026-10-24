@@ -1,0 +1,1 @@
+{"content":"The pathfinder also can't move me. This is a hard blocker. Let me search the wiki for being stuck / notice board overlap.","toolCalls":[{"id":"call_00_kaJLszMJqBgjLRAf7AHC9930","name":"web_fetch","args":{"url":"https://keycraftGuide.example/notices"}}],"ms":1196,"cached":false,"usage":{"prompt":5950,"completion":73}}

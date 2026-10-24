@@ -1,0 +1,32 @@
+[
+  {
+    "url": "https://arxiv.org/abs/2303.11366",
+    "fetchedAt": "2026-10-24",
+    "note": "Reflexion abs page confirmed: agents 'verbally reflect on task feedback signals' and keep 'reflective text in an episodic memory buffer' to improve subsequent trials; 91% HumanEval pass@1 vs GPT-4's 80%."
+  },
+  {
+    "url": "https://arxiv.org/abs/2308.10144",
+    "fetchedAt": "2026-10-24",
+    "note": "ExpeL abs page confirmed: AAAI-24; agent 'autonomously gathers experiences and extracts knowledge using natural language' and 'at inference ... recalls its extracted insights and past experiences to make informed decisions'."
+  },
+  {
+    "url": "https://allenai.github.io/clin/",
+    "fetchedAt": "2026-10-24",
+    "note": "CLIN project page confirmed: 'persistent, dynamic, textual memory, centered on causal abstractions' updated without parameter updates; +23 absolute over Reflexion on ScienceWorld; zero-shot transfer +4/+13 then +17/+7."
+  },
+  {
+    "url": "https://arxiv.org/abs/2609.15364",
+    "fetchedAt": "2026-10-24",
+    "note": "RSIAgent abs page confirmed: training-free multi-agent RSI; memory of 'reusable causal relationships between actions, conditions, and consequences' is 'frozen and can be directly reused for downstream tasks without updating model parameters'."
+  },
+  {
+    "url": "https://github.com/noahshinn/reflexion",
+    "fetchedAt": "2026-10-24",
+    "note": "Official Reflexion repo (MIT, ~3.3k stars): code/demos/run logs for the paper; AlfWorld's use_memory option stores self-reflections in persisting memory."
+  },
+  {
+    "url": "https://voyager.minedojo.org",
+    "fetchedAt": "2026-10-24",
+    "note": "Voyager project page confirmed: automatic curriculum + skill library of executable code indexed by description embeddings (top-5 retrieved); transfer demonstrated to new Minecraft worlds, not beyond Minecraft."
+  }
+]

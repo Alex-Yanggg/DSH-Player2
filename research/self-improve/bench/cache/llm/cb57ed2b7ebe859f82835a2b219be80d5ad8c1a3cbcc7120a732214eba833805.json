@@ -1,0 +1,1 @@
+{"content":"Let me try the walk_to helper targeting a location change or a far tile, in case it can warp or route differently.","toolCalls":[{"id":"call_00_b35dT7Eaaz7o5nWioC7d1534","name":"world_locations","args":{}}],"ms":1198,"cached":false,"usage":{"prompt":6169,"completion":46}}

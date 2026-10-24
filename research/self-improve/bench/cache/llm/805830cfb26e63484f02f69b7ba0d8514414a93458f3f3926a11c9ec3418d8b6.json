@@ -1,0 +1,1 @@
+{"content":"I need to gather materials. Let me find all materials first.","toolCalls":[{"id":"call_00_5F0GAFJKpOvb0GPQFzRw8140","name":"world_find","args":{"kind":"material"}},{"id":"call_01_wZspKvmvIQLmbn65Dhz76374","name":"world_map","args":{}}],"ms":925,"cached":false,"usage":{"prompt":1707,"completion":62}}

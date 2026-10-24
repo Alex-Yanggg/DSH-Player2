@@ -1,0 +1,1 @@
+{"content":"Stone +2. Now the last Wood at (9,8).","toolCalls":[{"id":"call_00_0pnlQ5WuiYRW2CSqLZIX6237","name":"body_walk_to","args":{"mode":"adjacent","x":9,"y":8}}],"ms":987,"cached":false,"usage":{"prompt":3743,"completion":85}}

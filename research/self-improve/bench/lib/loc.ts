@@ -90,6 +90,8 @@ export async function countLoc(): Promise<Record<string, Record<string, unknown>
   await core("curriculum", "lib/approach-curriculum.ts");
   await core("actionrate", "lib/approach-actionrate.ts");
   await core("combo", "lib/approach-combo.ts");
+  await core("async", "lib/approach-async.ts");
+  table["async-llm"] = { ...(table["async"] ?? {}), loc_core: table["async"].loc_core as number };
   const planSubmit = await countRegions("lib/driven.ts", "// [plan-submit]", "// [/plan-submit]");
   table.actionrate.loc_core = (table.actionrate.loc_core as number) + planSubmit;
   table.combo.loc_core = (table.combo.loc_core as number) + planSubmit;
@@ -102,7 +104,7 @@ export async function countLoc(): Promise<Record<string, Record<string, unknown>
   table.skills.loc_data = 0;
   table.hybrid.loc_data = 0;
   table.handcoded.loc_data = 0;
-  for (const id of ["reflect", "library", "curriculum", "actionrate", "combo"]) table[id].loc_data = 0;
+  for (const id of ["reflect", "library", "curriculum", "actionrate", "combo", "async", "async-llm"]) table[id].loc_data = 0;
 
   // toy2 porting cost.
   for (const id of ["llm", "llm-bt", "modes", "skills", "hybrid"]) {

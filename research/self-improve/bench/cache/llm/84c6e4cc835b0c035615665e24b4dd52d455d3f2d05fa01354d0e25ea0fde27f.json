@@ -1,0 +1,1 @@
+{"content":"The panel opened a passage. Now I can reach the right side.","toolCalls":[{"id":"call_00_nKiNwzTpPXpYnPtBY7bV0623","name":"body_walk_to","args":{"mode":"adjacent","x":9,"y":8}}],"ms":986,"cached":false,"usage":{"prompt":3330,"completion":85}}

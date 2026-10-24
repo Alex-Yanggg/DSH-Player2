@@ -1,0 +1,32 @@
+[
+  {
+    "url": "https://arxiv.org/abs/2310.08560",
+    "fetchedAt": "2026-10-24",
+    "note": "MemGPT abstract: hierarchical memory tiers; multi-session chat where agents 'remember, reflect, and evolve'."
+  },
+  {
+    "url": "https://arxiv.org/html/2310.08560v2",
+    "fetchedAt": "2026-10-24",
+    "note": "MemGPT full text: main context = system instructions + fixed-size read/write working context + FIFO queue; self-directed memory edits via function calls."
+  },
+  {
+    "url": "https://docs.letta.com/guides/agents/memory",
+    "fetchedAt": "2026-10-24",
+    "note": "Letta memory blocks: attached blocks pinned to the system prompt (in-context), agent-editable via memory tools; state persists beyond the context window."
+  },
+  {
+    "url": "https://arxiv.org/abs/2502.12110",
+    "fetchedAt": "2026-10-24",
+    "note": "A-MEM (NeurIPS 2025): Zettelkasten-style atomic notes; new memories trigger updates to existing memories' attributes (memory evolution)."
+  },
+  {
+    "url": "https://arxiv.org/abs/2504.19413",
+    "fetchedAt": "2026-10-24",
+    "note": "Mem0: dynamic extract/consolidate/retrieve memory; 26% relative LLM-judge gain over OpenAI; 91% lower p95 latency and >90% token savings vs full-context."
+  },
+  {
+    "url": "https://raw.githubusercontent.com/loe2run/FamilyPlanningMod/master/FamilyPlanning/CustomBirthingEvent.cs",
+    "fetchedAt": "2026-10-24",
+    "note": "Shipped SMAPI mod reads Game1.uniqueIDForThisGame at runtime as a deterministic per-save seed: proof the game's own save id is mod-readable."
+  }
+]

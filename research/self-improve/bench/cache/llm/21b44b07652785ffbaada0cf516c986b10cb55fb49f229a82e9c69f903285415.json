@@ -1,0 +1,1 @@
+{"content":"The panel opened a passage. Now let me get the wood.","toolCalls":[{"id":"call_00_jRJQjHHADQ3rrMzXL1pK4890","name":"body_walk_to","args":{"mode":"adjacent","x":10,"y":3}}],"ms":1113,"cached":false,"usage":{"prompt":2912,"completion":84}}

@@ -1,0 +1,1 @@
+{"content":"Movement isn't registering. Let me check lessons and try the walk_to with a different target.","toolCalls":[{"id":"call_00_0RxnM4vhvIlB813YQ7o76328","name":"lesson_list","args":{}},{"id":"call_01_2GH50sgiTjWSJF23fYFY4083","name":"body_walk_to","args":{"mode":"stand","x":2,"y":6}}],"ms":1177,"cached":false,"usage":{"prompt":3347,"completion":101}}

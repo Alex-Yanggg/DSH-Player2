@@ -1,0 +1,1 @@
+{"content":"Now I have 3 Wood. Need 2 Stone. Grab stone at (10,1).","toolCalls":[{"id":"call_00_MeLWlXR9bFhKFc6BW1lL4085","name":"body_walk_to","args":{"mode":"adjacent","x":10,"y":1}}],"ms":1348,"cached":false,"usage":{"prompt":4389,"completion":91}}

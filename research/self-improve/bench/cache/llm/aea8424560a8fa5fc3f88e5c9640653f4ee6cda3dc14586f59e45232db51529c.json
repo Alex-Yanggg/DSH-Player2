@@ -1,0 +1,1 @@
+{"content":"I need 3 Wood and 2 Stone. Let me collect them.","toolCalls":[{"id":"call_00_7Afhdoglk58HA8dRomBg8486","name":"body_walk_to","args":{"x":4,"y":6,"mode":"stand"}}],"ms":1177,"cached":false,"usage":{"prompt":2426,"completion":85}}

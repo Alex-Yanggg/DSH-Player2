@@ -1,0 +1,1 @@
+{"content":"","toolCalls":[{"id":"call_00_BxVAucmQsOjn0PVEI8pf7632","name":"web_search","args":{"queries":["button ids ControllerA ControllerX input names","controls keyboard mapping"]}},{"id":"call_01_pAKkgf74KCYhX6tajXQS0082","name":"world_map","args":{"x":5,"y":7,"radius":6}}],"ms":1069,"cached":false,"usage":{"prompt":4556,"completion":112}}

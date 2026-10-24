@@ -1,0 +1,1 @@
+{"content":"I'm facing the rockslide. Let me try the action button and the hoe on it.","toolCalls":[{"id":"call_00_dC5tXMpyjJvUzrr2mc9I6539","name":"body_input","args":{"steps":[{"press":["ControllerA"],"ms":300}]}}],"ms":942,"cached":false,"usage":{"prompt":2652,"completion":68}}

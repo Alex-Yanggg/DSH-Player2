@@ -1,0 +1,1 @@
+{"content":"The notice board at (2,7) is where I stand. The wood at (4,6) is reachable. Let me walk to it.","toolCalls":[{"id":"call_00_UXeOrs47pAa7BVtW7lvA4525","name":"body_walk_to","args":{"mode":"stand","x":4,"y":6}}],"ms":1128,"cached":false,"usage":{"prompt":2158,"completion":102}}

@@ -1,0 +1,27 @@
+[
+  {
+    "url": "https://arxiv.org/abs/2204.01691",
+    "fetchedAt": "2026-10-24",
+    "note": "SayCan (Do As I Can, Not As I Say): LLM proposes steps, skill affordance/value functions ground feasibility; robot is the LLM's hands and eyes."
+  },
+  {
+    "url": "https://arxiv.org/abs/2207.05608",
+    "fetchedAt": "2026-10-24",
+    "note": "Inner Monologue: closed-loop language feedback (success detection, scene description, human interaction) significantly improves high-level instruction completion."
+  },
+  {
+    "url": "https://github.com/MineDojo/Voyager",
+    "fetchedAt": "2026-10-24",
+    "note": "Voyager repo (~7.3k stars, MIT): automatic curriculum, ever-growing executable-code skill library, iterative prompting; first LLM-powered embodied lifelong learning agent in Minecraft."
+  },
+  {
+    "url": "https://arxiv.org/abs/2305.17390",
+    "fetchedAt": "2026-10-24",
+    "note": "SwiftSage (NeurIPS 2023 spotlight): dual-system agent — small-LM System 1 acting + large-LLM System 2 planning, heuristic integration; beats SayCan/ReAct/Reflexion on 30 ScienceWorld tasks."
+  },
+  {
+    "url": "https://developer.nvidia.com/blog/how-krafton-built-pubg-ally-a-co-playable-character-powered-by-nvidia-ace",
+    "fetchedAt": "2026-10-24",
+    "note": "Krafton PUBG Ally: System 1 behavior tree at game tick rate + System 2 language model; 'Reflex-level actions never have to wait for the model'; boundary definition was the hardest part."
+  }
+]

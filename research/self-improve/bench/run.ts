@@ -9,6 +9,7 @@ import { runLibrary } from "./lib/approach-library.ts";
 import { runCurriculum } from "./lib/approach-curriculum.ts";
 import { runActionRate } from "./lib/approach-actionrate.ts";
 import { runCombo } from "./lib/approach-combo.ts";
+import { runAsync } from "./lib/approach-async.ts";
 import { countLoc } from "./lib/loc.ts";
 
 /**
@@ -36,11 +37,13 @@ const RESULTS = path.join(ROOT, "results");
 export const APPROACHES: Record<string, Approach> = {
   llm: { id: "llm", label: "Pure LLM tool calling (baseline)", blurb: "round-1 baseline, reference rows only", run: runLlmBaseline },
   reflect: { id: "reflect", label: "(a) Stuck detector + reflect-and-search", blurb: "Reflexion/ExpeL-style lessons + simulated wiki search, within one run", run: runReflect },
-  library: { id: "library", label: "(b) Persona-level library shared across sessions", blurb: "save-keyed lessons loaded into the prompt each session", run: (ctx) => runLibrary(ctx) },
-  "library-cold": { id: "library-cold", label: "(b-control) Same library, cold save per seed", blurb: "isolates what the shared library itself buys", run: (ctx) => runLibrary(ctx, { cold: true }) },
+  library: { id: "library", label: "(b) Three-layer memory (owner-agreed)", blurb: "persona library across saves + save memory keyed by the save id + session distil", run: (ctx) => runLibrary(ctx) },
+  "library-cold": { id: "library-cold", label: "(b-control) Same memory, cold per seed", blurb: "isolates what the carried layers buy", run: (ctx) => runLibrary(ctx, { cold: true }) },
   curriculum: { id: "curriculum", label: "(c) Exploration-first curriculum", blurb: "survey the world, then work the goal with the field guide", run: runCurriculum },
   actionrate: { id: "actionrate", label: "(d) Batched plans (PTC-style)", blurb: "one model call plans several body actions", run: runActionRate },
-  combo: { id: "combo", label: "(e) Library + reflect-and-search + batching", blurb: "options b + a + d in one plugin", run: runCombo },
+  combo: { id: "combo", label: "(static composition) library + reflect + batching", blurb: "reference row: options b + a + d composed statically", run: runCombo },
+  async: { id: "async", label: "(e) Big-brain/small-brain async (code small brain)", blurb: "DSH model plans/reflects/searches while plugin code keeps acting; escalates on 3x repeated failure", run: (ctx) => runAsync(ctx) },
+  "async-llm": { id: "async-llm", label: "(e) Big-brain/small-brain async (cheap-model small brain)", blurb: "same split; the small brain is a minimal-prompt model standing in for DSH flash/subagent", run: (ctx) => runAsync(ctx, { llmSmallBrain: true }) },
 };
 
 function arg(name: string, fallback: string): string {
@@ -50,9 +53,14 @@ function arg(name: string, fallback: string): string {
 
 const seeds = Number(arg("seeds", "10"));
 const concurrency = Number(arg("concurrency", "3"));
-const approachIds = arg("approaches", "llm,reflect,library,library-cold,curriculum,actionrate,combo").split(",");
+const approachIds = arg("approaches", "llm,reflect,library,library-cold,curriculum,actionrate,combo,async,async-llm").split(",");
 const scenarioNames = arg("scenarios", "locked,wall,toy2-locked,toy2-wall").split(",") as ScenarioName[];
 const skipPrime = process.argv.includes("--skip-prime");
+// --out <name> writes results/runs-<name>.json etc. instead of the canonical
+// files, so a partial rerun (e.g. only the async rows) never clobbers the
+// recorded matrix.
+const outSuffix = arg("out", "");
+const outName = (base: string) => outSuffix === "" ? base : `${base}-${outSuffix}`;
 
 async function main(): Promise<void> {
   const started = Date.now();
@@ -90,12 +98,12 @@ async function main(): Promise<void> {
     }
   }
 
-  await writeFile(path.join(RESULTS, "runs.json"), JSON.stringify(records, null, 1), "utf8");
+  await writeFile(path.join(RESULTS, outName("runs.json")), JSON.stringify(records, null, 1), "utf8");
   const aggregates = aggregate(records);
-  await writeFile(path.join(RESULTS, "summary.json"), JSON.stringify({ model: "deepseek-chat (served as deepseek-flash), temperature 0, cached with latency replay", aggregates }, null, 1), "utf8");
-  await writeFile(path.join(RESULTS, "metrics.csv"), metricsCsv(aggregates), "utf8");
+  await writeFile(path.join(RESULTS, outName("summary.json")), JSON.stringify({ model: "deepseek-chat (served as deepseek-flash), temperature 0, cached with latency replay", aggregates }, null, 1), "utf8");
+  await writeFile(path.join(RESULTS, outName("metrics.csv")), metricsCsv(aggregates), "utf8");
   await countLoc();
-  console.log(`[done] ${records.length} runs in ${Math.round((Date.now() - started) / 1000)}s -> results/runs.json, summary.json, metrics.csv, loc.json`);
+  console.log(`[done] ${records.length} runs in ${Math.round((Date.now() - started) / 1000)}s -> results/${outName("runs.json")}, ${outName("summary.json")}, ${outName("metrics.csv")}, loc.json`);
 }
 
 await main();

@@ -1,0 +1,1 @@
+{"content":"Door opened. Now let me get the third Wood and the Stones.","toolCalls":[{"id":"call_00_C5rQTuZlRJIvwZtsUCeV0547","name":"world_find","args":{"kind":"material"}}],"ms":949,"cached":false,"usage":{"prompt":4111,"completion":51}}
