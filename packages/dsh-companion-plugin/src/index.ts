@@ -22,12 +22,13 @@ import type {} from "@deepseek-ai/dsh-system-prompt";
 import { defineTool } from "@deepseek-ai/dsh-tools";
 import z from "@deepseek-ai/schemastery";
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { parsePersonaPack, type PersonaPack } from "@dsh-player2/contracts";
 import { GameBody, type BodyPort } from "./body/port.js";
 import { PersonaDice, tendencyLines, turnNudges } from "./body/knobs.js";
 import { loadReflexTable, ReflexBody } from "./body/reflex.js";
-import { createSkillRunner, skillHands, SkillStore, type PtcLike } from "./body/skills.js";
-import { createBodyTools } from "./body/tools.js";
+import { PtcRunner, skillHands, SkillStore, type PtcLike } from "./body/skills.js";
+import { createBodyTools, textOutput } from "./body/tools.js";
 import { DEFAULT_GAME, MindCore, type PreparedDream, type PreparedMind } from "./mind/core.js";
 import { DREAM_LEDGER_INSTRUCTIONS } from "./mind/dream-ledger.js";
 import { NOMINABLE_KINDS, nominationOf } from "./mind/turn-extras.js";
@@ -37,7 +38,7 @@ export { GameBody, sleep, type BodyPort, type BodyRun, type RunOptions } from ".
 export { PersonaDice, tendencyLines, turnNudges } from "./body/knobs.js";
 export { SimAdapter, type SimLocation, type SimOptions } from "./body/sim-adapter.js";
 export { ReflexBody, ReflexEngine, loadReflexTable, nearestMonster, renderFact, roleButtons } from "./body/reflex.js";
-export { createSkillRunner, InProcessRunner, PtcRunner, skillHands, SkillStore, type PtcLike, type SkillHands, type SkillRecord, type SkillRunner } from "./body/skills.js";
+export { PtcRunner, skillHands, SkillStore, type PtcLike, type SkillHands, type SkillRecord, type SkillRunner } from "./body/skills.js";
 export { Toy2Adapter, TOY2_GOAL } from "./body/toy2.js";
 export { createBodyTools, BODY_TOOL_NAMES, renderObservation, inventoryDiff, type BodyContext } from "./body/tools.js";
 
@@ -108,8 +109,6 @@ interface GoalAccess {
   resume(agent: Agent, ref: { id: never; revision: number }): unknown;
 }
 
-const textOutput = { schema: { type: "string" }, render: (_args: unknown, value: unknown) => [{ type: "text" as const, text: String(value) }] } as const;
-
 export function apply(ctx: Context, config: Config): void {
   const persona = typeof config.persona === "string"
     ? parsePersonaPack(JSON.parse(readFileSync(config.persona, "utf8")), config.persona)
@@ -159,46 +158,43 @@ export function apply(ctx: Context, config: Config): void {
     for (const tool of createBodyTools({ body })) {
       ctx.effect(() => ctx.tools.register(tool), `player2-companion.tool.${tool.name}`);
     }
-    // The skill tier: DSH's own PTC seam runs the programs when the profile
-    // composes one; otherwise the plugin's in-process runner does. The chosen
-    // path is logged once at mount.
-    const skillRunner = createSkillRunner(ptcOf(ctx), skillHands(body), (line) => console.log(line));
-    skillPath = skillRunner.path;
-    skillsOf = (agent: Agent | undefined): SkillStore | undefined => {
-      const state = stateOf(agent);
-      if (state === undefined) return undefined;
-      state.skills ??= new SkillStore(agent!.session.header.cwd ?? "", skillRunner);
-      return state.skills;
-    };
-    ctx.effect(() => ctx.tools.register(defineTool({
-      name: "skill_save",
-      description: `Save a reusable skill from body work you just did: a small JS program (the body of an async function) that calls the hands helpers — hands.observe(), hands.find({kind,name}), hands.map({x,y,radius}), hands.locations(), hands.walkTo({x,y,location,mode}), hands.controls(), hands.input({steps,until}). It runs once against the body right now; only a clean replay is saved. In skill_run, your args object arrives as args.`,
-      parameters: {
-        name: { type: "string", required: true, description: "Lowercase letters, digits and dashes, e.g. water-the-crops." },
-        purpose: { type: "string", required: true, description: "One line saying when this skill helps, 3-160 characters." },
-        code: { type: "string", required: true, description: "The program; return a short string summary of what it did." },
-      },
-      output: textOutput,
-      execute: async (args, exec) => {
-        const store = skillsOf?.(exec.agent);
-        if (store === undefined) throw new Error("no session folder for this save; skills cannot be stored");
-        return store.save(String(args.name), String(args.purpose), String(args.code));
-      },
-    })), "player2-companion.tool.skill_save");
-    ctx.effect(() => ctx.tools.register(defineTool({
-      name: "skill_run",
-      description: "Run one of your saved skills by name, passing args as JSON. A skill that fails is reported with its error and marked stale; repair it by saving the same name again with skill_save.",
-      parameters: {
-        name: { type: "string", required: true },
-        args: { type: "object", additionalProperties: true, description: "Values the skill's code reads as args." },
-      },
-      output: textOutput,
-      execute: async (args, exec) => {
-        const store = skillsOf?.(exec.agent);
-        if (store === undefined) throw new Error("no session folder for this save; skills cannot be stored");
-        return store.run(String(args.name), args.args ?? {}, exec.signal);
-      },
-    })), "player2-companion.tool.skill_run");
+    // The skill tier runs model-written programs only through DSH's own PTC
+    // seam; a mount without that seam ships no skill tools at all, never a
+    // local stand-in executor. The chosen path is logged once at mount.
+    const ptc = ptcOf(ctx);
+    const skillRunner = ptc === undefined ? undefined : new PtcRunner(ptc, skillHands(body));
+    if (skillRunner !== undefined) {
+      console.log(`player2-companion: skills execute via ${skillRunner.path}.`);
+      skillPath = skillRunner.path;
+      const skillStoreOf = (agent: Agent): SkillStore => {
+        const state = stateOf(agent);
+        if (state === undefined) throw new Error("no session for this save; skills cannot be used");
+        state.skills ??= new SkillStore(join(agent.session.header.cwd ?? "", "skills"), game, skillRunner);
+        return state.skills;
+      };
+      skillsOf = (agent: Agent | undefined): SkillStore | undefined => agent === undefined ? undefined : skillStoreOf(agent);
+      ctx.effect(() => ctx.tools.register(defineTool({
+        name: "skill_save",
+        description: `Save a reusable skill from body work you just did: a small JS program (the body of an async function) that calls the hands helpers — hands.observe(), hands.find({kind,name}), hands.map({x,y,radius}), hands.locations(), hands.walkTo({x,y,location,mode}), hands.controls(), hands.input({steps,until}). It runs once against the body right now; only a clean replay is saved. In skill_run, your args object arrives as args.`,
+        parameters: {
+          name: { type: "string", required: true, description: "Lowercase letters, digits and dashes, e.g. water-the-crops." },
+          purpose: { type: "string", required: true, description: "One line saying when this skill helps, 3-160 characters." },
+          code: { type: "string", required: true, description: "The program; return a short string summary of what it did." },
+        },
+        output: textOutput,
+        execute: async (args, exec) => skillStoreOf(exec.agent!).save(String(args.name), String(args.purpose), String(args.code)),
+      })), "player2-companion.tool.skill_save");
+      ctx.effect(() => ctx.tools.register(defineTool({
+        name: "skill_run",
+        description: "Run one of your saved skills by name, passing args as JSON. A skill that fails is reported with its error and marked stale; repair it by saving the same name again with skill_save.",
+        parameters: {
+          name: { type: "string", required: true },
+          args: { type: "object", additionalProperties: true, description: "Values the skill's code reads as args." },
+        },
+        output: textOutput,
+        execute: async (args, exec) => skillStoreOf(exec.agent!).run(String(args.name), args.args ?? {}, exec.signal),
+      })), "player2-companion.tool.skill_run");
+    }
     ctx.effect(() => ctx.tools.register(defineTool({
       name: "cheat_grant",
       description: "Record the player's own words allowing (granted true) or taking back (granted false) cheat inputs in this save. Only when the player clearly said so; never on your own initiative.",

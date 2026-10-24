@@ -24,7 +24,8 @@ export const BODY_TOOL_NAMES = {
   input: "body_input",
 } as const;
 
-const textOutput = { schema: { type: "string" }, render: (_args: unknown, value: unknown) => [{ type: "text" as const, text: String(value) }] } as const;
+/** The output shape every body tool returns. */
+export const textOutput = { schema: { type: "string" }, render: (_args: unknown, value: unknown) => [{ type: "text" as const, text: String(value) }] } as const;
 
 export function createBodyTools(hands: BodyContext) {
   let controls: Controls | undefined;
@@ -49,20 +50,7 @@ export function createBodyTools(hands: BodyContext) {
         limit: { type: "integer", description: "Maximum results (default 20, max 80)." },
       },
       output: textOutput,
-      execute: async (args) => {
-        const state = await hands.body.state();
-        const name = args.name?.toLowerCase();
-        const origin = state.body ?? state.player;
-        const hits = state.objects
-          .filter((o) => (args.kind === undefined || o.kind === args.kind)
-            && (name === undefined || o.name.toLowerCase().includes(name) || (o.id ?? "").toLowerCase().includes(name) || String(o.extra?.crop ?? "").toLowerCase().includes(name))
-            && (args.readyOnly !== true || o.extra?.ready === true))
-          .map((o) => ({ o, d: Math.abs(o.x - origin.x) + Math.abs(o.y - origin.y) }))
-          .sort((a, b) => a.d - b.d)
-          .slice(0, Math.min(80, Math.max(1, args.limit ?? 20)));
-        if (hits.length === 0) return `Nothing matching in ${state.map.location}${state.truncated.objects > 0 ? ` (${state.truncated.objects} far objects were not exported)` : ""}.`;
-        return [`${hits.length} match(es) in ${state.map.location}, nearest first:`, ...hits.map(({ o, d }) => `- ${describeObject(o)} [${d} tiles]`)].join("\n");
-      },
+      execute: async (args) => findObjects(await hands.body.state(), args),
     }),
     defineTool({
       name: BODY_TOOL_NAMES.map,
@@ -73,20 +61,14 @@ export function createBodyTools(hands: BodyContext) {
         radius: { type: "integer", description: "Half-size of the window (default 8, max 20)." },
       },
       output: textOutput,
-      execute: async (args) => renderMap(await hands.body.state(), args.x, args.y, Math.min(20, Math.max(2, args.radius ?? 8))),
+      execute: async (args) => renderMapAround(await hands.body.state(), { ...args, radius: Math.min(20, Math.max(2, args.radius ?? 8)) }),
     }),
     defineTool({
       name: BODY_TOOL_NAMES.locations,
       description: "List the game's locations and how they connect (exits), from the exported world graph.",
       parameters: { near: { type: "string", description: "Only this location and its neighbours." } },
       output: textOutput,
-      execute: async (args) => {
-        const graph = await loadWorld();
-        const rows = graph.locations
-          .filter((l) => args.near === undefined || l.name === args.near || l.warps.some((w) => w.to === args.near))
-          .map((l) => `- ${l.name}${l.displayName !== l.name ? ` (${l.displayName})` : ""}${l.outdoors ? ", outdoors" : ""}: exits to ${[...new Set(l.warps.map((w) => w.to))].join(", ") || "none"}`);
-        return rows.length === 0 ? "No such location in the world graph." : rows.join("\n");
-      },
+      execute: async (args) => locationsLine(await loadWorld(), args.near),
     }),
     defineTool({
       name: BODY_TOOL_NAMES.walk,
@@ -137,15 +119,39 @@ export function createBodyTools(hands: BodyContext) {
   ] as const;
 }
 
-function describeRun(run: BodyRun, before: BodyState): string {
+/** The `world_find` search shared by the tools and the skill hands. */
+export function findObjects(state: BodyState, args: { kind?: string; name?: string; readyOnly?: boolean; limit?: number }): string {
+  const name = args.name?.toLowerCase();
+  const origin = state.body ?? state.player;
+  const hits = state.objects
+    .filter((o) => (args.kind === undefined || o.kind === args.kind)
+      && (name === undefined || o.name.toLowerCase().includes(name) || (o.id ?? "").toLowerCase().includes(name) || String(o.extra?.crop ?? "").toLowerCase().includes(name))
+      && (args.readyOnly !== true || o.extra?.ready === true))
+    .map((o) => ({ o, d: Math.abs(o.x - origin.x) + Math.abs(o.y - origin.y) }))
+    .sort((a, b) => a.d - b.d)
+    .slice(0, Math.min(80, Math.max(1, args.limit ?? 20)));
+  if (hits.length === 0) return `Nothing matching in ${state.map.location}${state.truncated.objects > 0 ? ` (${state.truncated.objects} far objects were not exported)` : ""}.`;
+  return [`${hits.length} match(es) in ${state.map.location}, nearest first:`, ...hits.map(({ o, d }) => `- ${describeObject(o)} [${d} tiles]`)].join("\n");
+}
+
+/** The `world_locations` rendering shared by the tools and the skill hands. */
+export function locationsLine(graph: BodyWorld, near: string | undefined): string {
+  const rows = graph.locations
+    .filter((l) => near === undefined || l.name === near || l.warps.some((w) => w.to === near))
+    .map((l) => `- ${l.name}${l.displayName !== l.name ? ` (${l.displayName})` : ""}${l.outdoors ? ", outdoors" : ""}: exits to ${[...new Set(l.warps.map((w) => w.to))].join(", ") || "none"}`);
+  return rows.length === 0 ? "No such location in the world graph." : rows.join("\n");
+}
+
+/** What one submitted input sequence did, in plain facts; `before` adds the inventory/stamina diff. */
+export function describeRun(run: BodyRun, before?: BodyState): string {
   const after = run.state;
   const lines = [`Input ${run.status}${run.reason ? ` (${run.reason})` : ""}.${eventsLine(run.events)}`];
-  if (after?.body && before.body) {
+  if (after?.body && before?.body) {
     const diff = inventoryDiff(before.body.items, after.body.items);
     if (diff !== "") lines.push(`Your toolbar changed: ${diff}.`);
     lines.push(`Stamina ${Math.round(after.body.stamina)}. Now at ${after.body.location} (${after.body.x},${after.body.y}) facing ${after.body.facing}.`);
   }
-  if (after) {
+  if (after && before) {
     const diff = inventoryDiff(before.player.items, after.player.items);
     if (diff !== "") lines.push(`The player's inventory changed: ${diff}.`);
   }
@@ -228,11 +234,12 @@ export function renderObservation(state: BodyState, radius: number): string {
   return lines.join("\n");
 }
 
-function renderMap(state: BodyState, cx: number | undefined, cy: number | undefined, radius: number): string {
-  const x0 = Math.max(0, (cx ?? state.body?.x ?? state.player.x) - radius);
-  const y0 = Math.max(0, (cy ?? state.body?.y ?? state.player.y) - radius);
-  const x1 = Math.min(state.map.width - 1, x0 + 2 * radius);
-  const y1 = Math.min(state.map.height - 1, y0 + 2 * radius);
+/** The `world_map` window shared by the tools and the skill hands; `radius` arrives clamped (2..20). */
+export function renderMapAround(state: BodyState, args: { x?: number; y?: number; radius: number }): string {
+  const x0 = Math.max(0, (args.x ?? state.body?.x ?? state.player.x) - args.radius);
+  const y0 = Math.max(0, (args.y ?? state.body?.y ?? state.player.y) - args.radius);
+  const x1 = Math.min(state.map.width - 1, x0 + 2 * args.radius);
+  const y1 = Math.min(state.map.height - 1, y0 + 2 * args.radius);
   const overlay = new Map<string, string>();
   for (const o of state.objects) if (o.extra?.passable === false) overlay.set(`${o.x},${o.y}`, "o");
   if (state.body && state.body.location === state.map.location) overlay.set(`${state.body.x},${state.body.y}`, "@");

@@ -31,17 +31,19 @@ export class ReflexEngine {
 
   public constructor(private readonly options: ReflexEngineOptions) {}
 
-  /** The first row whose `when` holds and whose cooldown has passed, or null. */
-  public match(state: BodyState, roles: RoleButtons): { row: ReflexRow; monster: MonsterFact | null; item: string | null } | null {
+  private get now(): number { return this.options.now?.() ?? Date.now(); }
+
+  /** The first row whose `when` holds and whose cooldown has passed, with its burst ready to play. */
+  public match(state: BodyState, roles: RoleButtons): { row: ReflexRow; monster: MonsterFact | null; item: string | null; steps: BodyInputStep[] } | null {
     if (state.paused || state.body === null || !state.body.present) return null;
     const monster = nearestMonster(state);
     for (const row of this.options.table.rows) {
       const since = this.fired.get(row.id);
-      if (since !== undefined && (this.options.now?.() ?? Date.now()) - since < (row.cooldownMs ?? 0)) continue;
+      if (since !== undefined && this.now - since < (row.cooldownMs ?? 0)) continue;
       if (!holds(row.when.all, state, monster, this) || (row.when.none?.some((one: ReflexCondition) => holds([one], state, monster, this)) ?? false)) continue;
       const burst = this.build(row.do, state, monster, roles);
       if (burst === null) continue;
-      return { row, monster, item: burst.item };
+      return { row, monster, item: burst.item, steps: burst.steps };
     }
     return null;
   }
@@ -75,26 +77,25 @@ export class ReflexEngine {
 
   /** Cooldown bookkeeping after a row fired. */
   public didFire(id: string): void {
-    this.fired.set(id, this.options.now?.() ?? Date.now());
+    this.fired.set(id, this.now);
   }
 
   /** Feeds displacement for the stuck condition; call with every evaluated state. */
   public observe(state: BodyState): void {
     const body = state.body;
-    const now = this.options.now?.() ?? Date.now();
     if (body === null || body.px !== this.lastPx || body.py !== this.lastPy) {
       this.lastPx = body?.px ?? NaN;
       this.lastPy = body?.py ?? NaN;
       this.stillSince = null;
       return;
     }
-    this.stillSince ??= now;
+    this.stillSince ??= this.now;
   }
 
   /** How long the body has not moved, for the `stuckFor` condition. */
   public stuckMs(): number {
     if (this.stillSince === null) return 0;
-    return (this.options.now?.() ?? Date.now()) - this.stillSince;
+    return this.now - this.stillSince;
   }
 }
 
@@ -202,7 +203,7 @@ export class ReflexBody implements BodyPort {
         this.roles ??= roleButtons(await this.inner.declaration());
         this.engine.observe(state);
         const hit = this.engine.match(state, this.roles);
-        if (hit !== null) await this.fire(hit.row, state, hit.monster, hit.item);
+        if (hit !== null) await this.fire(hit.row, state, hit.monster, hit.item, hit.steps);
       } catch (error) {
         if (this.failures === 0) this.options.onError?.(error);
         this.failures++;
@@ -211,13 +212,11 @@ export class ReflexBody implements BodyPort {
   }
 
   /** One row's burst: take the controller, play it, tell the mind. */
-  private async fire(row: ReflexRow, state: BodyState, monster: MonsterFact | null, item: string | null): Promise<void> {
+  private async fire(row: ReflexRow, state: BodyState, monster: MonsterFact | null, item: string | null, steps: readonly BodyInputStep[]): Promise<void> {
     this.firing = true;
     try {
       if (state.body?.activeTask != null) await this.inner.cancelActive().catch(() => undefined);
-      const burst = this.engine.build(row.do, state, monster, this.roles ?? DEFAULT_ROLE_BUTTONS);
-      if (burst === null) return;
-      const run = await this.inner.run(burst.steps, this.burstOptions(burst.steps));
+      const run = await this.inner.run(steps, this.burstOptions(steps));
       this.engine.didFire(row.id);
       this.options.onFact(`${renderFact(row, state, monster, item)} (${run.status})`);
     } finally {

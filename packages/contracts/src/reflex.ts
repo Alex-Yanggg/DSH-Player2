@@ -11,6 +11,9 @@ import { bodyInputStepSchema, bodyUntilSchema } from "./body.js";
  */
 export const reflexTableVersion = "1" as const;
 
+/** The item matcher shared by conditions and bursts. */
+const itemMatchSchema = z.object({ category: z.string().min(1).max(40).optional(), name: z.string().min(1).max(80).optional() });
+
 /** One raw-state fact the engine can test without game knowledge. */
 export const reflexConditionSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("healthBelow"), value: z.number().min(1).max(1000) }),
@@ -18,14 +21,11 @@ export const reflexConditionSchema = z.discriminatedUnion("kind", [
   /** A monster of the body's location within this many tiles. */
   z.object({ kind: z.literal("monsterWithin"), tiles: z.number().min(0).max(20) }),
   /** The body holds an item matching category and/or name substring. */
-  z.object({ kind: z.literal("hasItem"), category: z.string().min(1).max(40).optional(), name: z.string().min(1).max(80).optional() }),
+  z.object({ kind: z.literal("hasItem"), ...itemMatchSchema.shape }),
   /** A movement task is running but the body has not moved for this long (ms). */
   z.object({ kind: z.literal("stuckFor"), ms: z.number().int().min(200).max(20_000) }),
 ]);
 export type ReflexCondition = z.infer<typeof reflexConditionSchema>;
-
-/** The item matcher shared by conditions and bursts. */
-const itemMatchSchema = z.object({ category: z.string().min(1).max(40).optional(), name: z.string().min(1).max(80).optional() });
 
 /**
  * One raw input burst. Button ids inside `steps` are the game's own; the

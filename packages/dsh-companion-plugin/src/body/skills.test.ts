@@ -1,9 +1,10 @@
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import vm from "node:vm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { BodyItem } from "@dsh-player2/contracts";
-import { createSkillRunner, InProcessRunner, PtcRunner, skillHands, SkillStore, type PtcLike } from "./skills.js";
+import { PtcRunner, skillHands, SkillStore, type PtcLike, type SkillHands, type SkillRunner } from "./skills.js";
 import { SimAdapter, type SimLocation } from "./sim-adapter.js";
 
 vi.setConfig({ testTimeout: 30_000 });
@@ -20,22 +21,37 @@ const FARM = [
 const kit: BodyItem[] = [{ slot: 0, id: "(T)Hoe", name: "Hoe", stack: 1, category: "Tool" }];
 
 let sim: SimAdapter;
-let session: string;
+let library: string;
 
 beforeEach(async () => {
   const locations: SimLocation[] = [{ name: "Farm", rows: [...FARM], warps: [], objects: [], characters: [] }];
   sim = new SimAdapter({ locations, body: { location: "Farm", x: 2, y: 3, items: kit.map((i) => ({ ...i })) } });
   await sim.start(1);
-  session = await mkdtemp(join(tmpdir(), "player2-skills-"));
+  library = await mkdtemp(join(tmpdir(), "player2-skills-"));
 });
 
 afterEach(async () => {
   await sim.stop();
 });
 
+/** Test stand-in for DSH's PTC seam: runs the program against the hands in this process. */
+function localRunner(hands: SkillHands): SkillRunner {
+  return {
+    path: "test-local",
+    async run(code, args) {
+      try {
+        const make = vm.compileFunction(`return async (hands, args) => {\n${code}\n}`) as () => (hands: SkillHands, args: unknown) => Promise<unknown>;
+        return { ok: true, value: String(await make()(hands, args) ?? "(no return value)") };
+      } catch (error) {
+        return { ok: false, error: error instanceof Error ? error.message : String(error) };
+      }
+    },
+  };
+}
+
 describe("the skill cycle on the sim body", () => {
   it("saves only what replays cleanly, runs it later, and marks a failing run stale", async () => {
-    const store = new SkillStore(session, new InProcessRunner(skillHands(sim)));
+    const store = new SkillStore(library, "stardew-valley", localRunner(skillHands(sim)));
     // A refusing save: the replay throws, so nothing is stored.
     await expect(store.save("broken", "never works", "throw new Error('nope')")).rejects.toThrow(/refused: the replay failed.*nope/);
     expect((await store.list()).map((s) => s.name)).not.toContain("broken");
@@ -56,13 +72,13 @@ describe("the skill cycle on the sim body", () => {
   });
 
   it("refuses names and purposes that do not fit", async () => {
-    const store = new SkillStore(session, new InProcessRunner(skillHands(sim)));
+    const store = new SkillStore(library, "stardew-valley", localRunner(skillHands(sim)));
     await expect(store.save("Bad Name", "purpose", "return 1")).rejects.toThrow(/refused: a skill name/);
     await expect(store.save("ok-name", "x", "return 1")).rejects.toThrow(/refused: the purpose/);
   });
 });
 
-describe("the execution paths", () => {
+describe("the execution path", () => {
   it("bridges hands and args through DSH's PTC seam", async () => {
     const seen: { program: string; bindings: { global: string }[] }[] = [];
     const ptc: PtcLike = {
@@ -76,14 +92,5 @@ describe("the execution paths", () => {
     expect(outcome).toEqual({ ok: true, value: "7" });
     expect(seen[0].program).toContain('const args = {"x":6};');
     expect(seen[0].bindings[0]?.global).toBe("hands");
-  });
-
-  it("records which path was chosen at mount", async () => {
-    const lines: string[] = [];
-    createSkillRunner(undefined, skillHands(sim), (line) => lines.push(line));
-    expect(lines[0]).toContain("in-process");
-    const fake: PtcLike = { language: "typescript", resolve: () => ({}), run: async () => ({ value: 1 }) };
-    createSkillRunner(fake, skillHands(sim), (line) => lines.push(line));
-    expect(lines[1]).toContain("dsh-ptc");
   });
 });

@@ -54,7 +54,6 @@ export interface SimTaskState {
   events: BodyEvent[];
   status: BodyTaskStatus["status"];
   reason: string | null;
-  update: number;
   startLocation: string;
   still: number;
 }
@@ -153,7 +152,7 @@ export class SimAdapter implements BodyPort {
     const ids = task.steps.flatMap((s) => [...(s.hold ?? []), ...(s.press ?? [])]);
     const unknown = ids.find((id) => !declared.some((d) => d.id === id));
     const cheat = ids.find((id) => declared.some((d) => d.id === id && d.cheat === true));
-    this.task = { task, step: 0, stepTick: 0, ticks: task.steps.map((s) => s.ms <= 0 ? 1 : Math.max(1, Math.round(s.ms / TICK_MS))), events: [], status: "running", reason: null, update: 1, startLocation: this.body.location, still: 0 };
+    this.task = { task, step: 0, stepTick: 0, ticks: task.steps.map((s) => s.ms <= 0 ? 1 : Math.max(1, Math.round(s.ms / TICK_MS))), events: [], status: "running", reason: null, startLocation: this.body.location, still: 0 };
     if (unknown !== undefined) this.finish(this.task, "failed", `unknown-input: ${unknown}`);
     else if (cheat !== undefined && !this.cheatSetting && !this.cheatGrant) this.finish(this.task, "failed", `cheat-off: ${cheat}`);
   }
@@ -170,7 +169,6 @@ export class SimAdapter implements BodyPort {
     if (task.stepTick >= task.ticks[task.step]) {
       task.step++;
       task.stepTick = 0;
-      task.update++;
       if (task.step >= task.ticks.length) return this.finish(task, "done", "completed");
     }
     const step = task.task.steps[task.step];
@@ -200,8 +198,7 @@ export class SimAdapter implements BodyPort {
         this.body.px = warp.toX * 64;
         this.body.py = warp.toY * 64;
         task.events.push({ tick: this.tick, kind: "warped", detail: `${from} -> ${warp.to}` });
-        task.update++;
-        return;
+          return;
       }
       if (noClip || this.walkable(tx, ty)) { this.body.px = nx; this.body.py = ny; moved = true; }
     }
@@ -212,7 +209,7 @@ export class SimAdapter implements BodyPort {
   }
 
   protected press(id: string, task: SimTaskState): void {
-    const note = (kind: string, detail: string) => { task.events.push({ tick: this.tick, kind, detail }); task.update++; };
+    const note = (kind: string, detail: string) => { task.events.push({ tick: this.tick, kind, detail }); };
     if (this.menu !== undefined && (id === "ControllerA" || id === "ControllerB")) return this.pressMenu(id, note);
     if (id.startsWith("Slot")) { this.body.slot = Number(id.slice(4)) - 1; return; }
     const t = this.faced();
@@ -332,7 +329,6 @@ export class SimAdapter implements BodyPort {
     task.status = status;
     task.reason = reason;
     task.events.push({ tick: this.tick, kind: status, detail: reason });
-    task.update++;
     // A preempted task is no longer `this.task`, but its waiter still needs the outcome.
     this.finished.set(task.task.seq, { status, reason, events: task.events.slice(-32) });
     while (this.finished.size > 8) this.finished.delete(this.finished.keys().next().value!);
@@ -341,7 +337,6 @@ export class SimAdapter implements BodyPort {
   /** Records one event on the running task; a port's own button semantics use this. */
   protected note(task: SimTaskState, kind: string, detail: string): void {
     task.events.push({ tick: this.tick, kind, detail });
-    task.update++;
   }
 
   public snapshot(): BodyState {
