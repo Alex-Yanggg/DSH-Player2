@@ -190,6 +190,7 @@ internal sealed class BodyStateExporter
     {
         var warps = location.warps.Where(w => !w.npcOnly.Value).Select(w => new BodyWarp(w.X, w.Y, w.TargetName, w.TargetX, w.TargetY, "walk")).ToList();
         warps.AddRange(ActionWarps(location));
+        warps.AddRange(TouchWarps(location));
         foreach (var building in location.buildings)
         {
             if (BuildingDoor(building) is { } door) warps.Add(door);
@@ -212,6 +213,35 @@ internal sealed class BodyStateExporter
                     var action = location.doesTileHaveProperty(x, y, "Action", "Buildings");
                     if (string.IsNullOrWhiteSpace(action)) continue;
                     if (ParseActionWarp(action) is { } warp) found.Add(new BodyWarp(x, y, warp.To, warp.X, warp.Y, "action"));
+                }
+            }
+        }
+        ActionWarpCache[key] = found;
+        return found;
+    }
+
+    /// <summary>
+    /// Tiles that warp a farmer who walks onto them (`TouchAction Warp x y Location`
+    /// on the Back layer), such as the mine's shaft hole: raw map data the export
+    /// would otherwise hide, because they are not in <see cref="GameLocation.warps"/>.
+    /// </summary>
+    private static List<BodyWarp> TouchWarps(GameLocation location)
+    {
+        var key = location.NameOrUniqueName + "#touch";
+        if (ActionWarpCache.TryGetValue(key, out var cached)) return cached;
+        var found = new List<BodyWarp>();
+        var layer = location.Map.GetLayer("Back");
+        if (layer is not null)
+        {
+            for (var y = 0; y < layer.LayerHeight; y++)
+            {
+                for (var x = 0; x < layer.LayerWidth; x++)
+                {
+                    var touch = location.doesTileHaveProperty(x, y, "TouchAction", "Back");
+                    if (string.IsNullOrWhiteSpace(touch)) continue;
+                    var parts = touch.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length >= 4 && parts[0] == "Warp" && int.TryParse(parts[1], out var tx) && int.TryParse(parts[2], out var ty))
+                        found.Add(new BodyWarp(x, y, parts[3], tx, ty, "walk"));
                 }
             }
         }
