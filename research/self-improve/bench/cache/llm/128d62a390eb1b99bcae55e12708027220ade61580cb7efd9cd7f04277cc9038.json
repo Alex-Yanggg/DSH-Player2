@@ -1,0 +1,1 @@
+{"content":"The door is diagonal. Let me stand adjacent to it properly.","toolCalls":[{"id":"call_00_O3TFa64FbT9MaNcBfmUe2120","name":"body_walk_to","args":{"mode":"adjacent","x":7,"y":6}}],"ms":987,"cached":false,"usage":{"prompt":2969,"completion":84}}

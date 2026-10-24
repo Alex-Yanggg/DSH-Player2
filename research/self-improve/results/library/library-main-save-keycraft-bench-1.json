@@ -1,0 +1,35 @@
+{
+  "saveId": "keycraft-bench-1",
+  "lessons": [
+    {
+      "lesson": "In the Workshop, the Gold Door at (7,6) needs a Gold Key; the key vendor's first visit is the morning of day 3, leaving a Gold Key by the Gold Door. Before day 3 the bench room (workbench at (10,5)) cannot be entered.",
+      "topic": "gold door / bench room",
+      "session": 1
+    },
+    {
+      "lesson": "In the Workshop, the Gold Door at (7,6) requires a Gold Key; the bench room with the workbench at (10,5) is inaccessible before day 3.",
+      "topic": "distilled",
+      "session": 1
+    },
+    {
+      "lesson": "The key vendor first visits on the morning of day 3 and leaves a Gold Key by the Gold Door.",
+      "topic": "distilled",
+      "session": 1
+    },
+    {
+      "lesson": "In the Workshop, the Notice Board sits at (2,7) and if the body is on that tile it blocks all movement (pathfinder reports 'in the way: Notice Board at (2,7)'), trapping the body with no walkable path out; avoid standing on (2,7).",
+      "topic": "workshop notice board stuck",
+      "session": 2
+    },
+    {
+      "lesson": "In the Workshop, if the body starts on the Notice Board tile at (2,7), it is permanently stuck: no movement input, walk helper, or KeyE interaction frees it, and waiting does not resolve it — the body cannot reach the workbench, materials, or Gold Key, so crafting is impossible from that state.",
+      "topic": "workshop notice board trap",
+      "session": 3
+    },
+    {
+      "lesson": "In the Workshop, starting on the Notice Board tile at (2,7) leaves the body permanently stuck; no movement, walk helper, KeyE, or waiting frees it, so crafting is impossible from that state.",
+      "topic": "distilled",
+      "session": 3
+    }
+  ]
+}

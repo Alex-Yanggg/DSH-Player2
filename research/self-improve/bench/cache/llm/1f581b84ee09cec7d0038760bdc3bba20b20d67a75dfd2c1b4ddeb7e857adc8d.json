@@ -1,0 +1,1 @@
+{"content":"I have 3 Wood and 2 Stone. Now to the workbench.","toolCalls":[{"id":"call_00_dDEmrY5cKxQ6ASEOiH9S8168","name":"body_walk_to","args":{"mode":"adjacent","x":10,"y":5}}],"ms":1082,"cached":false,"usage":{"prompt":5150,"completion":87}}

@@ -1,0 +1,1 @@
+{"content":"I need 3 Wood and 2 Stone. Let me gather them. First the nearby Wood at (4,6).","toolCalls":[{"id":"call_00_j6wr05eaOc5uBoCKcySp8803","name":"body_walk_to","args":{"x":4,"y":6,"mode":"adjacent"}}],"ms":1021,"cached":false,"usage":{"prompt":2622,"completion":96}}

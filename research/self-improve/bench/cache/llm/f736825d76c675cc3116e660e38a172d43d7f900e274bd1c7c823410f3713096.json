@@ -1,0 +1,1 @@
+{"content":"The hoe doesn't clear the rockslide. Let me check the notice board — it may explain how to clear the rockslide.","toolCalls":[{"id":"call_00_Pac2APMaQ8oh548qrXHL7760","name":"body_walk_to","args":{"mode":"adjacent","x":3,"y":7}}],"ms":1356,"cached":false,"usage":{"prompt":3320,"completion":97}}

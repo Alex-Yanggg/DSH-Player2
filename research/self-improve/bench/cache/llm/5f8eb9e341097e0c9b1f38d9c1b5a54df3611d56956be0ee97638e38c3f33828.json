@@ -1,0 +1,1 @@
+{"content":"It's now day 5. Let me check the map to confirm the rockslide is cleared.","toolCalls":[{"id":"call_00_1CLLlIFIZrZN9FKi5PKf4872","name":"world_map","args":{"radius":12}}],"ms":949,"cached":false,"usage":{"prompt":2934,"completion":56}}

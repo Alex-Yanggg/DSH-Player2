@@ -1,0 +1,1 @@
+{"content":"I'm at (2,7) on the notice board tile. Let me try moving up to escape.","toolCalls":[{"id":"call_00_axFtTYy7KiVuer85QJFj7741","name":"body_input","args":{"steps":[{"hold":["KeyW"],"ms":300}]}}],"ms":1023,"cached":false,"usage":{"prompt":2650,"completion":71}}

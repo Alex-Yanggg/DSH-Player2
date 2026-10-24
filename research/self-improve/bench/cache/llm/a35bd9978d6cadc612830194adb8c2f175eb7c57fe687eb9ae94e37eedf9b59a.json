@@ -1,0 +1,1 @@
+{"content":"The Gold Key is at (5,1). Let me pick it up.","toolCalls":[{"id":"call_00_3y3Cs6KQE26CekGyPuPB2402","name":"body_walk_to","args":{"mode":"adjacent","x":5,"y":1}}],"ms":1022,"cached":false,"usage":{"prompt":3798,"completion":87}}

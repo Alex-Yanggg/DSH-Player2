@@ -2,19 +2,39 @@
   "saveId": "valley-meadow-1",
   "lessons": [
     {
-      "lesson": "In the Meadow, the rockslide at (11,4) blocks the only path to the Old Shrine chest at (11,1); the notice board says the repair crew clears it on the morning of day 5.",
+      "lesson": "In the Meadow, the north pass to the Old Shrine chest (11,1) is blocked by a Rockslide at (11,4); the repair crew clears it on the morning of day 5, so the shrine is unreachable before then.",
       "topic": "north pass rockslide",
       "session": 1
     },
     {
-      "lesson": "In the Meadow, a rockslide at (11,4) blocks the only path to the Old Shrine chest at (11,1).",
+      "lesson": "In the Meadow, the north pass to the Old Shrine chest at (11,1) is blocked by a Rockslide at (11,4) until the repair crew clears it on the morning of day 5; the shrine is unreachable before then.",
       "topic": "distilled",
       "session": 1
     },
     {
-      "lesson": "The Meadow notice board says the repair crew clears the rockslide on the morning of day 5.",
+      "lesson": "Old Shrine is in the north-east of the map; its chest tile is at x 11, y 1",
       "topic": "distilled",
-      "session": 1
+      "session": 2
+    },
+    {
+      "lesson": "The Old Shrine chest contains a memento",
+      "topic": "distilled",
+      "session": 2
+    },
+    {
+      "lesson": "Old Shrine is in the north-east of the map; its chest tile is at x 11, y 1.",
+      "topic": "distilled",
+      "session": 3
+    },
+    {
+      "lesson": "The Old Shrine chest contains a memento.",
+      "topic": "distilled",
+      "session": 3
+    },
+    {
+      "lesson": "Old Shrine is in the north-east of the map; its chest sits on tile x 11, y 1",
+      "topic": "distilled",
+      "session": 4
     }
   ]
 }

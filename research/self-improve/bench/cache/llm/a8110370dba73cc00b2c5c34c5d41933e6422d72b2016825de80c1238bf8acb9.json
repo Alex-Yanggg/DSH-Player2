@@ -1,0 +1,1 @@
+{"content":"The rockslide is gone. Now let me navigate to the chest at (11,1).","toolCalls":[{"id":"call_00_SSt1X9E8uuxDncyu51Oj7208","name":"world_map","args":{"x":11,"y":1,"radius":10}}],"ms":1029,"cached":false,"usage":{"prompt":3083,"completion":87}}

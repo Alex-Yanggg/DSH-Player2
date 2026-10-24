@@ -1,0 +1,1 @@
+{"content":"Confirmed blocked up. Let me try down and left with the same until condition to be thorough.","toolCalls":[{"id":"call_00_oTbVyrTP1NRbEQvDeKWq4203","name":"body_input","args":{"steps":[{"hold":["KeyS"],"ms":2000}],"until":{"blockedMs":300}}}],"ms":1523,"cached":false,"usage":{"prompt":11590,"completion":91}}

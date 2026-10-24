@@ -1,0 +1,1 @@
+{"content":"A key appeared. Let me find it.","toolCalls":[{"id":"call_00_TAeVp1SFynFhXae6Xxa76520","name":"world_find","args":{"kind":"key"}}],"ms":855,"cached":false,"usage":{"prompt":4418,"completion":46}}

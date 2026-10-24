@@ -1,0 +1,1 @@
+{"content":"The path is clear now. Let me walk to the chest tile (11,1).","toolCalls":[{"id":"call_00_iAxWXxls0ffOtjJh2hKT3826","name":"body_walk_to","args":{"mode":"stand","x":11,"y":1}}],"ms":980,"cached":false,"usage":{"prompt":3191,"completion":88}}

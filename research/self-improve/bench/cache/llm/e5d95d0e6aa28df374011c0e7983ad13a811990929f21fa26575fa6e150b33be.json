@@ -1,0 +1,1 @@
+{"content":"I need to pick up 3 Wood and 2 Stone. Let me start with the nearest Wood at (9,8).","toolCalls":[{"id":"call_00_6wAq4p4bQrWGTU1EGI532376","name":"body_walk_to","args":{"x":9,"y":8,"mode":"adjacent"}}],"ms":1202,"cached":false,"usage":{"prompt":2516,"completion":97}}

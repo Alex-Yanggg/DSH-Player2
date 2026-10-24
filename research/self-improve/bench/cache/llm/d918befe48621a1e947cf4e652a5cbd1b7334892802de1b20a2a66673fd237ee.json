@@ -1,0 +1,1 @@
+{"content":"The panel opened a passage. Now let me gather materials. First the Wood at (10,3).","toolCalls":[{"id":"call_00_6FwGs5thoBJ8le1sAu1L1902","name":"body_walk_to","args":{"mode":"adjacent","x":10,"y":3}}],"ms":1331,"cached":false,"usage":{"prompt":3420,"completion":92}}

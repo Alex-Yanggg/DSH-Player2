@@ -1,0 +1,1 @@
+{"content":"I need to get through the door at (7,6). Let me walk to it and interact.","toolCalls":[{"id":"call_00_isquwppU9i6jengaXZLz7126","name":"body_walk_to","args":{"x":7,"y":6,"mode":"adjacent"}}],"ms":839,"cached":false,"usage":{"prompt":2500,"completion":92}}

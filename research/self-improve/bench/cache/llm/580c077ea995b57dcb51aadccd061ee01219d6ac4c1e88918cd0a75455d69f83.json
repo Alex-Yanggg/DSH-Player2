@@ -1,0 +1,1 @@
+{"content":"The bell is at (11,1) in this location. Let me check the map around it and the lever.","toolCalls":[{"id":"call_00_BkhY3JhluySSQ0DepJcQ7967","name":"world_find","args":{"kind":"object"}},{"id":"call_01_dWOCHVNQ7XZalxLpWUC80877","name":"world_locations","args":{}}],"ms":1112,"cached":false,"usage":{"prompt":2194,"completion":74}}

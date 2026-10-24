@@ -1,0 +1,1 @@
+{"content":"Got 3 Wood. Now the last Stone at (10,1).","toolCalls":[{"id":"call_00_iaLGbcsEl5AETU6KJ5ih6114","name":"body_walk_to","args":{"mode":"adjacent","x":10,"y":1}}],"ms":1005,"cached":false,"usage":{"prompt":4645,"completion":86}}

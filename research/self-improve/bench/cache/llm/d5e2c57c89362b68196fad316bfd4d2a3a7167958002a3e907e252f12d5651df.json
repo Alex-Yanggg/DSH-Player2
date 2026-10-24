@@ -1,0 +1,1 @@
+{"content":"2 Wood. Now wood at (9,8).","toolCalls":[{"id":"call_00_NX3JcRHd2yoMeD3jT9cx2409","name":"body_walk_to","args":{"mode":"adjacent","x":9,"y":8}}],"ms":1001,"cached":false,"usage":{"prompt":4336,"completion":82}}

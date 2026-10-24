@@ -1,0 +1,1 @@
+{"content":"It's Day 1, 7:40. The rockslide at (11,4) blocks the pass until the morning of day 5. Let me check the notice board for any schedule details first.","toolCalls":[{"id":"call_00_2yVUi1lhDtFJbJKLRgop0908","name":"body_walk_to","args":{"x":3,"y":7,"mode":"adjacent"}}],"ms":1382,"cached":false,"usage":{"prompt":2058,"completion":114}}

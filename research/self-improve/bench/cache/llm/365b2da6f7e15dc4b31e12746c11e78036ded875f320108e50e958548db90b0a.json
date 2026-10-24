@@ -1,0 +1,1 @@
+{"content":"Let me try the action button and the tool on the rockslide.","toolCalls":[{"id":"call_00_T36o2y1aXZrx5GrexnQj4688","name":"body_input","args":{"steps":[{"press":["ControllerA"],"ms":200},{"press":["ControllerX"],"ms":200}]}}],"ms":1143,"cached":false,"usage":{"prompt":3189,"completion":76}}

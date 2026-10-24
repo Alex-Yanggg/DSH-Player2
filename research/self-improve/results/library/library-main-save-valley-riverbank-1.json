@@ -2,12 +2,12 @@
   "saveId": "valley-riverbank-1",
   "lessons": [
     {
-      "lesson": "The sanctuary shrine bell sits on a tile at (11, 1), east of the river; reaching it requires crossing/going east from the river area.",
+      "lesson": "The sanctuary shrine bell is east of the river; its tile is at x 11, y 1.",
       "topic": "distilled",
       "session": 1
     },
     {
-      "lesson": "Movement to the shrine bell is achieved with DPad directions (Up, Right) plus ControllerA interactions; the bell tile is reached by walking onto it, not by a special command.",
+      "lesson": "Reaching the shrine bell from the starting area takes only a few short movement steps (up, then right).",
       "topic": "distilled",
       "session": 1
     }

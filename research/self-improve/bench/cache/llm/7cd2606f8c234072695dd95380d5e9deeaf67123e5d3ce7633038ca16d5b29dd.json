@@ -1,0 +1,1 @@
+{"content":"I need 3 Wood and 2 Stone. Let me collect them. First, the Wood at (9,8).","toolCalls":[{"id":"call_00_Z5mn3CW2WKn3ue5EeTqR2947","name":"body_walk_to","args":{"x":9,"y":8,"mode":"adjacent"}}],"ms":1201,"cached":false,"usage":{"prompt":2513,"completion":96}}

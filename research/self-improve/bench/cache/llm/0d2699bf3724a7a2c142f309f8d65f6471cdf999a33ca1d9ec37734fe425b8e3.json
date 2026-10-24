@@ -1,0 +1,1 @@
+{"content":"It's Day 1, 7:44. The rockslide at (11,4) blocks the north pass until the morning of day 5. Let me verify the current state of the pass.","toolCalls":[{"id":"call_00_ruxFwHYpxmN3uNDw7vZ43345","name":"world_map","args":{"x":11,"y":4,"radius":6}}],"ms":1125,"cached":false,"usage":{"prompt":2284,"completion":110}}

@@ -1,0 +1,1 @@
+{"content":"I'm trapped on the notice board tile. Let me try the walk helper which may plan a route.","toolCalls":[{"id":"call_00_JQGOhmxnxVgYYoFbTQjQ7264","name":"body_walk_to","args":{"x":3,"y":7}}],"ms":1227,"cached":false,"usage":{"prompt":2862,"completion":75}}

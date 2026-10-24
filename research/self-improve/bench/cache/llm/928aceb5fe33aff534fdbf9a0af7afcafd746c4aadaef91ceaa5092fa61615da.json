@@ -1,0 +1,1 @@
+{"content":"The gate is open. Now walking to the bell.","toolCalls":[{"id":"call_00_NzISKNSadpvSt7Ue0Gto0871","name":"body_walk_to","args":{"mode":"stand","x":11,"y":1}}],"ms":969,"cached":false,"usage":{"prompt":2992,"completion":81}}

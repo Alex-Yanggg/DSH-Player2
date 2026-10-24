@@ -1,0 +1,1 @@
+{"content":"The rock at (11,4) blocks the only route up the right column. Let me try walking to the chest and see what happens — maybe the rock can be cleared or there's another way.","toolCalls":[{"id":"call_00_XSVbP5YjXeMf1c5jTuWe8093","name":"body_walk_to","args":{"x":11,"y":1,"mode":"adjacent"}}],"ms":1303,"cached":false,"usage":{"prompt":2333,"completion":112}}

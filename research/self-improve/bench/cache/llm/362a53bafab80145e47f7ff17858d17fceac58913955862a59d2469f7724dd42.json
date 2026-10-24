@@ -1,0 +1,1 @@
+{"content":"Wood +3. Now stone at (10,1).","toolCalls":[{"id":"call_00_kqupbM7ERnLaYITy7dBz3558","name":"body_walk_to","args":{"mode":"adjacent","x":10,"y":1}}],"ms":1268,"cached":false,"usage":{"prompt":4126,"completion":83}}

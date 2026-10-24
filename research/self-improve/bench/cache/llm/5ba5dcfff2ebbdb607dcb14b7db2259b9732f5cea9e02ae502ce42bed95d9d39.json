@@ -1,0 +1,1 @@
+{"content":"I'm standing on the wood tile. Let me pick it up — maybe I need to face it or it's under me.","toolCalls":[{"id":"call_00_Ke5Gwp6GuMDZJ2xSgzP72899","name":"world_observe","args":{"radius":3}}],"ms":1171,"cached":false,"usage":{"prompt":3782,"completion":64}}

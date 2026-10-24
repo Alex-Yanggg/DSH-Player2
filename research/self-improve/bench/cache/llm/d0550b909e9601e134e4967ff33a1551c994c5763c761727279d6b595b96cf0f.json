@@ -1,0 +1,1 @@
+{"content":"I have Wood x3 and Stone x2. Now let me stand next to the workbench and craft.","toolCalls":[{"id":"call_00_P2mxlHUdRTQnEpdqk9xb5480","name":"body_walk_to","args":{"mode":"adjacent","x":10,"y":5}}],"ms":1248,"cached":false,"usage":{"prompt":5288,"completion":93}}

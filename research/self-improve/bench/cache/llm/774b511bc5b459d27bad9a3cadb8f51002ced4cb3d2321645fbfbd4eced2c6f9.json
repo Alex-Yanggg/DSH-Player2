@@ -1,0 +1,1 @@
+{"content":"I'm at (2,5), not on the Notice Board. Let me check the map and gather materials.","toolCalls":[{"id":"call_00_2xNTM175hogthX4s7hyh3745","name":"world_map","args":{"radius":12}},{"id":"call_01_f9IFFo8JFfcQOXVp46t55367","name":"world_find","args":{"kind":"material"}}],"ms":1337,"cached":false,"usage":{"prompt":2604,"completion":88}}

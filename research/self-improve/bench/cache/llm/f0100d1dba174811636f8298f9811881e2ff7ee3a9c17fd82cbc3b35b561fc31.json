@@ -1,0 +1,1 @@
+{"content":"Door open. Now gather materials: need 3 Wood (have 2) and 2 Stone.","toolCalls":[{"id":"call_00_eEoAQJyRtMJzjp5fj2c12015","name":"body_walk_to","args":{"mode":"adjacent","x":9,"y":1}}],"ms":1303,"cached":false,"usage":{"prompt":4743,"completion":92}}

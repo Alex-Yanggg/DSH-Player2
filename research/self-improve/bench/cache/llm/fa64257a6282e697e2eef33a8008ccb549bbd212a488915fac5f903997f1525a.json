@@ -1,0 +1,1 @@
+{"content":"The panel opened a way through. Now let me collect materials. Wood at (9,8) first.","toolCalls":[{"id":"call_00_hDk7iY1q1ZjTqDnMGi4U4611","name":"body_walk_to","args":{"mode":"adjacent","x":9,"y":8}}],"ms":1118,"cached":false,"usage":{"prompt":3447,"completion":93}}

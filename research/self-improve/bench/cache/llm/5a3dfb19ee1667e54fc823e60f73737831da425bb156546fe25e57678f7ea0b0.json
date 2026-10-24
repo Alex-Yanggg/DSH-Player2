@@ -1,0 +1,1 @@
+{"content":"I need 3 Wood and 2 Stone. There are 3 Wood and 2 Stone available. Let me gather them. First, the Wood at (2,2).","toolCalls":[{"id":"call_00_0QDTIZnw6sHL6s7qvL1i1911","name":"body_walk_to","args":{"x":2,"y":2,"mode":"adjacent"}}],"ms":1013,"cached":false,"usage":{"prompt":2715,"completion":107}}

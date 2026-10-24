@@ -1,0 +1,1 @@
+{"content":"Now let me open the Gold Door.","toolCalls":[{"id":"call_00_1kWIWbKEs9uXPsADUxyl5863","name":"body_walk_to","args":{"mode":"adjacent","x":7,"y":6}}],"ms":1066,"cached":false,"usage":{"prompt":4201,"completion":79}}

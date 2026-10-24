@@ -1,0 +1,1 @@
+{"content":"I'll start by checking the current state and time.","toolCalls":[{"id":"call_00_SJkbETNnB3flgyOIs55y5031","name":"world_observe","args":{}}],"ms":1054,"cached":false,"usage":{"prompt":1832,"completion":33}}

@@ -1,0 +1,1 @@
+{"content":"I need to gather materials. Let me start with the nearest wood.","toolCalls":[{"id":"call_00_IXz6NRaHGZSWgLMz3iiG7706","name":"body_walk_to","args":{"x":10,"y":3,"mode":"adjacent"}}],"ms":1114,"cached":false,"usage":{"prompt":2517,"completion":85}}

@@ -1,8 +1,18 @@
 {
   "lessons": [
-    "When a path is blocked by a scheduled obstacle, check notice boards for timing and plan around the stated clear time rather than brute-forcing.",
-    "When given a reach-a-tile goal, navigate with directional DPad inputs and use ControllerA for interactions; verify arrival by standing on the target tile.",
-    "Short sequences of directional moves plus an interact press are often enough to complete simple navigation goals; don't overcomplicate with extra actions."
+    "When a destination is gated by a scheduled world event (e.g., a repair crew clearing a blockage on a specific day), check the schedule before attempting the route and wait or plan around it rather than retrying the blocked path.",
+    "To reach a chest tile, navigate with directional inputs and confirm interactions with the A button",
+    "Short delegated goals can often be completed in a few body tasks; verify position before interacting",
+    "To reach a distant tile, chain short directional inputs (e.g., DPadRight then DPadUp) and confirm with ControllerA when interacting.",
+    "When a delegated goal names a target tile, navigate to it and stand on it rather than just approaching.",
+    "To open a chest and claim its contents, approach the chest tile and press the interact button (ControllerA)",
+    "Short DPad taps move one tile at a time; chain them to navigate to a target tile",
+    "When a goal is a specific tile, navigate by short directional inputs and confirm arrival rather than exploring.",
+    "Companion should report goal completion concisely once the target tile is reached.",
+    "When a crafting station is locked behind a keyed door, check for a scheduled key vendor and wait for the earliest visit day rather than searching for alternate routes.",
+    "Crafting tasks may require navigating to a workbench through a locked door; plan around vendor schedules before attempting the craft.",
+    "If the body becomes immobile on a special tile (e.g., Notice Board), treat it as a soft-lock: stop retrying movement/interaction and report the stuck state rather than burning many tasks on it.",
+    "When a delegated crafting goal requires reaching a workbench, first verify the body can move off its starting tile before attempting navigation."
   ],
   "character": []
 }
