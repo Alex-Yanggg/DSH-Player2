@@ -110,6 +110,22 @@ def build_test_save(paths: Paths, source: str | None = None) -> Path:
 SEASONS = ("spring", "summer", "fall", "winter")
 
 
+def strip_farm_stones(paths: Paths, save_id: int = TEST_SAVE_ID) -> int:
+    """Removes every Stone object from the Farm location of the test save's XML and returns how many
+    were removed. A Hill-Top template ships quarry stones and the farm regrows them each night, so a
+    mine scenario strips at copy time and again at every night boundary to keep the mine the only ore
+    source. The save file is rewritten in place; the game must not be holding it."""
+    main = paths.saves / f"E2E_{save_id}" / f"E2E_{save_id}"
+    xml = main.read_text(encoding="utf-8")
+    head_at = xml.index('xsi:type="Farm"')
+    end_at = xml.index("</GameLocation>", head_at)
+    farm, count = re.subn(r"<Object>(?:(?!</Object>).)*<name>Stone</name>(?:(?!</Object>).)*</Object>", "",
+                          xml[head_at:end_at], flags=re.S)
+    if count:
+        main.write_text(xml[:head_at] + farm + xml[end_at:], encoding="utf-8")
+    return count
+
+
 def copy_save(paths: Paths, source: str, save_id: int, day: int | None = None, season: str | None = None,
               year: int | None = None, strip_farm_stones: bool = False) -> Path:
     """Copies a save to `E2E_<save_id>` under a new unique id, the source only read. The date fields are edited in
@@ -141,16 +157,11 @@ def copy_save(paths: Paths, source: str, save_id: int, day: int | None = None, s
         xml = re.sub(r"<string>daysPlayed</string></key><value><unsignedInt>\d+<", played, xml)
         for tag, value in (("dayOfMonthForSaveGame", d), ("seasonForSaveGame", s), ("yearForSaveGame", y)):
             head = re.sub(rf"<{tag}>\d+<", f"<{tag}>{value}<", head)
-    if strip_farm_stones:
-        # A Hill-Top template ships and regrows quarry stones: strip every Stone object from the
-        # Farm block so the scenario's ore can only come from the mine (the route oracle checks).
-        head_at = xml.index('xsi:type="Farm"')
-        end_at = xml.index("</GameLocation>", head_at)
-        farm = xml[head_at:end_at]
-        farm = re.sub(r"<Object>(?:(?!</Object>).)*<name>Stone</name>(?:(?!</Object>).)*</Object>", "", farm, flags=re.S)
-        xml = xml[:head_at] + farm + xml[end_at:]
     main.write_text(xml, encoding="utf-8")
     info.write_text(head, encoding="utf-8")
+    if strip_farm_stones:
+        # A Hill-Top template ships and regrows quarry stones: a bare start keeps the mine the only ore source.
+        strip_farm_stones(paths, save_id)
     return dst
 
 
@@ -552,6 +563,15 @@ class StardewGame(StardewFlows):
         if self.art:
             self.art.shot(name, img)
         return img
+
+    def reload_with_strip(self) -> None:
+        """Quits, strips every Stone the Hill-Top farm has regrown from the night save on disk, and reloads it.
+        The save file is the night's own save; the companion's session is keyed by the save id and resumes, so
+        the goal carries over. The test calls this inside its metrics night window, so the dead air is excluded."""
+        self.quit()
+        strip_farm_stones(self.paths)
+        self.launch()
+        self.load_test_save()
 
     def state(self) -> dict:
         """The mod's world_state: the host (`player`), the companion's farmer (`body`), the clock, the body's menu."""

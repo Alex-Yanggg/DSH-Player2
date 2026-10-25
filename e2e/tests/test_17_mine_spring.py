@@ -36,17 +36,24 @@ def test_ten_copper_from_spring_day_1(world, hello, art):
     days, s = [], world.state()
     with GoalMetrics(world, art.dir) as metrics:
         while True:
-            day, health, had = s["time"]["day"], s["body"].get("health"), _copper(s)
+            day, health = s["time"]["day"], s["body"].get("health")
             mark, route = len(world.smapi.lines), [s["body"]["location"]]
+            copper, outside = _copper(s), False
             while s["time"]["timeOfDay"] < BEDTIME and _copper(s) < WANTED:
                 time.sleep(2)
                 s = world.state()
                 if s["body"]["location"] != route[-1]:
                     route.append(s["body"]["location"])
+                # The ore's origin, at the moment the count rose: copper gained anywhere but a mine
+                # floor is farm ore (or bought ore) and fails the scenario.
+                if _copper(s) > copper and not str(s["body"]["location"]).startswith("UndergroundMine"):
+                    outside = True
+                copper = max(copper, _copper(s))
             world.smapi.poll()
             said = [ln.split(SAID, 1)[1] for _, ln in world.smapi.lines[mark:] if SAID in ln]
             days.append({"day": s["time"]["dayOfMonth"], "said": said, "route": route, "copper": _copper(s),
-                         "ore_from": _copper(s) - had, "mine_visited": any(str(loc).startswith("UndergroundMine") for loc in route),
+                         "ore_from": _copper(s) - copper, "ore_outside_mine": outside,
+                         "mine_visited": any(str(loc).startswith("UndergroundMine") for loc in route),
                          "woke_health": health, "died": any("fainted" in ln.lower() or "passed out" in ln.lower() for _, ln in world.smapi.lines[mark:])})
             world.shot(f"mine_spring_day{day - first_day + 1}")
             art.record("mine_spring", ask_reply=ex.reply, days=days)
@@ -54,11 +61,15 @@ def test_ten_copper_from_spring_day_1(world, hello, art):
                 break
             with metrics.night():
                 world.sleep_night(day)
+                # The Hill-Top farm regrows quarry stones every night: reload the night save with the
+                # farm stripped, so the mine stays the only ore source. The reload sits inside the
+                # metrics night window, so its dead air is excluded from G1-G3.
+                world.reload_with_strip()
             s = world.state()
     world.smapi.poll()
     errors = [ln for _, ln in world.smapi.lines if "Player2 DSH_" in ln]
     art.record("mine_spring", ask_reply=ex.reply, days=days, errors=errors[-20:], metrics=metrics.summary(),
                prompts=sum(SENT in ln for _, ln in world.smapi.lines))
     assert _copper(s) >= WANTED, f"{_copper(s)} copper ore after {len(days)} day(s): {days}"
-    bad = [d for d in days if d["ore_from"] > 0 and not d["mine_visited"]]
-    assert not bad, f"ore appeared without a mine visit (farm ore?): {bad}"
+    bad = [d for d in days if d["ore_outside_mine"]]
+    assert not bad, f"ore appeared outside the mine (farm or bought): {[(d['day'], d['copper']) for d in bad]}"
