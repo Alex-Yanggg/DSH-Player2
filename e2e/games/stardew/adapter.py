@@ -267,6 +267,7 @@ class StardewFlows:
         # as soon as the game enters loadingMode: input sent while it loads is unwanted (and may hit a lost focus).
         self.smapi.wait_for(r"Synchronizing 'Find Save Games' task", 30)
         for _ in range(5):
+            self.refocus()
             self.click_at(*_frac(UI["load_slot_1"]))
             if self.smapi.wait_for(r"set to 'loadingMode", 6, since=mark):
                 break
