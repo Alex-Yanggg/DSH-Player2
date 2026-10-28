@@ -131,6 +131,46 @@ describe("the dream distils and the code rule promotes (P2-0019c)", () => {
   });
 });
 
+describe("facts are as of a day, and the dream judges sameness (P2-0019d)", () => {
+  it("stamps a fact with the game day it was seen, refreshes it when seen again, and tells today apart", async () => {
+    const core = await mindAt(project(), "431271845");
+    await core.learnLesson("The way into the mountain cave is blocked by fallen rocks.", "the mines", NOW, 2);
+    expect((await core.ledger.facts(core.save))[0].day).toBe(2);
+    const note = await core.memoryNote(later, 6);
+    expect(note).toContain("day 2] The way into the mountain cave is blocked by fallen rocks.");
+    expect(note).toContain("today is day 6");
+    expect(note).toContain("may have changed");
+    await core.learnLesson("the way into the mountain cave is blocked by fallen rocks.", "the mines", later, 4);
+    expect((await core.ledger.facts(core.save))[0].day).toBe(4);
+  });
+
+  it("lists the latest day's facts first, so an often-repeated old fact cannot crowd out today's", async () => {
+    const core = await mindAt(project(), "431271845");
+    for (let seen = 0; seen < 5; seen++) await core.learnLesson("The mine entrance is blocked by fallen rocks.", "the mines", NOW, 2);
+    await core.learnLesson("The mine entrance is open now.", "the mines", NOW, 5);
+    const note = await core.memoryNote(later, 6);
+    expect(note.indexOf("The mine entrance is open now.")).toBeGreaterThan(-1);
+    expect(note.indexOf("The mine entrance is open now.")).toBeLessThan(note.indexOf("The mine entrance is blocked by fallen rocks."));
+  });
+
+  it("dated dream lessons, and other saves' verified lessons shown to the dream until promoted", async () => {
+    const root = project();
+    const first = await mindAt(root, "save-one");
+    await first.ledger.learnFact(first.save, "Waiting a day can reopen a closed route.", "policies", NOW, true);
+    await first.ledger.learnFact(first.save, "A plain fact of the first world.", "facts", NOW);
+    const second = await mindAt(root, "save-two");
+    const prepared = await second.prepareDream(5);
+    expect(prepared.digest).toContain("WORKED_IN_YOUR_OTHER_SAVES(1)");
+    expect(prepared.digest).toContain("- Waiting a day can reopen a closed route.");
+    expect(prepared.digest).not.toContain("A plain fact of the first world.");
+    // The dream recognises its own paraphrase and writes the shown text: the code rule then fires.
+    const outcome = await second.commitDream({ lessons: [{ text: "Waiting a day can reopen a closed route.", topic: "policies", worked: true }] }, prepared, "大肥鱼", later);
+    expect(outcome?.applied.join("\n")).toContain("promoted to your library (verified in 2 saves)");
+    expect((await second.ledger.facts(second.save))[0].day).toBe(5);
+    expect((await second.prepareDream(6)).digest).not.toContain("WORKED_IN_YOUR_OTHER_SAVES");
+  });
+});
+
 describe("the player-readable export", () => {
   it("lists persona lessons and per-save facts", async () => {
     const root = project();

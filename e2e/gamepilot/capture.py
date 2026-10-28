@@ -84,7 +84,9 @@ def print_window(hwnd: int, rect: Rect) -> Image.Image:
 
 
 def grab(rect: Rect, hwnd: int | None = None) -> Image.Image:
-    img = _dxgi(rect)
+    # DXGI reads the screen, so any window on top of the game (a console, another app) lands in the frame;
+    # PrintWindow reads the game window itself, so it is used whenever the game is not the foreground window.
+    img = _dxgi(rect) if hwnd is None or user32.GetForegroundWindow() == hwnd else None
     if img is None and hwnd is not None:
         img = print_window(hwnd, rect)
     if img is None:

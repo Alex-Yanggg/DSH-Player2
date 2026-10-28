@@ -31,6 +31,7 @@ export interface PreparedDream {
   readonly digest: string;
   readonly shown: readonly Episode[];
   readonly game: string;
+  readonly day: number | null;
 }
 
 /** The game assumed for a save with no experience yet. */
@@ -87,7 +88,7 @@ export class MindCore {
    * save key is the session folder name, the id the mod derives from the
    * game's `uniqueIDForThisGame`.
    */
-  public async memoryNote(now: Date): Promise<string> {
+  public async memoryNote(now: Date, day: number | null = null): Promise<string> {
     const byScore = (a: Lesson, b: Lesson) => lessonScore(b, now) - lessonScore(a, now);
     const [persona, facts] = await Promise.all([this.ledger.facts(PERSONA_SAVE), this.ledger.facts(this.save)]);
     const header = "MEMORY (what you already know; history, never the present):";
@@ -104,13 +105,16 @@ export class MindCore {
       }
     };
     take("YOUR LIBRARY (lessons you keep on every save):", [...persona].sort(byScore));
-    take("THIS SAVE, what your own days here taught (history, not the present):", [...facts].sort(byScore));
+    // P2-0019d: a save fact holds as of the day it was seen; the world moves on (things open, close, grow back).
+    // The latest day first: a fact seen today must not be crowded out by an older, often-repeated one.
+    const byDay = (a: Lesson, b: Lesson) => (b.day ?? -1) - (a.day ?? -1) || byScore(a, b);
+    take(`THIS SAVE, what your own days here taught, each as of the day noted${day !== null ? ` (today is day ${day})` : ""}; a place or thing you found blocked, closed or impossible on an earlier day may have changed, so look again before planning around it:`, [...facts].sort(byDay));
     return lines.length === 0 ? "" : [header, ...lines].join("\n");
   }
 
   /** Keeps one lesson of this save. */
-  public async learnLesson(text: string, topic: string, now: Date): Promise<"kept" | "known"> {
-    return this.ledger.learnFact(this.save, text, topic, now);
+  public async learnLesson(text: string, topic: string, now: Date, day: number | null = null): Promise<"kept" | "known"> {
+    return this.ledger.learnFact(this.save, text, topic, now, false, day);
   }
 
   /** After a chat or day-start turn: move the mood and record why the reply was said. */
@@ -133,7 +137,14 @@ export class MindCore {
     const shown = dreamEpisodes(episodes, gameDay ?? episodes.at(-1)?.gameDay ?? 0);
     const byScore = (a: Lesson, b: Lesson) => lessonScore(b, new Date()) - lessonScore(a, new Date());
     const memory = [...lessonLines([...persona].sort(byScore)), ...lessonLines([...facts].sort(byScore))];
-    return { digest: ledgerDigest(shown, person.traits, story, memory), shown, game };
+    // P2-0019d: what worked in this persona's other saves, so the dream itself
+    // judges "the same lesson" and rewrites it word for word for the code rule.
+    const held = new Set(persona.map((lesson) => lessonKey(lesson.text)));
+    const elsewhere = new Map<string, Lesson>();
+    for (const save of (await this.ledger.saves()).filter((save) => save !== this.save)) {
+      for (const fact of await this.ledger.facts(save)) if (fact.worked === true && !held.has(lessonKey(fact.text))) elsewhere.set(lessonKey(fact.text), fact);
+    }
+    return { digest: ledgerDigest(shown, person.traits, story, memory, [...elsewhere.values()].slice(0, 12).map((lesson) => `- ${lesson.text}`)), shown, game, day: gameDay };
   }
 
   /**
@@ -157,7 +168,7 @@ export class MindCore {
         const distilled: string[] = [];
         for (const lesson of edits.lessons) {
           try {
-            const kept = await this.ledger.learnFact(this.save, lesson.text, lesson.topic, now, lesson.worked);
+            const kept = await this.ledger.learnFact(this.save, lesson.text, lesson.topic, now, lesson.worked, prepared.day);
             distilled.push(`${kept === "known" ? "known" : "kept"}: ${lesson.text.slice(0, 60)}`);
           } catch (error) {
             distilled.push(`refused: ${error instanceof Error ? error.message : String(error)}`);

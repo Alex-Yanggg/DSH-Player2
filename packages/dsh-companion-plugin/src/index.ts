@@ -297,7 +297,7 @@ export function apply(ctx: Context, config: Config): void {
     execute: async (args, exec) => {
       const state = stateOf(exec.agent);
       if (state?.mind == null) return "Nothing was kept: this session has no memory.";
-      const kept = await state.mind.learnLesson(String(args.text), String(args.topic ?? "general"), new Date());
+      const kept = await state.mind.learnLesson(String(args.text), String(args.topic ?? "general"), new Date(), state.day);
       return kept === "kept" ? "Kept." : "Known already: the same lesson is kept.";
     },
   })), "player2-companion.tool.lesson_learn");
@@ -339,6 +339,7 @@ export function apply(ctx: Context, config: Config): void {
       }
       if (marker?.day != null) state.day = marker.day;
       const lines: string[] = [];
+      if (marker?.kind === "day-start") state.memoryShown = false; // a new day re-reads memory against today (P2-0019d)
       if (marker?.kind === "day-start") {
         const fresh = rearmBlocked(ctx, payload.agent);
         if (fresh !== null) lines.push(fresh);
@@ -347,7 +348,7 @@ export function apply(ctx: Context, config: Config): void {
         // The sitting's one memory note: the persona library and this save's
         // own facts, capped. Later turns rely on it staying in the history.
         state.memoryShown = true;
-        const memory = await state.mind.memoryNote(new Date());
+        const memory = await state.mind.memoryNote(new Date(), state.day);
         if (memory !== "") lines.push(memory);
       }
       if (reflexFacts.length > 0) {
@@ -533,7 +534,7 @@ const HANDS_POLICY_LINES = [
   "The world keeps running while the player chats, looks at a menu or is away, as in co-op. The night ends only once every farmer is in bed, so the player waits for you at bedtime.",
   "When the player asks for something that takes real play (get, grow, gather, fetch, fight, build, reach), their words are your authorization: create a goal for it right away in their own words and start. How you pursue it is your call, in character. When they tell you to stop or drop it, pause or complete the goal.",
   "Mark a goal blocked only when what is missing is something only the player can give. Blocked sets that goal aside, not your day: tell the player once what you need, then carry on with your own day as a co-op friend would. Each new morning the goal comes back for one fresh look, because the world changes by date, hour and weather: re-check every part of the old blocker before you call it blocked again.",
-  "Your body is a small brain of its own, and all of its work goes through plan_set: hand it the whole routine stretch in one plan — walks, raw inputs, waits, each with the change it expects — then end your turn and rest. The body works the steps without you and you are woken when the plan finishes, when the same action keeps meeting an unchanged world (a wall: treat that note as fact, never repeat it — look again, search the web when the world does not explain itself, write down what you learn with lesson_learn, and plan another way), when your body acts on reflex, or when something happens in the world or the player speaks. Spend your own turns thinking ahead, not driving every step.",
+  "Your body is a small brain of its own, and all of its work goes through plan_set: hand it the whole routine stretch in one plan — walks, raw inputs, waits, each with the change it expects — then end your turn and rest. The body works the steps without you and you are woken when the plan finishes, when the same action keeps meeting an unchanged world (a wall: true right now, so never repeat it the same way — look again, search the web when the world does not explain itself, write down what you learn with lesson_learn, and plan another way), when your body acts on reflex, or when something happens in the world or the player speaks. Spend your own turns thinking ahead, not driving every step.",
   "When the player talks to you, you stop to listen and answer at once in one short line of your own (yes, no, or a question) before you call any tool, so they know you heard; afterwards act, and carry your goal on unless they asked you to stop.",
   "A paused game is the player stepping away, not a failure: stop and wait; the game resumes you.",
   "Cheat inputs stay off unless the player explicitly allows them; record their words with cheat_grant.",

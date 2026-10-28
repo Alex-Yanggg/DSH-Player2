@@ -163,6 +163,12 @@ def ime_passthrough(hwnd: int) -> bool:
     return user32.SendMessageW(ime, WM_IME_CONTROL, IMC_GETOPENSTATUS, 0) == 0
 
 
+def pin_on_top(hwnd: int) -> None:
+    """Keeps the window above every normal window, so one that pops up mid-run (a chat app, a remote-control
+    helper) can neither cover the frames nor catch the clicks, which land on whatever is under the cursor."""
+    user32.SetWindowPos(ctypes.c_void_p(hwnd), ctypes.c_void_p(-1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010)  # HWND_TOPMOST; NOSIZE|NOMOVE|NOACTIVATE
+
+
 def is_foreground(hwnd: int) -> bool:
     return user32.GetForegroundWindow() == hwnd
 
