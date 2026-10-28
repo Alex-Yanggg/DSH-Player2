@@ -162,7 +162,7 @@ function inTheWay(state: BodyState, goals: readonly Tile[]): string {
   for (const objects of [blocking.filter((o) => o.kind !== "clump"), blocking]) {
     const found = openedPath(state, goals, objects);
     if (found === undefined) continue;
-    return found.on.length === 0 ? "someone stands in the way" : `in the way: ${found.on.slice(0, 4).map((o) => `${o.name} at (${o.x},${o.y})`).join(", ")}`;
+    return found.on.length === 0 ? "someone stands in the way" : `in the way: ${found.on.slice(0, 4).map((o) => `${o.name} at (${o.x},${o.y})${typeof o.extra?.note === "string" ? ` (${o.extra.note})` : ""}`).join(", ")}`;
   }
   return "walled off";
 }
