@@ -526,6 +526,7 @@ class StardewGame(StardewFlows):
         self.failsafe.bind(self.hwnd)
         if not win.focus(self.hwnd):
             raise RuntimeError("could not bring the game window to the foreground")
+        win.pin_on_top(self.hwnd)
         win.ime_passthrough(self.hwnd)
         self.rect = win.client_rect(self.hwnd)
 
@@ -565,15 +566,6 @@ class StardewGame(StardewFlows):
         if self.art:
             self.art.shot(name, img)
         return img
-
-    def reload_with_strip(self) -> None:
-        """Quits, strips every Stone the Hill-Top farm has regrown from the night save on disk, and reloads it.
-        The save file is the night's own save; the companion's session is keyed by the save id and resumes, so
-        the goal carries over. The test calls this inside its metrics night window, so the dead air is excluded."""
-        self.quit()
-        strip_farm_stones(self.paths)
-        self.launch()
-        self.load_test_save()
 
     def state(self) -> dict:
         """The mod's world_state: the host (`player`), the companion's farmer (`body`), the clock, the body's menu."""
