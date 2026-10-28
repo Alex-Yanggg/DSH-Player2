@@ -72,6 +72,7 @@ The tests own the keyboard and mouse while they run.
 | `E2E_SAVE_ID` | Pin the test save id instead of generating a fresh one. |
 | `E2E_DAY`, `E2E_SEASON`, `E2E_YEAR` | Re-date the copied save natively in its XML (and `daysPlayed`), so a scenario starts past date gates such as the mine-blocking landslide before spring 5. |
 | `E2E_STRIP_FARM_STONES` | Remove every Stone object from the copy's Farm (a Hill-Top template ships and regrows quarry stones); the mine scenario also strips and reloads at each night boundary, so the mine stays the only ore source for the whole run. |
+| `E2E_OBSERVER` | A command run after the game quits, with the run directory appended (for example `python <path>\observe.py`), so an outside tool can write its report into the run. Its exit is noted in `summary.md`; it never fails the run. |
 | `STARDEW_DIR` | Game directory when it is not the default Steam location. |
 
 `budgets.py` holds the responsiveness budgets. Each value is measured, then rounded up. Raise one only with a recorded reason, because every raise loosens the product's feel.
