@@ -41,6 +41,8 @@ export class PlanBoard {
   private stopped = false;
   private working = false;
   private wake = false;
+  /** Stops the step in flight when the mind replaces or takes back the plan. */
+  private current: AbortController | null = null;
 
   public constructor(
     private readonly body: BodyPort,
@@ -63,6 +65,12 @@ export class PlanBoard {
     // The mind handing down a plan (or taking one back) is it deciding again:
     // a standing wall hold ends here, and the new approach counts fresh.
     this.watch.release();
+    // The step in flight belongs to the old plan: stop it, so the body does not keep working what the mind gave up.
+    if (this.current !== null) {
+      this.current.abort();
+      this.current = null;
+      void this.body.cancelActive().catch(() => undefined);
+    }
     if (steps.length === 0) {
       if (this.plan !== null) this.facts.push("The plan was taken back; the body waits for your next word or plan.");
       this.plan = null;
@@ -119,11 +127,13 @@ export class PlanBoard {
   }
 
   private async runStep(step: PreparedStep): Promise<void> {
+    const controller = this.current = new AbortController();
     const before = await this.body.state().catch(() => undefined);
     let failure: string | null = null;
     try {
       if (before === undefined) throw new Error("the world could not be read");
-      const { outcome, report, broke } = await this.act(step);
+      const { outcome, report, broke } = await this.act(step, controller.signal);
+      if (controller.signal.aborted) return; // the plan it belonged to is gone
       const after = await this.body.state().catch(() => undefined);
       const unmet = after === undefined ? [] : this.unmet(step, after);
       this.facts.push(`Plan, ${step.label}: ${report}${unmet.length > 0 ? ` — expected change did not show: ${unmet.join("; ")}` : ""}`);
@@ -133,10 +143,13 @@ export class PlanBoard {
       if (unmet.length > 0) failure = "its expected change did not show";
       else if (broke) failure = outcome;
     } catch (error) {
+      if (controller.signal.aborted) return;
       const detail = error instanceof Error ? error.message : String(error);
       this.facts.push(`Plan, ${step.label}: failed (${detail}).`);
       if (before !== undefined) this.watch.record("plan", step.signature, `failed: ${detail}`, before, undefined);
       failure = "it failed";
+    } finally {
+      if (this.current === controller) this.current = null;
     }
     // The later steps assumed this one worked: stop here and let the mind re-plan from the world as it is.
     const plan = this.plan;
@@ -150,22 +163,22 @@ export class PlanBoard {
 
   /** One step's work through the same body operations the plan owns. */
   /** `broke`: the step did not do its work (a walk that did not arrive, input the game refused or never finished). */
-  private async act(step: PreparedStep): Promise<{ outcome: string; report: string; broke: boolean }> {
+  private async act(step: PreparedStep, signal: AbortSignal): Promise<{ outcome: string; report: string; broke: boolean }> {
     if (step.tool === "wait") {
       const minutes = Math.max(1, Math.min(60, Number(step.args.minutes) || 1));
       this.controls ??= controlsOf(await this.body.declaration());
-      const run = await this.body.run(waitSteps(minutes * GAME_MINUTE_MS, this.controls.limits.maxStepMs));
+      const run = await this.body.run(waitSteps(minutes * GAME_MINUTE_MS, this.controls.limits.maxStepMs), { signal });
       return { outcome: run.status === "done" ? "ok" : run.status, report: `let the world run ~${minutes} minute(s) (${run.status})`, broke: false };
     }
     if (step.tool === "body_walk_to") {
       const args = (step.args ?? {}) as { x: number; y: number; location?: string; mode?: "stand" | "adjacent" };
       this.controls ??= controlsOf(await this.body.declaration());
-      const result = await walkTo(this.body, this.controls, () => this.body.world(), { x: Number(args.x), y: Number(args.y), mode: args.mode === "adjacent" ? "adjacent" : "stand", ...(typeof args.location === "string" ? { location: args.location } : {}) }, { obstacles: this.obstacles });
+      const result = await walkTo(this.body, this.controls, () => this.body.world(), { x: Number(args.x), y: Number(args.y), mode: args.mode === "adjacent" ? "adjacent" : "stand", ...(typeof args.location === "string" ? { location: args.location } : {}) }, { obstacles: this.obstacles, signal });
       return { outcome: result.ok ? "ok" : `not reached (${result.reason})`, report: `${result.ok ? "OK" : "NOT REACHED"}: ${result.reason}. Now at ${result.location ?? "?"} (${result.x ?? "?"},${result.y ?? "?"}).`, broke: !result.ok };
     }
     const args = step.args as { steps?: BodyInputStep[]; until?: RunOptions["until"] };
     if (!Array.isArray(args.steps) || args.steps.length === 0) throw new Error("no steps to play");
-    const run: BodyRun = await this.body.run(args.steps.slice(0, 64), { ...(args.until ? { until: args.until } : {}) });
+    const run: BodyRun = await this.body.run(args.steps.slice(0, 64), { signal, ...(args.until ? { until: args.until } : {}) });
     const events = run.events.filter((e) => !["done", "running"].includes(e.kind)).slice(-4);
     return { outcome: run.status === "done" ? "ok" : run.status, report: `Input ${run.status}${run.reason ? ` (${run.reason})` : ""}${events.length > 0 ? `. Events: ${events.map((e) => `${e.kind}: ${e.detail}`).join("; ")}.` : ""}`, broke: run.status === "failed" || run.status === "timeout" };
   }
