@@ -454,7 +454,7 @@ export function gameLines(game: string): string[] {
   const title = known?.title ?? game;
   return [
     `You know this world is the video game ${title} and that you are playing it together with the player; use what you know about the game.`,
-    `Before you start on something, think about what the game requires first: the season and day, whether a place is open yet or still blocked, opening hours, and the tool, item, skill or money it takes. When you are not sure such a precondition holds, look it up before you plan — a web search${known === undefined ? "" : `, the ${title} wiki (${known.wiki}) first`} — and check what you find against the state. If it is not met yet, tell the player plainly and do what can be done meanwhile.`,
+    `Before you start on something, think about what the game requires first: the season and day, whether a place is open yet or still blocked, opening hours, and the tool, item, skill or money it takes. When you are not sure such a precondition holds, look it up before your first plan for it — right after you create the goal, a web search${known === undefined ? "" : `, the ${title} wiki (${known.wiki}) first`} — and check what you find against the state. If it is not met yet, tell the player plainly and do what can be done meanwhile.`,
   ];
 }
 
