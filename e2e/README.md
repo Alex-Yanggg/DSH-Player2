@@ -6,7 +6,7 @@ They run only on a local Windows machine with a display, the game, and a DSH run
 
 ## Oracles
 
-The mod starts `dsh --profile acp` as its own child process, with one DSH session per save in `%USERPROFILE%\.dsh\player2\bridge\projects\<person>\sessions\<saveId>\`. The process exits with the game. DSH keeps its own session logs; the tests never read them while playing, and only the after-run observer below reads them. The tests read these SMAPI lines:
+The mod starts `dsh --profile acp` as its own child process, with one DSH session per save in `%USERPROFILE%\.dsh\player2\bridge\projects\<person>\sessions\<saveId>\`. The process exits with the game. DSH keeps its own session logs, and the tests do not read them. The tests read these SMAPI lines:
 
 | Line | Meaning |
 | --- | --- |
@@ -54,26 +54,6 @@ Each run creates a fresh test character: a copy of the template under a new uniq
 Run each live test at most twice per task, including one rerun after a fix. Report the second result instead of retrying further; live runs take hours.
 
 Results go to `e2e/artifacts/<run>/`: `summary.md` (per-category pass/fail), `results.json` (measurements), the SMAPI console, and screenshots of every failure.
-
-## Observe the companion
-
-At the end of a live run, `gamepilot/observe.py` writes `observe.md` and `observe.json` next to the summary. It only reads records that already exist: the body samples (`metrics-samples.json`), DSH's own session log for the run's save (`~/.dsh/sessions/*-sessions-<saveId>--/*/session.v4.jsonl.zstd`) and the companion's facts in the ledger. Player2 adds no log of its own.
-
-| Angle | What it shows |
-| --- | --- |
-| body | G1-G3, and the idle time split into *mind thinking* (a model call is running) and *nobody working* (no task, no call: the companion just stands) |
-| mind cost | model calls, fresh, cached and output tokens, context size per call, compactions |
-| mind speed | time per model step, p50 and p95 |
-| decisions | tool error rate, repeated-call reminders, `world_observe` calls per plan, plan length (share of one-step plans), plan outcomes (OK, NOT REACHED, input done), goal blocks |
-| speech | lines spoken, stage directions such as `（慢慢往家走）`, leaked internals (coordinates, tool words, contracts), repeated lines |
-| beliefs | facts kept, how many worked, the negative ones that may go stale |
-| timeline | all of the above per game day, with the day's output from `results.json` |
-
-For an older run, name its save (`990000000 + run start epoch % 10000000`, or the `sessions-<saveId>` folder) and optionally an earlier run to compare against:
-
-```powershell
-python e2e/gamepilot/observe.py e2e/artifacts/<run> --save-id <saveId> --vs e2e/artifacts/<earlier run>
-```
 
 ## Safety
 

@@ -14,8 +14,7 @@ ROOT = Path(__file__).parent
 sys.path.insert(0, str(ROOT))
 
 import gamepilot as gp  # noqa: E402
-from games.stardew import TEST_SAVE_ID, Paths, StardewGame, build_test_save  # noqa: E402
-from gamepilot import observe  # noqa: E402
+from games.stardew import Paths, StardewGame, build_test_save  # noqa: E402
 
 CATEGORIES = ("boot", "presence", "conversation", "boundaries", "feel", "bline", "mine", "coop", "persona")
 _results: list[dict] = []
@@ -111,6 +110,3 @@ def pytest_sessionfinish(session):
     lines += ["", "## Details", ""]
     lines += [f"- **{r['outcome'].upper()}** `{r['category']}/{r['test']}` {r['detail']}" for r in _results]
     (art.dir / "summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
-    if "game" in _state:  # live run: read DSH's own session log for the multi-angle look at the companion
-        art.record("run", save_id=TEST_SAVE_ID)
-        observe.write(art.dir, save_id=TEST_SAVE_ID)
