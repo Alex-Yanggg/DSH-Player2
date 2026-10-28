@@ -100,7 +100,7 @@ def build_test_save(paths: Paths, source: str | None = None) -> Path:
     day = int(os.environ["E2E_DAY"]) if os.environ.get("E2E_DAY") else None
     dst = copy_save(paths, source, TEST_SAVE_ID, day=day,
                     season=os.environ.get("E2E_SEASON"), year=int(os.environ["E2E_YEAR"]) if os.environ.get("E2E_YEAR") else None,
-                    strip_farm_stones=bool(os.environ.get("E2E_STRIP_FARM_STONES")))
+                    bare_farm=bool(os.environ.get("E2E_STRIP_FARM_STONES")))
     # Reset our bridge sessions only - the path is keyed by the test ID, never by a real save's.
     for d in paths.session_dirs():
         shutil.rmtree(d, ignore_errors=True)
@@ -127,7 +127,7 @@ def strip_farm_stones(paths: Paths, save_id: int = TEST_SAVE_ID) -> int:
 
 
 def copy_save(paths: Paths, source: str, save_id: int, day: int | None = None, season: str | None = None,
-              year: int | None = None, strip_farm_stones: bool = False) -> Path:
+              year: int | None = None, bare_farm: bool = False) -> Path:
     """Copies a save to `E2E_<save_id>` under a new unique id, the source only read. The date fields are edited in
     the save XML itself, so a copy can start on any day with whatever the source already holds (a created
     companion farmhand, a cabin) and no day-1 creation runs."""
@@ -159,7 +159,7 @@ def copy_save(paths: Paths, source: str, save_id: int, day: int | None = None, s
             head = re.sub(rf"<{tag}>\d+<", f"<{tag}>{value}<", head)
     main.write_text(xml, encoding="utf-8")
     info.write_text(head, encoding="utf-8")
-    if strip_farm_stones:
+    if bare_farm:
         # A Hill-Top template ships and regrows quarry stones: a bare start keeps the mine the only ore source.
         strip_farm_stones(paths, save_id)
     return dst
