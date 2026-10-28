@@ -11,7 +11,7 @@
  * - Goals are DSH's own (`create_goal`, the round driver); the body tools
  *   reach the game's local MCP endpoint.
  *
- * The mind works the body only through `plan_set` (P2-0021): handing a plan
+ * The mind works the body only through `plan_set` (P2-0019c): handing a plan
  * down disarms DSH's goal driver, the plan board executes the steps in code
  * without a model turn, and the mind is woken — by re-arming the goal, or by
  * a follow-up turn when no goal stands — when the plan finishes, the stuck

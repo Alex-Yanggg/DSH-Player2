@@ -5,7 +5,7 @@ import type { BodyPort } from "./port.js";
 /**
  * The companion's perception as DSH tools: raw reads of the game state, the
  * controller's own vocabulary, and the exported world graph. The body is never
- * driven from here (P2-0021): all body work goes through `plan_set`, so these
+ * driven from here (P2-0019c): all body work goes through `plan_set`, so these
  * tools cannot act, only look.
  */
 

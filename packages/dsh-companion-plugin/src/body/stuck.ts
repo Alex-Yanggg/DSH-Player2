@@ -1,7 +1,7 @@
 import type { BodyState } from "@dsh-player2/contracts";
 
 /**
- * The stuck detector (P2-0020 T2): a generic wall counter over body actions.
+ * The stuck detector (P2-0019b T2): a generic wall counter over body actions.
  * The same action signature (tool plus target) repeated with no change in the
  * observed state counts as one wall; on the third hit the body stops — the
  * plan executor holds — and the mind gets a stuck fact with the recent
@@ -47,7 +47,7 @@ export function stuckFact(signature: string, attempts: readonly StuckAttempt[]):
 }
 
 /**
- * The counter itself. Body actions report here; the plan executor (P2-0020
+ * The counter itself. Body actions report here; the plan executor (P2-0019b
  * T3) consults `holding` before each step, and the pre-step hook drains
  * `take()` so the mind sees the fact on its next turn.
  */

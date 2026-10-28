@@ -53,13 +53,13 @@ the dual-end reflect replay remains green across receipt → reflection → grow
 
 ## UR-2 A wake service for a sleeping agent
 
-**Status: open; recorded by P2-0021.**
+**Status: open; recorded by P2-0019c.**
 
 **What Player2 needs:** a session-scoped way to wake an idle agent with a few
 queued facts — once, coalescing repeats — without inventing a prompt the
 session would not otherwise have.
 
-**Why:** the P2-0021 small brain sleeps the mind while the body works a plan.
+**Why:** the P2-0019c small brain sleeps the mind while the body works a plan.
 The mind must wake exactly when the plan finishes, the stuck detector fires, a
 reflex fires, or a world event or chat arrives. Player2 composes this today
 from public DSH surface: `goals.disarm` sleeps the goal round driver,
@@ -80,8 +80,8 @@ cycle and its follow-up fallback retire when it lands.
 ## Game facts that cannot be exported
 
 The body protocol exports what the game holds as data: map tiles, tile
-properties, objects, warps, and (P2-0021) every tile `Action`/`TouchAction`
-string, plus mine-floor tiles as raw `sheet#index`. Two gates in the P2-0021
+properties, objects, warps, and (P2-0019c) every tile `Action`/`TouchAction`
+string, plus mine-floor tiles as raw `sheet#index`. Two gates in the P2-0019c
 mine scenario are code, not data, and stay outside any honest raw export.
 
 ### GF-1 The mine's opening gate is an event, not map data

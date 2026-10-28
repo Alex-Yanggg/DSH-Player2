@@ -29,6 +29,8 @@ function world(monsters: { x: number; y: number }[] = []): SimLocation[] {
 }
 
 let sim: SimAdapter;
+/** One sim tick per game frame: sim time then tracks wall time on every platform's timer resolution. */
+const REAL_TIME_TICK_MS = 1000 / 60;
 
 beforeEach(async () => {
   sim = new SimAdapter({ locations: world(), body: { location: "Farm", x: 4, y: 3, items: kit.map((i) => ({ ...i })) } });
@@ -110,10 +112,13 @@ describe("reflexes over the sim body", () => {
   });
 
   it("unsticks a body walking into a wall, and the interrupted walk reports it", async () => {
-    // A local table: the shipped threshold is nominal game time, and the sim ticks faster than wall time.
+    // A local table with a short threshold. The reflex clock is wall time, so the sim ticks at real-time pace here:
+    // at its fast test pace the 5 s walk ends in well under the threshold on a platform with fine timers.
     const table = parseReflexTable({ ...loadReflexTable("stardew-valley")!, rows: [
       { id: "unstick", when: { all: [{ kind: "stuckFor", ms: 400 }] }, do: { kind: "steps", steps: [{ hold: ["DPadLeft"], ms: 100 }] }, cooldownMs: 2_000, fact: "acted on reflex (unstick): was stuck walking, wriggled free" },
     ] });
+    await sim.stop();
+    await sim.start(REAL_TIME_TICK_MS);
     const { body, facts } = await armed(table, 40);
     try {
       const walk = body.run([{ hold: ["DPadLeft"], ms: 5_000 }]);

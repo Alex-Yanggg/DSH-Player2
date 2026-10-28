@@ -8,7 +8,7 @@ import { StuckWatch } from "./stuck.js";
 vi.setConfig({ testTimeout: 60_000 });
 
 /**
- * The small brain over the bench's locked scenario (P2-0020 T3, P2-0021; the
+ * The small brain over the bench's locked scenario (P2-0019b T3, P2-0019c; the
  * fixture is ported from research/self-improve/bench/lib/locked.ts): the mind
  * hands down steps, plain code keeps the body working them without a model
  * turn, the mind is woken when the plan finishes or a wall stops it, and the
@@ -135,7 +135,8 @@ describe("the async claim on the sim (idle ratio, actions per game minute)", () 
     // Baseline: the old mind-driven shape — one input per "turn", the model thinking between.
     const baseline = open();
     sims.push(baseline);
-    await baseline.start(1);
+    // Real-time pace for both sims: idle is sampled on the wall clock, so sim time has to track it on every platform.
+    await baseline.start(1000 / 60);
     const baseSamples: boolean[] = [];
     const sampler = setInterval(() => { baseSamples.push(baseline.snapshot().body?.activeTask != null); }, 20);
     const baseDeadline = Date.now() + 3_000;
@@ -149,7 +150,7 @@ describe("the async claim on the sim (idle ratio, actions per game minute)", () 
     // Small brain: one plan handed down; the "model" sleeps for the same span.
     const sim = open();
     sims.push(sim);
-    await sim.start(1);
+    await sim.start(1000 / 60);
     const made = board(sim);
     made.board.start();
     const steps: PlanStepInput[] = [];
@@ -164,7 +165,7 @@ describe("the async claim on the sim (idle ratio, actions per game minute)", () 
     clearInterval(timer);
     const asyncIdle = asyncSamples.filter((active) => !active).length / asyncSamples.length;
     const done = made.board.drain().filter((fact) => fact.startsWith("Plan,")).length;
-    console.log(`p2-0021 sim bench: idle baseline(mind-driven) ${baseIdle.toFixed(2)} vs small brain(plan) ${asyncIdle.toFixed(2)}; async steps in 3 s: ${done}`);
+    console.log(`p2-0019c sim bench: idle baseline(mind-driven) ${baseIdle.toFixed(2)} vs small brain(plan) ${asyncIdle.toFixed(2)}; async steps in 3 s: ${done}`);
     expect(asyncIdle).toBeLessThan(baseIdle / 2);
     expect(done).toBeGreaterThan(6);
   });

@@ -7,7 +7,7 @@ import { stepsDigest } from "./tools.js";
 import type { StuckWatch } from "./stuck.js";
 
 /**
- * The small brain (P2-0021): the mind's only way to work the body is
+ * The small brain (P2-0019c): the mind's only way to work the body is
  * `plan_set` — an ordered list of steps, each with the change it expects.
  * Plain code here keeps executing those steps without a model turn, reports
  * progress as facts, and wakes the mind when the plan finishes or the stuck

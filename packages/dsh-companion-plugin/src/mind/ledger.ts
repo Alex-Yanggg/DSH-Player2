@@ -272,7 +272,7 @@ export class PersonaLedger {
   // ------------------------------------------------------------------- facts
 
   /**
-   * The save's own facts (P2-0020 T1), plus the persona's lessons under
+   * The save's own facts (P2-0019b T1), plus the persona's lessons under
    * `PERSONA_SAVE`: durable knowledge keyed by the save id the mod derives
    * from the game's `uniqueIDForThisGame` (the session folder name). Plain
    * JSON lines beside the save's episodes.

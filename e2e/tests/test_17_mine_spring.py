@@ -1,4 +1,4 @@
-"""P2-0020 T4: the mine goal from a plain spring day 1. No unlock edit, no re-date: the landslide that
+"""P2-0019b T4: the mine goal from a plain spring day 1. No unlock edit, no re-date: the landslide that
 closes the mountain mine until spring day 5 is still in place, and nothing tells the companion. It has to
 find that out itself (stuck detector + reflect), use the waiting days well, then get 10 copper ore before
 the day cap. The oracle is world_state: 10 (O)378 Copper Ore across both inventories; every day's words,

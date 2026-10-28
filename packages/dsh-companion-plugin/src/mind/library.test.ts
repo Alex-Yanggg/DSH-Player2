@@ -22,7 +22,7 @@ async function mindAt(root: string, save: string): Promise<MindCore> {
   return new MindCore(dir);
 }
 
-describe("the persona lesson store and the save facts (P2-0020 T1, P2-0021)", () => {
+describe("the persona lesson store and the save facts (P2-0019b T1, P2-0019c)", () => {
   it("keys facts by the save id (the mod derives it from uniqueIDForThisGame) and dedups", async () => {
     const core = await mindAt(project(), "431271845");
     expect(core.save).toBe("431271845");
@@ -61,7 +61,7 @@ describe("the persona lesson store and the save facts (P2-0020 T1, P2-0021)", ()
   });
 });
 
-describe("the dream distils and the code rule promotes (P2-0021)", () => {
+describe("the dream distils and the code rule promotes (P2-0019c)", () => {
   it("parses lesson edits with the worked flag, dropping malformed ones", () => {
     const edits = parseLedgerEdits({ ledger: { lessons: [
       { text: "The mine elevator works from day 5.", topic: "mines", worked: true },

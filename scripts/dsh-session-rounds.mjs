@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Post-run analysis for P2-0020 T4: how much thinking one save's DSH session needed.
+/** Post-run analysis for P2-0019b T4: how much thinking one save's DSH session needed.
  *  Reads the session's own log (`~/.dsh/sessions/<cwd-slug>/<id>/session.v4.jsonl.zstd`, a
  *  chain of zstd frames), counts turns and tool calls, and prints the totals. Read-only;
  *  an analysis tool for the PR numbers, never a game oracle. Usage:

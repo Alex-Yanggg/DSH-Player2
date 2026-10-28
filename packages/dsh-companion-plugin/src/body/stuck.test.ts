@@ -8,10 +8,10 @@ import { stateDigest, StuckWatch } from "./stuck.js";
 vi.setConfig({ testTimeout: 30_000 });
 
 /**
- * The stuck detector over the bench scenarios (P2-0020 T2; the scenarios are
+ * The stuck detector over the bench scenarios (P2-0019b T2; the scenarios are
  * ported from research/self-improve/bench/lib/locked.ts and wall.ts): three
  * identical actions on an unchanged world are a wall, and the fact tells the
- * mind to step back. The detector is fed by the plan board's steps (P2-0021),
+ * mind to step back. The detector is fed by the plan board's steps (P2-0019c),
  * so these tests drive it the way the small brain does.
  */
 

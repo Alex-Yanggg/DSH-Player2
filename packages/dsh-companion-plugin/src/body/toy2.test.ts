@@ -136,7 +136,7 @@ describe("the toy2 port", () => {
   });
 
   it("the toy2 reflex table fires on this game's own buttons", async () => {
-    await toy2.start(1);
+    await toy2.start(1000 / 60); // real-time pace: the reflex clock is wall time (see the stardew unstick test)
     const facts: string[] = [];
     // A local threshold: the sim ticks faster than wall time (see the stardew unstick test).
     const table = { ...loadReflexTable("toy2")!, rows: [{ ...loadReflexTable("toy2")!.rows[0]!, when: { all: [{ kind: "stuckFor", ms: 400 }] } }] };

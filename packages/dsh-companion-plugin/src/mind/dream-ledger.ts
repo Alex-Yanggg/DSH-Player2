@@ -20,7 +20,7 @@ export interface LedgerEdits {
   readonly story: string | null;
   readonly traits: readonly TraitEdit[];
   readonly forget: readonly string[];
-  /** Durable lessons the day taught (P2-0020 T1), as save facts; the code rule promotes (P2-0021). */
+  /** Durable lessons the day taught (P2-0019b T1), as save facts; the code rule promotes (P2-0019c). */
   readonly lessons: readonly LessonEdit[];
 }
 

@@ -82,7 +82,7 @@ export class MindCore {
   }
 
   /**
-   * The session-start memory note (P2-0020 T1): the persona's own lessons and
+   * The session-start memory note (P2-0019b T1): the persona's own lessons and
    * this save's facts, most-used and newest first, under one hard cap. The
    * save key is the session folder name, the id the mod derives from the
    * game's `uniqueIDForThisGame`.
@@ -166,7 +166,7 @@ export class MindCore {
         if (distilled.length > 0) outcome = { ...result, applied: [...result.applied, ...distilled] };
       }
     }
-    // The persona layer's only writer is this code rule (P2-0021): a save
+    // The persona layer's only writer is this code rule (P2-0019c): a save
     // lesson marked worked reaches the library once two saves verified it.
     const promoted = await this.promoteVerifiedLessons(now);
     if (promoted.length > 0) outcome = { ...(outcome ?? { person: await this.ledger.person(), story: await this.ledger.story(this.save), forget: [], applied: [], rejected: [] }), applied: [...(outcome?.applied ?? []), ...promoted] };

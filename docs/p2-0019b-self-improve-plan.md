@@ -1,4 +1,4 @@
-# P2-0020 A Companion That Grows: Build Plan
+# P2-0019b A Companion That Grows: Build Plan
 
 Judge ruling on research round 2 (`research/self-improve/REPORT.md` on branch `self-improve-research`, commit d16c59b), plus the build plan for ZCode goal mode. It builds on P2-0019 ([p2-0019-behavior-layer-plan.md](p2-0019-behavior-layer-plan.md)) on the same branch.
 
@@ -17,7 +17,7 @@ Out of scope this round: computer-use vision (backlog, fallback for games withou
 
 Branch: `behavior-layer`, on top of P2-0019. Never commit `AGENTS.md`. Never touch the owner's own Stardew saves; use test saves only. Lean code, fail loudly, no internal terms or coordinates in companion speech, no game facts in code or prompt.
 
-Code budget: P2-0019 plus P2-0020 together at most about 700 new non-test lines. P2-0019 is already about 800, so T0 must cut first. Report the real count by file.
+Code budget: P2-0019 plus P2-0019b together at most about 700 new non-test lines. P2-0019 is already about 800, so T0 must cut first. Report the real count by file.
 
 ### T0 Trim P2-0019
 
