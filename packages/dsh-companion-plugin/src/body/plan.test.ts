@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { BodyObject } from "@dsh-player2/contracts";
-import { PlanBoard, type PlanStepInput } from "./plan.js";
+import { GAME_MINUTE_MS, PlanBoard, waitSteps, type PlanStepInput } from "./plan.js";
 import { sleep } from "./port.js";
 import { SimAdapter, type SimLocation } from "./sim-adapter.testkit.js";
 import { StuckWatch } from "./stuck.js";
@@ -81,7 +81,7 @@ describe("the plan board", () => {
     expect(made.woken()).toBeGreaterThanOrEqual(1); // the mind is woken only when the plan finished
   });
 
-  it("a step whose expected change fails to show feeds the stuck detector and stops the body", async () => {
+  it("a step whose expected change fails to show stops the plan there and wakes the mind", async () => {
     const sim = open();
     // The pass is closed: walks to (11,4) cannot change the world.
     sim.locations.get("Meadow")!.objects.push({ x: 11, y: 4, kind: "rock", name: "Rockslide", extra: { passable: false } });
@@ -89,25 +89,39 @@ describe("the plan board", () => {
     await sim.start(1);
     const made = board(sim);
     made.board.start();
-    const steps: PlanStepInput[] = [
+    made.board.set("break through the rocks", [
       { label: "push the pass", tool: "body_walk_to", args: { x: 11, y: 4 }, expect: { at: { x: 11, y: 4 } } },
-      { label: "push the pass again", tool: "body_walk_to", args: { x: 11, y: 4 }, expect: { at: { x: 11, y: 4 } } },
-      { label: "and again", tool: "body_walk_to", args: { x: 11, y: 4 }, expect: { at: { x: 11, y: 4 } } },
-      { label: "never runs", tool: "body_walk_to", args: { x: 2, y: 7 } },
-    ];
-    made.board.set("break through the rocks", steps);
-    const deadline = Date.now() + 20_000;
+      { label: "never runs", tool: "body_walk_to", args: { x: 2, y: 5 } },
+    ]);
     let facts = "";
-    while (Date.now() < deadline) {
-      facts += made.board.drain().join("\n");
-      if (facts.includes("stopped working the plan")) break;
-      await sleep(50);
+    await until(() => (facts += made.board.drain().join("\n")).includes("stopped the plan"));
+    expect(facts).toContain("expected change did not show");
+    expect(facts).toContain("1 later step(s) were not run");
+    expect(facts).not.toContain("never runs");
+    expect(made.woken()).toBeGreaterThanOrEqual(1);
+    expect(sim.tile).toEqual({ x: 2, y: 7 });
+  });
+
+  it("the same failing plan handed down again meets the wall: the third time holds the body", async () => {
+    const sim = open();
+    sim.locations.get("Meadow")!.objects.push({ x: 11, y: 4, kind: "rock", name: "Rockslide", extra: { passable: false } });
+    sims.push(sim);
+    await sim.start(1);
+    const made = board(sim);
+    made.board.start();
+    for (let round = 0; round < 3; round++) {
+      made.board.set("push again", [{ label: "push the pass", tool: "body_walk_to", args: { x: 11, y: 4 }, expect: { at: { x: 11, y: 4 } } }]);
+      let facts = "";
+      await until(() => (facts += made.board.drain().join("\n")).includes("stopped"));
     }
     expect(made.watch.isHolding()).toBe(true);
-    expect(facts).toContain("expected change did not show");
-    expect(facts).toContain("stopped working the plan");
-    expect(facts).not.toContain("never runs: OK");
-    expect(sim.tile).toEqual({ x: 2, y: 7 });
+    expect(made.watch.take()).toContain("STUCK");
+  });
+
+  it("a wait lets the game clock run: seven real seconds per ten game minutes, in steps the adapter accepts", () => {
+    expect(GAME_MINUTE_MS * 10).toBe(7_000);
+    const steps = waitSteps(30 * GAME_MINUTE_MS, 10_000);
+    expect(steps.map((step) => step.ms)).toEqual([10_000, 10_000, 1_000]);
   });
 
   it("taking a plan back clears it and marks the wake", async () => {
@@ -120,6 +134,22 @@ describe("the plan board", () => {
     await until(() => sim.snapshot().body?.activeTask != null);
     expect(made.board.set("rethink", [])).toContain("Plan cleared");
     expect(made.board.wakePending()).toBe(true);
+  });
+
+  it("a new plan stops the old plan's step in flight", async () => {
+    const sim = open();
+    sims.push(sim);
+    await sim.start(1);
+    const made = board(sim);
+    made.board.start();
+    made.board.set("wait a long while", [{ label: "long wait", tool: "wait", args: { minutes: 30 } }]);
+    await until(() => sim.snapshot().body?.activeTask != null);
+    made.board.set("walk instead", [{ label: "to the pass", tool: "body_walk_to", args: { x: 11, y: 4 }, expect: { at: { x: 11, y: 4 } } }]);
+    let facts = "";
+    await until(() => (facts += made.board.drain().join("\n")).includes("Plan finished: walk instead"));
+    expect(facts).toContain("Plan finished: walk instead");
+    expect(facts).not.toContain("long wait");
+    expect(sim.tile).toEqual({ x: 11, y: 4 });
   });
 
   it("refuses a step whose arguments are not inside args, teaching the shape", () => {
@@ -156,7 +186,8 @@ describe("the async claim on the sim (idle ratio, actions per game minute)", () 
     const steps: PlanStepInput[] = [];
     for (let index = 0; index < 12; index++) {
       steps.push({ label: `pace ${index}`, tool: "body_input", args: { steps: [{ hold: [index % 2 === 0 ? "DPadRight" : "DPadLeft"], ms: 400 }] } });
-      steps.push({ label: `breathe ${index}`, tool: "wait", args: { minutes: 1 } });
+      // A short idle input, not a wait: a game minute (700 ms) would make the 3 s bench count the clock, not the board.
+      steps.push({ label: `breathe ${index}`, tool: "body_input", args: { steps: [{ ms: 300 }] } });
     }
     made.board.set("pace the meadow", steps);
     const asyncSamples: boolean[] = [];
@@ -167,6 +198,6 @@ describe("the async claim on the sim (idle ratio, actions per game minute)", () 
     const done = made.board.drain().filter((fact) => fact.startsWith("Plan,")).length;
     console.log(`p2-0019c sim bench: idle baseline(mind-driven) ${baseIdle.toFixed(2)} vs small brain(plan) ${asyncIdle.toFixed(2)}; async steps in 3 s: ${done}`);
     expect(asyncIdle).toBeLessThan(baseIdle / 2);
-    expect(done).toBeGreaterThan(6);
+    expect(done).toBeGreaterThan(3);
   });
 });

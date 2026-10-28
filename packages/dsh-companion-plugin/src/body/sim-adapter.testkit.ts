@@ -217,6 +217,14 @@ export class SimAdapter implements BodyPort {
     const at = location.objects.find((o) => o.x === t.x && o.y === t.y);
     const item = this.body.items[this.body.slot];
     if (id === "ControllerX") {
+      // Breakable debris: `extra.breaksWith` is the tool id part that breaks it, `extra.hits` how many swings.
+      if (at?.extra?.passable === false && typeof at.extra.breaksWith === "string" && item?.id.includes(at.extra.breaksWith) === true) {
+        const hits = Number(at.extra.hits ?? 1) - 1;
+        if (hits <= 0) location.objects.splice(location.objects.indexOf(at), 1);
+        else at.extra = { ...at.extra, hits };
+        this.body.stamina -= 2;
+        return note("used", `${item.name} ${hits <= 0 ? "broke" : "hit"} ${at.name} at ${t.x},${t.y}`);
+      }
       if (item?.id === "(T)Hoe" && at === undefined && this.walkable(t.x, t.y)) {
         location.objects.push({ x: t.x, y: t.y, kind: "dirt", name: "Tilled Soil", extra: { passable: true, watered: false } });
         this.body.stamina -= 2;

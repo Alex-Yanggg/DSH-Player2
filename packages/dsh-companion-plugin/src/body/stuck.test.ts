@@ -109,16 +109,18 @@ describe("the stuck detector on the locked scenario", () => {
   it("calls the third identical blocked walk a wall, stops the body, and releases when the pass opens", async () => {
     const sim = locked();
     const board0 = armed(sim);
-    board0.set("break through", [
-      { label: "push", tool: "body_walk_to", args: { x: 11, y: 4 }, expect: { at: { x: 11, y: 4 } } },
-      { label: "push", tool: "body_walk_to", args: { x: 11, y: 4 }, expect: { at: { x: 11, y: 4 } } },
-      { label: "push", tool: "body_walk_to", args: { x: 11, y: 4 }, expect: { at: { x: 11, y: 4 } } },
-      { label: "never runs", tool: "body_walk_to", args: { x: 2, y: 7 } },
-    ]);
-    const fact0 = await until((facts) => facts.includes("stopped working the plan"));
+    // Each plan stops at the unmet push; the mind hands the same push down again.
+    let facts = "";
+    for (let round = 0; round < 3; round++) {
+      board0.set("break through", [
+        { label: "push", tool: "body_walk_to", args: { x: 11, y: 4 }, expect: { at: { x: 11, y: 4 } } },
+        { label: "never runs", tool: "body_walk_to", args: { x: 2, y: 5 } },
+      ]);
+      facts += await until((soFar) => soFar.includes("stopped the plan"));
+    }
     expect(watch.isHolding()).toBe(true);
-    expect(fact0).toContain("expected change did not show");
-    expect(fact0).not.toContain("never runs: OK");
+    expect(facts).toContain("expected change did not show");
+    expect(facts).not.toContain("never runs");
     expect(sim.tile).toEqual({ x: 2, y: 7 });
     const fact = watch.take();
     expect(fact).toContain("STUCK");
@@ -129,25 +131,21 @@ describe("the stuck detector on the locked scenario", () => {
     const farm = sim.locations.get("Meadow")!;
     farm.objects.splice(farm.objects.findIndex((o) => o.name === "Rockslide"), 1);
     board.set("walk through", [{ label: "cross", tool: "body_walk_to", args: { x: 11, y: 1 }, expect: { at: { x: 11, y: 1 } } }]);
-    await until((facts) => facts.includes("cross: OK"), 25_000);
+    await until((soFar) => soFar.includes("cross: OK"), 25_000);
     expect(watch.isHolding()).toBe(false);
   });
 
   it("does not count interleaved different actions toward one wall", async () => {
     const sim = locked();
     const board0 = armed(sim);
-    board0.set("mixed", [
-      { tool: "body_walk_to", args: { x: 11, y: 4 }, expect: { at: { x: 11, y: 4 } } },
-      { tool: "body_input", args: { steps: [{ press: ["ControllerA"], ms: 50 }] } },
-      { tool: "body_walk_to", args: { x: 11, y: 4 }, expect: { at: { x: 11, y: 4 } } },
-      { tool: "body_input", args: { steps: [{ press: ["ControllerA"], ms: 50 }] } },
-      { tool: "body_walk_to", args: { x: 11, y: 4 }, expect: { at: { x: 11, y: 4 } } },
-      { tool: "body_input", args: { steps: [{ press: ["ControllerA"], ms: 50 }] } },
-    ]);
-    const facts = await until((soFar) => soFar.split("Plan,").length > 6, 25_000);
+    for (let round = 0; round < 6; round++) {
+      board0.set("mixed", [round % 2 === 0
+        ? { tool: "body_walk_to", args: { x: 11, y: 4 }, expect: { at: { x: 11, y: 4 } } }
+        : { tool: "body_input", args: { steps: [{ press: ["ControllerA"], ms: 50 }] } }]);
+      await until((soFar) => soFar.includes("stopped the plan") || soFar.includes("Plan finished"));
+    }
     expect(watch.isHolding()).toBe(false);
     expect(watch.take()).toBeNull();
-    expect(facts).not.toContain("STUCK");
   });
 });
 
@@ -175,8 +173,12 @@ describe("the stuck detector on the wall scenario", () => {
     sim.health = 41;
     sim.body.stamina = 12;
     expect(stateDigest(sim.snapshot())).toBe(before);
-    // But the world answering — the golem giving ground — is one.
+    // Nor is anyone else moving about: the golem shifting, the player walking by.
     sim.locations.get("Riverbank")!.characters[0]!.y = 3;
+    sim.player.x += 3;
+    expect(stateDigest(sim.snapshot())).toBe(before);
+    // But the world answering — the golem gone — is one.
+    sim.locations.get("Riverbank")!.characters.splice(0, 1);
     expect(stateDigest(sim.snapshot())).not.toBe(before);
   });
 });

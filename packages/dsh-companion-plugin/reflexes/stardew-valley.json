@@ -60,5 +60,28 @@
       "cooldownMs": 4000,
       "fact": "acted on reflex (unstick): was stuck walking, wriggled free"
     }
+  ],
+  "obstacles": [
+    {
+      "id": "stone",
+      "match": { "internalNames": ["Stone"] },
+      "tool": ["Pickaxe"],
+      "swing": [{ "press": ["ControllerX"], "ms": 500 }],
+      "maxSwings": 5
+    },
+    {
+      "id": "twig",
+      "match": { "internalNames": ["Twig"] },
+      "tool": ["Axe"],
+      "swing": [{ "press": ["ControllerX"], "ms": 500 }],
+      "maxSwings": 3
+    },
+    {
+      "id": "weeds",
+      "match": { "internalNames": ["Weeds"] },
+      "tool": ["(W)47", "(W)53", "(W)66"],
+      "swing": [{ "press": ["ControllerX"], "ms": 500 }],
+      "maxSwings": 2
+    }
   ]
 }

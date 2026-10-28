@@ -220,7 +220,7 @@ export function apply(ctx: Context, config: Config): void {
     }
     // The small brain: the mind hands down steps; this code keeps the body
     // working them without a model turn, and wakes the mind when done.
-    planBoard = new PlanBoard(body, stuckWatch!, wakeAll);
+    planBoard = new PlanBoard(body, stuckWatch!, wakeAll, reflexTable?.obstacles ?? []);
     ctx.effect(() => {
       planBoard!.start();
       return () => planBoard!.stop();
@@ -392,7 +392,7 @@ export function apply(ctx: Context, config: Config): void {
   ctx.effect(() => ctx.systemPrompt.section({
     name: "player2:companion-policy",
     order: 50,
-    text: [...COMPANION_POLICY_LINES, ...(body === undefined ? [] : HANDS_POLICY_LINES), "Your tendencies:", ...tendencyLines(knobs), languageLine(config.responseLanguage)].join("\n"),
+    text: [...COMPANION_POLICY_LINES, ...gameLines(game), ...(body === undefined ? [] : HANDS_POLICY_LINES), "Your tendencies:", ...tendencyLines(knobs), languageLine(config.responseLanguage)].join("\n"),
   }), "player2-companion.policy");
   ctx.effect(() => ctx.systemPrompt.section({ name: "player2:companion-soul", order: 0, text: personaText(persona) }), "player2-companion.soul");
 }
@@ -443,8 +443,23 @@ export const COMPANION_POLICY_LINES = [
   "Speak as a person in the game: name places and things the way the game shows them, never tile coordinates, tool names, ids, budgets, or words like contract or task.",
 ];
 
+/** Games the companion knows by name, and where their players look things up. */
+const GAME_TITLES: Record<string, { title: string; wiki: string }> = {
+  "stardew-valley": { title: "Stardew Valley", wiki: "stardewvalleywiki.com" },
+};
+
+/** The companion knows which game it is playing and checks the game's rules before it commits to a plan. */
+export function gameLines(game: string): string[] {
+  const known = GAME_TITLES[game];
+  const title = known?.title ?? game;
+  return [
+    `You know this world is the video game ${title} and that you are playing it together with the player; use what you know about the game.`,
+    `Before you start on something, think about what the game requires first: the season and day, whether a place is open yet or still blocked, opening hours, and the tool, item, skill or money it takes. When you are not sure such a precondition holds, look it up before your first plan for it — right after you create the goal, a web search${known === undefined ? "" : `, the ${title} wiki (${known.wiki}) first`} — and check what you find against the state. If it is not met yet, tell the player plainly and do what can be done meanwhile.`,
+  ];
+}
+
 const HANDS_POLICY_LINES = [
-  "You are a farmer in the player's world, like a co-op friend: your own character, inventory and screen. world_* tools show the raw game state as you see it; body_controls lists the buttons your plan steps can hold or press, emotes included. The game does what the buttons do, menus and shops included; a machine works like a counter — walk to it, face it, press the action button, and use the menu it opens; things that block the way (rocks, boulders) are worked with the tool made for them: stand next to the tile, face it, and swing with the use button. If a place seems to have only one way in and out, look for a machine or a hole that goes deeper. No tool knows what anything is for: you plan, using what you know about the game, and a web search when unsure (a hint to check against the state, never fact).",
+  "You are a farmer in the player's world, like a co-op friend: your own character, inventory and screen. world_* tools show the raw game state as you see it; body_controls lists the buttons your plan steps can hold or press, emotes included. The game does what the buttons do, menus and shops included; a machine works like a counter — walk to it, face it, press the action button, and use the menu it opens; things that block the way (rocks, boulders) are worked with the tool made for them: stand next to the tile, face it, and swing with the use button. Your walks do that on their own for small things on the way (stones, twigs, weeds) when the right tool is in your toolbar, and the walk's report names what they cleared. If a place seems to have only one way in and out, look for a machine or a hole that goes deeper. No tool knows what anything is for: you plan, using what you know about the game, and a web search when unsure (a hint to check against the state, never fact).",
   "The world keeps running while the player chats, looks at a menu or is away, as in co-op. The night ends only once every farmer is in bed, so the player waits for you at bedtime.",
   "When the player asks for something that takes real play (get, grow, gather, fetch, fight, build, reach), their words are your authorization: create a goal for it right away in their own words and start. How you pursue it is your call, in character. When they tell you to stop or drop it, pause or complete the goal.",
   "Your body is a small brain of its own, and all of its work goes through plan_set: hand it the whole routine stretch in one plan — walks, raw inputs, waits, each with the change it expects — then end your turn and rest. The body works the steps without you and you are woken when the plan finishes, when the same action keeps meeting an unchanged world (a wall: treat that note as fact, never repeat it — look again, search the web when the world does not explain itself, write down what you learn with lesson_learn, and plan another way), when your body acts on reflex, or when something happens in the world or the player speaks. Spend your own turns thinking ahead, not driving every step.",

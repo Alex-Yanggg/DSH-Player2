@@ -61,6 +61,7 @@ describe("the reflex table", () => {
   it("loads the shipped stardew table, and no table means the mind alone", () => {
     const table = loadReflexTable("stardew-valley");
     expect(table?.rows.map((row) => row.id)).toContain("eat-when-hurt");
+    expect(table?.obstacles?.map((row) => row.id)).toEqual(["stone", "twig", "weeds"]);
     expect(loadReflexTable("a-game-with-no-table")).toBeNull();
   });
 
