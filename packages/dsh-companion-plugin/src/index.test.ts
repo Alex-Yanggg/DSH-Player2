@@ -50,6 +50,9 @@ describe("Player2 companion inside the ACP profile", () => {
     expect(prompt).toContain("never tile coordinates");
     expect(prompt).toContain("Talkativeness 0.30");
     expect(prompt).not.toContain("world_* tools");
+    // It knows the game it plays, and checks the game's preconditions before it plans.
+    expect(prompt).toContain("the video game Stardew Valley");
+    expect(prompt).toContain("stardewvalleywiki.com");
   });
 
   it("sets the response language", async () => {

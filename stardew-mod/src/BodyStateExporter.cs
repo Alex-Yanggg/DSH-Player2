@@ -40,6 +40,7 @@ internal sealed class BodyStateExporter
     public static readonly IReadOnlyDictionary<string, string> Legend = new Dictionary<string, string>
     {
         ["."] = "walkable",
+        [","] = "walkable ground a hoe can till",
         ["#"] = "blocked (wall, building, object, cliff, character)",
         ["~"] = "water (blocked; a watering can refills facing it)",
         ["W"] = "walk warp tile inside the map",
@@ -86,7 +87,7 @@ internal sealed class BodyStateExporter
         foreach (var pair in location.objects.Pairs)
         {
             var o = pair.Value;
-            var extra = new Dictionary<string, object?> { ["passable"] = o.isPassable(), ["category"] = o.Category };
+            var extra = new Dictionary<string, object?> { ["passable"] = o.isPassable(), ["category"] = o.Category, ["internalName"] = o.Name };
             if (o.readyForHarvest.Value) extra["ready"] = true;
             if (o.heldObject.Value is { } held) extra["holding"] = held.DisplayName;
             if (o.MinutesUntilReady > 0) extra["minutesUntilReady"] = o.MinutesUntilReady;
@@ -370,7 +371,8 @@ internal sealed class BodyStateExporter
     {
         if (this.gridMarks.TryGetValue((x, y), out var mark)) return mark;
         if (location.isWaterTile(x, y)) return '~';
-        return location.isCollidingPosition(new Rectangle(x * 64 + 8, y * 64 + 16, 48, 32), Game1.viewport, true, 0, false, actor) ? '#' : '.';
+        if (location.isCollidingPosition(new Rectangle(x * 64 + 8, y * 64 + 16, 48, 32), Game1.viewport, true, 0, false, actor)) return '#';
+        return location.doesTileHaveProperty(x, y, "Diggable", "Back") is not null ? ',' : '.';
     }
 
     /// <summary>Forces a full grid build on the next state (new day, new save).</summary>

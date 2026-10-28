@@ -56,10 +56,32 @@ export const reflexRowSchema = z.object({
 });
 export type ReflexRow = z.infer<typeof reflexRowSchema>;
 
+/**
+ * Clear-the-way (P2-0019 T1): a walk whose way is blocked, or made long, by
+ * small breakable things stops next to the first one, faces it, selects the
+ * matching tool and swings until it is gone, then walks on. A row only says
+ * which raw objects (by exported id or internal name) give way to which
+ * toolbar items (by item id substring) and the swing burst; the walk finds
+ * them on its own path. Shipped rows are hand-checked; grown rows are data too.
+ */
+export const obstacleRowSchema = z.object({
+  id: z.string().regex(/^[a-z][a-z0-9-]{1,40}$/),
+  /** The object: any of these exported ids, or any of these `extra.internalName` values. */
+  match: z.object({ ids: z.array(z.string().min(1).max(80)).max(40).optional(), internalNames: z.array(z.string().min(1).max(80)).max(12).optional() })
+    .refine((m) => (m.ids?.length ?? 0) + (m.internalNames?.length ?? 0) > 0, "an obstacle row matches at least one id or internal name"),
+  /** The toolbar item that clears it: the first whose id contains one of these. */
+  tool: z.array(z.string().min(1).max(80)).min(1).max(8),
+  /** One swing, after facing it and selecting the tool. */
+  swing: z.array(bodyInputStepSchema).min(1).max(8),
+  maxSwings: z.number().int().min(1).max(12),
+});
+export type ObstacleRow = z.infer<typeof obstacleRowSchema>;
+
 export const reflexTableSchema = z.object({
   version: z.literal(reflexTableVersion),
   game: z.string().min(1).max(64),
   rows: z.array(reflexRowSchema).min(1).max(24),
+  obstacles: z.array(obstacleRowSchema).max(24).optional(),
 });
 export type ReflexTable = z.infer<typeof reflexTableSchema>;
 

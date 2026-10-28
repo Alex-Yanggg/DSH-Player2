@@ -26,6 +26,8 @@ export class ReflexEngine {
   private readonly fired = new Map<string, number>();
   /** Position history for the stuck condition; updated by the owner before each evaluation. */
   private stillSince: number | null = null;
+  /** Whether the running input holds a movement button; set by the owner. Standing still to swing or wait is not stuck. */
+  public walking = false;
   private lastPx = NaN;
   private lastPy = NaN;
 
@@ -83,7 +85,7 @@ export class ReflexEngine {
   /** Feeds displacement for the stuck condition; call with every evaluated state. */
   public observe(state: BodyState): void {
     const body = state.body;
-    if (body === null || body.px !== this.lastPx || body.py !== this.lastPy) {
+    if (body === null || !this.walking || body.px !== this.lastPx || body.py !== this.lastPy) {
       this.lastPx = body?.px ?? NaN;
       this.lastPy = body?.py ?? NaN;
       this.stillSince = null;
@@ -122,7 +124,7 @@ function holds(conditions: readonly ReflexCondition[], state: BodyState, monster
       case "staminaBelow": return body.stamina < condition.value;
       case "monsterWithin": return monster !== null && monster.tiles <= condition.tiles;
       case "hasItem": return matchingSlot(body, condition) !== null;
-      case "stuckFor": return body.activeTask !== null && engine.stuckMs() >= condition.ms;
+      case "stuckFor": return body.activeTask !== null && engine.walking && engine.stuckMs() >= condition.ms;
     }
   });
 }
@@ -236,7 +238,14 @@ export class ReflexBody implements BodyPort {
   public cancelActive(): Promise<void> { return this.inner.cancelActive(); }
 
   public async run(steps: readonly BodyInputStep[], options: RunOptions = {}): Promise<BodyRun> {
-    return this.inner.run(steps, { ...options, fastState: true });
+    this.roles ??= roleButtons(await this.inner.declaration());
+    const move = Object.values(this.roles);
+    this.engine.walking = steps.some((step) => step.hold?.some((button) => move.includes(button)) ?? false);
+    try {
+      return await this.inner.run(steps, { ...options, fastState: true });
+    } finally {
+      this.engine.walking = false;
+    }
   }
 }
 

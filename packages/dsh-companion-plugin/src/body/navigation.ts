@@ -32,7 +32,7 @@ export function controlsOf(declaration: BodyDeclaration): Controls {
 export const faceStep = (controls: Controls, direction: Direction): BodyInputStep => ({ hold: [controls.move[direction]], ms: Math.ceil(controls.limits.tickMs) });
 
 /** Characters of `map.rows` a body can stand on. */
-const WALKABLE = new Set([".", "W"]);
+const WALKABLE = new Set([".", ",", "W"]);
 
 /** Tiles blocked in this state: the grid plus every impassable object on top of it. */
 export class Walkability {
