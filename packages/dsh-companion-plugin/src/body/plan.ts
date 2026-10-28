@@ -127,8 +127,9 @@ export class PlanBoard {
       const after = await this.body.state().catch(() => undefined);
       const unmet = after === undefined ? [] : this.unmet(step, after);
       this.facts.push(`Plan, ${step.label}: ${report}${unmet.length > 0 ? ` — expected change did not show: ${unmet.join("; ")}` : ""}`);
+      // Letting time pass is meant to leave the world as it is; only a wait that missed its expected change is a wall.
       if (unmet.length > 0) this.watch.record("plan", step.signature, `unmet: ${unmet.join("; ")}`, before, after);
-      else this.watch.record("plan", step.signature, outcome, before, after);
+      else if (step.tool !== "wait") this.watch.record("plan", step.signature, outcome, before, after);
       if (unmet.length > 0) failure = "its expected change did not show";
       else if (broke) failure = outcome;
     } catch (error) {

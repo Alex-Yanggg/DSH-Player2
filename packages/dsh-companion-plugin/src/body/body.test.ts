@@ -151,6 +151,15 @@ describe("walk helper over raw input", () => {
     expect(sim.body.location).toBe("Town");
   });
 
+  it("walking onto a way out goes through it, and a door in a wall leads where it goes", async () => {
+    sim.locations.get("Farm")!.warps.push({ x: 10, y: 3, to: "Town", toX: 5, toY: 2, kind: "action" });
+    const door = await walkTo(client, controlsOf(await client.declaration()), () => client.world(), { x: 10, y: 3, mode: "stand" });
+    expect(door.ok, door.reason).toBe(true);
+    expect(door.reason).toContain("into Town");
+    expect(sim.body.location).toBe("Town");
+    expect(sim.tile).toEqual({ x: 5, y: 2 });
+  });
+
   it("fails honestly for an unreachable tile", async () => {
     const result = await walkTo(client, controlsOf(await client.declaration()), () => client.world(), { x: 0, y: 0, mode: "stand" });
     expect(result.ok).toBe(false);
