@@ -106,7 +106,9 @@ export class MindCore {
     };
     take("YOUR LIBRARY (lessons you keep on every save):", [...persona].sort(byScore));
     // P2-0019d: a save fact holds as of the day it was seen; the world moves on (things open, close, grow back).
-    take(`THIS SAVE, what your own days here taught, each as of the day noted${day !== null ? ` (today is day ${day})` : ""}; a place or thing you found blocked, closed or impossible on an earlier day may have changed, so look again before planning around it:`, [...facts].sort(byScore));
+    // The latest day first: a fact seen today must not be crowded out by an older, often-repeated one.
+    const byDay = (a: Lesson, b: Lesson) => (b.day ?? -1) - (a.day ?? -1) || byScore(a, b);
+    take(`THIS SAVE, what your own days here taught, each as of the day noted${day !== null ? ` (today is day ${day})` : ""}; a place or thing you found blocked, closed or impossible on an earlier day may have changed, so look again before planning around it:`, [...facts].sort(byDay));
     return lines.length === 0 ? "" : [header, ...lines].join("\n");
   }
 

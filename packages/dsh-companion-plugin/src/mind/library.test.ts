@@ -144,6 +144,15 @@ describe("facts are as of a day, and the dream judges sameness (P2-0019d)", () =
     expect((await core.ledger.facts(core.save))[0].day).toBe(4);
   });
 
+  it("lists the latest day's facts first, so an often-repeated old fact cannot crowd out today's", async () => {
+    const core = await mindAt(project(), "431271845");
+    for (let seen = 0; seen < 5; seen++) await core.learnLesson("The mine entrance is blocked by fallen rocks.", "the mines", NOW, 2);
+    await core.learnLesson("The mine entrance is open now.", "the mines", NOW, 5);
+    const note = await core.memoryNote(later, 6);
+    expect(note.indexOf("The mine entrance is open now.")).toBeGreaterThan(-1);
+    expect(note.indexOf("The mine entrance is open now.")).toBeLessThan(note.indexOf("The mine entrance is blocked by fallen rocks."));
+  });
+
   it("dated dream lessons, and other saves' verified lessons shown to the dream until promoted", async () => {
     const root = project();
     const first = await mindAt(root, "save-one");
