@@ -29,11 +29,12 @@ internal sealed class BodyStateExporter
         new("paused", "True while game time does not pass (menu, chat, cutscene): held input does not advance."),
         new("time", "day (total days since the save began, 1-based), season, dayOfMonth, year, timeOfDay (600 = 6:00, 2600 = 2:00 next morning), weather."),
         new("player", "The human farmer (the host): location, tile x/y, pixel px/py, facing, money, health, stamina, inventory."),
-        new("body", "Your own farmer: location, tile, facing, whether it is moving, selected toolbar slot (0-based), stamina, gold (one purse shared with the player unless the farm splits wallets), inventory, running task seq, and menu: the menu open on your screen (kind, focus = what the controller cursor is on, options = its buttons, money, and a shop's stock with index, name, price, stock), when any."),
+        new("body", "Your own farmer: location, tile, facing, whether it is moving, selected toolbar slot (0-based), health, stamina, gold (one purse shared with the player unless the farm splits wallets), inventory, running task seq, and menu: the menu open on your screen (kind, focus = what the controller cursor is on, options = its buttons, money, and a shop's stock with index, name, price, stock), when any."),
         new("map", "The body's current location: width, height, and rows of legend characters, row 0 at the top (north); x grows east, y grows south."),
         new("objects", "Things on tiles, nearest first: object (stones, weeds, twigs, artifact spots, machines), forage, dirt (tilled soil; extra.crop, extra.ready, extra.watered), tree, grass, clump (stumps, logs, boulders), bush, item (lying on the ground). extra.passable says whether a body can walk through."),
         new("characters", "NPCs, monsters (with health), farmers, in the body's location."),
         new("warps", "Exits of the body's location: kind walk (step onto the tile, often just past the map edge) or action (face it and press Action)."),
+        new("actionTiles", "Tiles of this location the game itself answers, as raw data: position, map layer, and the tile's raw Action/TouchAction string from the map (or sheet#index on mine floors, where code answers by tile). What an entry does is the game's to say; face it and press the action button, or walk onto a TouchAction."),
     };
 
     public static readonly IReadOnlyDictionary<string, string> Legend = new Dictionary<string, string>
@@ -141,12 +142,13 @@ internal sealed class BodyStateExporter
             new BodyPlayerState(player.currentLocation?.NameOrUniqueName ?? "", player.TilePoint.X, player.TilePoint.Y, player.Position.X, player.Position.Y,
                 Facing(player.FacingDirection), player.Name, player.Money, player.health, player.Stamina, Items(player.Items, 36)),
             new BodyActorState(location.NameOrUniqueName, actor.TilePoint.X, actor.TilePoint.Y, actor.Position.X, actor.Position.Y,
-                Facing(actor.FacingDirection), true, moving, actor.CurrentToolIndex, actor.Stamina, actor.Money, Items(actor.Items, 36), activeTask, Menu(Game1.activeClickableMenu, actor)),
+                Facing(actor.FacingDirection), true, moving, actor.CurrentToolIndex, actor.health, actor.Stamina, actor.Money, Items(actor.Items, 36), activeTask, Menu(Game1.activeClickableMenu, actor)),
             new BodyMap(location.NameOrUniqueName, location.Map.Layers[0].LayerWidth, location.Map.Layers[0].LayerHeight, rows),
             ordered.Take(MaxObjects).Select(entry => entry.Value).ToArray(),
             characters,
             Warps(location),
-            new BodyTruncation(Math.Max(0, ordered.Count - MaxObjects)));
+            new BodyTruncation(Math.Max(0, ordered.Count - MaxObjects)),
+            ActionTiles(location));
         this.buildClock.Stop();
         this.Note(this.buildClock.Elapsed.TotalMilliseconds);
         return state;
@@ -190,6 +192,7 @@ internal sealed class BodyStateExporter
     {
         var warps = location.warps.Where(w => !w.npcOnly.Value).Select(w => new BodyWarp(w.X, w.Y, w.TargetName, w.TargetX, w.TargetY, "walk")).ToList();
         warps.AddRange(ActionWarps(location));
+        warps.AddRange(TouchWarps(location));
         foreach (var building in location.buildings)
         {
             if (BuildingDoor(building) is { } door) warps.Add(door);
@@ -217,6 +220,93 @@ internal sealed class BodyStateExporter
         }
         ActionWarpCache[key] = found;
         return found;
+    }
+
+    /// <summary>
+    /// Tiles that warp a farmer who walks onto them (`TouchAction Warp x y Location`
+    /// on the Back layer), such as the mine's shaft hole: raw map data the export
+    /// would otherwise hide, because they are not in <see cref="GameLocation.warps"/>.
+    /// </summary>
+    private static List<BodyWarp> TouchWarps(GameLocation location)
+    {
+        var key = location.NameOrUniqueName + "#touch";
+        if (ActionWarpCache.TryGetValue(key, out var cached)) return cached;
+        var found = new List<BodyWarp>();
+        var layer = location.Map.GetLayer("Back");
+        if (layer is not null)
+        {
+            for (var y = 0; y < layer.LayerHeight; y++)
+            {
+                for (var x = 0; x < layer.LayerWidth; x++)
+                {
+                    var touch = location.doesTileHaveProperty(x, y, "TouchAction", "Back");
+                    if (string.IsNullOrWhiteSpace(touch)) continue;
+                    var parts = touch.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length >= 4 && parts[0] == "Warp" && int.TryParse(parts[1], out var tx) && int.TryParse(parts[2], out var ty))
+                        found.Add(new BodyWarp(x, y, parts[3], tx, ty, "walk"));
+                }
+            }
+        }
+        ActionWarpCache[key] = found;
+        return found;
+    }
+
+    /// <summary>
+    /// Tiles the game itself answers, as raw data the warp export never showed:
+    /// every tile with a raw <c>Action</c> or <c>TouchAction</c> property (the
+    /// mine's entry map answers "Mine", "MineElevator", "MinecartTransport"),
+    /// plus — on mine floors, where the answers live in code and the ladder is
+    /// written into the layer at runtime — the elevator, exit, ladder and shaft
+    /// tiles as their raw tilesheet#index. No meaning attached.
+    /// </summary>
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<xTile.Map, List<BodyActionTile>> ActionTileCache = new();
+
+    private static List<BodyActionTile> ActionTiles(GameLocation location)
+    {
+        var map = location.Map;
+        if (ActionTileCache.TryGetValue(map, out var cached)) return cached;
+        var found = new List<BodyActionTile>();
+        void Scan(xTile.Layers.Layer? layer, string layerName)
+        {
+            if (layer is null) return;
+            for (var y = 0; y < layer.LayerHeight; y++)
+            {
+                for (var x = 0; x < layer.LayerWidth; x++)
+                {
+                    if (found.Count >= 96) return;
+                    var tile = layer.Tiles[x, y];
+                    if (tile is null) continue;
+                    var raw = ReadProperty(location, x, y, layerName, "Action") ?? ReadProperty(location, x, y, layerName, "TouchAction");
+                    if (!string.IsNullOrWhiteSpace(raw))
+                    {
+                        found.Add(new BodyActionTile(x, y, layerName, raw.Trim()));
+                        continue;
+                    }
+                    if (location is StardewValley.Locations.MineShaft && tile.TileSheet.Id == "mine"
+                        && (tile.TileIndex == 112 || tile.TileIndex == 115 || tile.TileIndex == 173 || tile.TileIndex == 174))
+                    {
+                        found.Add(new BodyActionTile(x, y, layerName, $"mine#{tile.TileIndex}"));
+                    }
+                }
+            }
+        }
+        Scan(map.GetLayer("Back"), "Back");
+        Scan(map.GetLayer("Buildings"), "Buildings");
+        ActionTileCache.AddOrUpdate(map, found);
+        return found;
+    }
+
+    /// <summary>The raw value of one tile property, through the location's own answer.</summary>
+    private static string? ReadProperty(GameLocation location, int x, int y, string layer, string property)
+    {
+        try
+        {
+            return location.doesTileHaveProperty(x, y, property, layer);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
     }
 
     /// <summary>`Warp x y Location`, `LockedDoorWarp x y Location open close ...`, `MagicWarp Location x y`.</summary>

@@ -20,8 +20,8 @@
   <img alt="DeepSeek Harness" src="https://img.shields.io/badge/DeepSeek%20Harness-0.2.0--rc.2-4D6BFE">
   <img alt=".NET" src="https://img.shields.io/badge/.NET-6.0-512BD4">
   <img alt="Node" src="https://img.shields.io/badge/Node-24.x-339933">
-  <img alt="Status" src="https://img.shields.io/badge/status-pre--release-orange">
-  <img alt="License" src="https://img.shields.io/badge/license-pending-lightgrey">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.2.0--pre--release-orange">
+  <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
 </p>
 
 ## 这是什么
@@ -48,7 +48,9 @@ Player2 是基于 [DeepSeek Harness](https://github.com/dsh2026/test-Alex-Yanggg
 | | 能力 | 现状 |
 | --- | --- | --- |
 | 💬 | 原生聊天 | F2 打开聊天窗口，可回滚、可调出上一句；同伴边想边说，一句一句出现。 |
-| 🎯 | 一句话给目标 | “给我弄 3 根防风草”会变成 DSH 目标，同伴跨天去完成：自己找种子、开地、播种、浇水、按时睡觉。游戏暂停时目标保持不丢。 |
+| 🎯 | 一句话给目标 | “给我弄 3 根防风草”会变成 DSH 目标，同伴跨天去完成：自己找种子、开地、播种、浇水、按时睡觉；“给我挖 10 块铜矿”会让它自己下矿。游戏暂停时目标保持不丢。 |
+| ⚡ | 本能反射 | 受伤、被围或卡住时，身体先于思考行动：一张小小的每游戏本能表（吃东西、挥武器、躲开、脱困）在一秒内按下真实按键，然后告诉它发生了什么。 |
+| 🛠️ | 技能 | 刚做完的一套活可以存成技能，下次一次工具调用就能重放。技能先彩排通过才会保存；运行失败会报错并标记过期，由它自己决定修复或放弃。 |
 | 🧑‍🌾 | 自己的身体 | 同伴以隐藏的联机农场帮工身份加入你的存档，有自己的背包和虚拟手柄，整个窗口仍归你。 |
 | 👀 | 感知 | 原始状态导出，加上它自己看不到的世界事件：你去睡了、受了重伤、钓到鱼、下到新的矿层。 |
 | 😊 | 表达 | 联机原生表情、人格的语气和口头禅、关系弧线。 |

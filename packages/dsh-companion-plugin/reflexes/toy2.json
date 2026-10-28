@@ -1,0 +1,22 @@
+{
+  "version": "1",
+  "game": "toy2",
+  "rows": [
+    {
+      "id": "unstick",
+      "when": {
+        "all": [{ "kind": "stuckFor", "ms": 1500 }]
+      },
+      "do": {
+        "kind": "steps",
+        "steps": [
+          { "hold": ["KeyA"], "ms": 250 },
+          { "hold": ["KeyS"], "ms": 250 },
+          { "hold": ["KeyW"], "ms": 250 }
+        ]
+      },
+      "cooldownMs": 4000,
+      "fact": "acted on reflex (unstick): was stuck moving, wriggled free"
+    }
+  ]
+}

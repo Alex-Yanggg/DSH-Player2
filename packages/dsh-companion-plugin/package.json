@@ -1,6 +1,6 @@
 {
   "name": "@dsh-player2/dsh-companion-plugin",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "exports": {
@@ -10,7 +10,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "reflexes"
   ],
   "scripts": {
     "prebuild": "node -e \"for (const path of ['dist', 'tsconfig.tsbuildinfo']) require('node:fs').rmSync(path, { recursive: true, force: true })\"",

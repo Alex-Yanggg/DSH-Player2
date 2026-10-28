@@ -4,6 +4,7 @@ import {
   type BodyCharacter,
   type BodyDeclaration,
   type BodyEvent,
+  type BodyInputStep,
   type BodyItem,
   type BodyObject,
   type BodyState,
@@ -11,16 +12,13 @@ import {
   type BodyTaskStatus,
   type BodyWarp,
   type BodyWorld,
-  type BodyInputStep,
 } from "@dsh-player2/contracts";
 import { sleep, type BodyPort, type BodyRun, type RunOptions } from "./port.js";
 
 /**
- * A keyless stand-in for the Stardew body, behind the same body port
- * (P2-0021). Replays and tests use it to drive navigation, the body tools and
- * reflexes without a game. Its world is a
- * toy: tile collision, a hoe, a watering can, seeds that grow when told to,
- * and monsters that vanish when hit.
+ * Test support, not shipped: the sim bench the behavior tests run against —
+ * a BodyPort over a tiny tick-driven world (P2-0017's adapter, kept beside
+ * the tests; the package builds without it).
  */
 
 export interface SimLocation {
@@ -39,9 +37,24 @@ export interface SimOptions {
   readonly cheatSetting?: boolean;
   /** Shop stock by shop id; a `counter` object with `extra.shopId` opens it. */
   readonly shops?: Record<string, { id: string; name: string; category: string; price: number; stock: number | null }[]>;
+  /** Movement buttons for a game whose controller is not a D-pad (a port brings its own vocabulary). */
+  readonly directions?: Record<string, [number, number, NonNullable<BodyState["body"]>["facing"]]>;
 }
 
 type Facing = NonNullable<BodyState["body"]>["facing"];
+
+/** One running input task's live record: a port with its own buttons writes events and outcomes into it. */
+export interface SimTaskState {
+  task: BodyTask;
+  step: number;
+  stepTick: number;
+  ticks: number[];
+  events: BodyEvent[];
+  status: BodyTaskStatus["status"];
+  reason: string | null;
+  startLocation: string;
+  still: number;
+}
 const DIRS: Record<string, [number, number, Facing]> = { DPadUp: [0, -1, "up"], DPadRight: [1, 0, "right"], DPadDown: [0, 1, "down"], DPadLeft: [-1, 0, "left"] };
 const TICK_MS = 1000 / 60;
 const SPEED = 4;
@@ -49,6 +62,10 @@ const SPEED = 4;
 export class SimAdapter implements BodyPort {
   public readonly locations: Map<string, SimLocation>;
   public body: { location: string; px: number; py: number; facing: "up" | "right" | "down" | "left"; slot: number; items: (BodyItem | null)[]; stamina: number };
+  /** The body's own health, as a raw field reflex rows read. */
+  public health = 100;
+  /** Raw action tiles the sim's state carries (tests of the perception render). */
+  public actionTiles: BodyState["actionTiles"];
   public player: { location: string; x: number; y: number; items: BodyItem[]; money: number };
   public day = 1;
   public paused = false;
@@ -58,13 +75,18 @@ export class SimAdapter implements BodyPort {
   private tick = 0;
   private revision = 0;
   private lastSeq = 0;
-  private task: { task: BodyTask; step: number; stepTick: number; ticks: number[]; events: BodyEvent[]; status: BodyTaskStatus["status"]; reason: string | null; update: number; startLocation: string; still: number } | undefined;
+  protected task: SimTaskState | undefined;
   private writing: Promise<void> = Promise.resolve();
   private submitted: BodyTask | undefined;
   private cancelSeq = 0;
   public readonly inputsSeen: BodyTask[] = [];
   private readonly shops: NonNullable<SimOptions["shops"]>;
+  protected readonly dirs: Record<string, [number, number, NonNullable<BodyState["body"]>["facing"]]>;
   private menu: { shopId: string; cursor: number; at: { location: string; x: number; y: number } } | undefined;
+  private lastPx = NaN;
+  private lastPy = NaN;
+  private movedLastTick = false;
+  private readonly finished = new Map<number, { status: BodyTaskStatus["status"]; reason: string | null; events: BodyEvent[] }>();
 
   public constructor(options: SimOptions) {
     this.locations = new Map(options.locations.map((location) => [location.name, location]));
@@ -74,6 +96,7 @@ export class SimAdapter implements BodyPort {
     this.player = options.player ?? { location: options.body.location, x: options.body.x + 2, y: options.body.y, items: [], money: 500 };
     this.cheatSetting = options.cheatSetting ?? false;
     this.shops = structuredClone(options.shops ?? {});
+    this.dirs = options.directions ?? DIRS;
   }
 
   public get tile(): { x: number; y: number } {
@@ -111,6 +134,9 @@ export class SimAdapter implements BodyPort {
     if (this.tick % 3 === 0) this.pollInput();
     const task = this.task;
     if (task !== undefined && !["done", "interrupted", "failed", "cancelled"].includes(task.status) && !this.paused) this.playTick(task);
+    this.movedLastTick = this.body.px !== this.lastPx || this.body.py !== this.lastPy;
+    this.lastPx = this.body.px;
+    this.lastPy = this.body.py;
   }
 
   private pollInput(): void {
@@ -122,16 +148,16 @@ export class SimAdapter implements BodyPort {
     if (this.task && !["done", "interrupted", "failed", "cancelled"].includes(this.task.status)) {
       this.finish(this.task, "cancelled", "preempted");
     }
-    const declared = SimAdapter.declaration(this.cheatSetting).inputs;
+    const declared = this.declaredInputs();
     const ids = task.steps.flatMap((s) => [...(s.hold ?? []), ...(s.press ?? [])]);
     const unknown = ids.find((id) => !declared.some((d) => d.id === id));
     const cheat = ids.find((id) => declared.some((d) => d.id === id && d.cheat === true));
-    this.task = { task, step: 0, stepTick: 0, ticks: task.steps.map((s) => s.ms <= 0 ? 1 : Math.max(1, Math.round(s.ms / TICK_MS))), events: [], status: "running", reason: null, update: 1, startLocation: this.body.location, still: 0 };
+    this.task = { task, step: 0, stepTick: 0, ticks: task.steps.map((s) => s.ms <= 0 ? 1 : Math.max(1, Math.round(s.ms / TICK_MS))), events: [], status: "running", reason: null, startLocation: this.body.location, still: 0 };
     if (unknown !== undefined) this.finish(this.task, "failed", `unknown-input: ${unknown}`);
     else if (cheat !== undefined && !this.cheatSetting && !this.cheatGrant) this.finish(this.task, "failed", `cheat-off: ${cheat}`);
   }
 
-  private playTick(task: NonNullable<SimAdapter["task"]>): void {
+  private playTick(task: SimTaskState): void {
     const until = task.task.until;
     const here = this.tile;
     if (until?.warped && this.body.location !== task.startLocation) return this.finish(task, "done", "warped");
@@ -143,13 +169,12 @@ export class SimAdapter implements BodyPort {
     if (task.stepTick >= task.ticks[task.step]) {
       task.step++;
       task.stepTick = 0;
-      task.update++;
       if (task.step >= task.ticks.length) return this.finish(task, "done", "completed");
     }
     const step = task.task.steps[task.step];
     const held = step.hold ?? [];
     if (task.stepTick === 0) for (const press of step.press ?? []) this.press(press, task);
-    if (this.menu !== undefined && held.some((id) => id in DIRS)) {
+    if (this.menu !== undefined && held.some((id) => id in this.dirs)) {
       // In a menu the pad moves the cursor once per push instead of walking.
       if (task.stepTick === 0) this.moveCursor(held.includes("DPadUp") ? -1 : 1);
       task.stepTick++;
@@ -159,7 +184,7 @@ export class SimAdapter implements BodyPort {
     const noClip = held.includes("NoClip");
     let moved = false;
     for (const id of held) {
-      const d = DIRS[id];
+      const d = this.dirs[id];
       if (d === undefined) continue;
       this.body.facing = d[2];
       const nx = this.body.px + d[0] * SPEED;
@@ -173,19 +198,18 @@ export class SimAdapter implements BodyPort {
         this.body.px = warp.toX * 64;
         this.body.py = warp.toY * 64;
         task.events.push({ tick: this.tick, kind: "warped", detail: `${from} -> ${warp.to}` });
-        task.update++;
-        return;
+          return;
       }
       if (noClip || this.walkable(tx, ty)) { this.body.px = nx; this.body.py = ny; moved = true; }
     }
-    if (held.some((id) => id in DIRS)) {
+    if (held.some((id) => id in this.dirs)) {
       task.still = moved ? 0 : task.still + 1;
       if (until?.blockedMs !== undefined && task.still >= Math.round(until.blockedMs / TICK_MS)) this.finish(task, "interrupted", "blocked");
     }
   }
 
-  private press(id: string, task: NonNullable<SimAdapter["task"]>): void {
-    const note = (kind: string, detail: string) => { task.events.push({ tick: this.tick, kind, detail }); task.update++; };
+  protected press(id: string, task: SimTaskState): void {
+    const note = (kind: string, detail: string) => { task.events.push({ tick: this.tick, kind, detail }); };
     if (this.menu !== undefined && (id === "ControllerA" || id === "ControllerB")) return this.pressMenu(id, note);
     if (id.startsWith("Slot")) { this.body.slot = Number(id.slice(4)) - 1; return; }
     const t = this.faced();
@@ -272,12 +296,27 @@ export class SimAdapter implements BodyPort {
     if (free >= 0) this.body.items[free] = { slot: free, id: item.id, name: item.name, stack: 1, category: item.category };
   }
 
-  private faced(): { x: number; y: number } {
+  /** Gives the body an item; a port's own interactions use this. */
+  protected gain(item: { id: string; name: string; category: string }): void { this.addItem(item); }
+
+  /** The item count held, by name; a port's crafting reads this. */
+  protected held(name: string): number { return this.body.items.find((i) => i?.name === name)?.stack ?? 0; }
+
+  /** Takes n of one item away (tools and weapons are never taken); returns false when short. */
+  protected spend(name: string, n: number): boolean {
+    const item = this.body.items.find((i) => i?.name === name);
+    if (item == null || item.stack < n) return false;
+    item.stack -= n;
+    if (item.stack <= 0) this.body.items[item.slot] = null;
+    return true;
+  }
+
+  protected faced(): { x: number; y: number } {
     const t = this.tile;
     return this.body.facing === "up" ? { x: t.x, y: t.y - 1 } : this.body.facing === "down" ? { x: t.x, y: t.y + 1 } : this.body.facing === "left" ? { x: t.x - 1, y: t.y } : { x: t.x + 1, y: t.y };
   }
 
-  private location(): SimLocation { return this.locations.get(this.body.location)!; }
+  protected location(): SimLocation { return this.locations.get(this.body.location)!; }
 
   private walkable(x: number, y: number): boolean {
     const location = this.location();
@@ -286,11 +325,18 @@ export class SimAdapter implements BodyPort {
     return !location.objects.some((o) => o.x === x && o.y === y && o.extra?.passable === false) && !location.characters.some((c) => c.x === x && c.y === y && c.kind !== "farmer");
   }
 
-  private finish(task: NonNullable<SimAdapter["task"]>, status: BodyTaskStatus["status"], reason: string): void {
+  private finish(task: SimTaskState, status: BodyTaskStatus["status"], reason: string): void {
     task.status = status;
     task.reason = reason;
     task.events.push({ tick: this.tick, kind: status, detail: reason });
-    task.update++;
+    // A preempted task is no longer `this.task`, but its waiter still needs the outcome.
+    this.finished.set(task.task.seq, { status, reason, events: task.events.slice(-32) });
+    while (this.finished.size > 8) this.finished.delete(this.finished.keys().next().value!);
+  }
+
+  /** Records one event on the running task; a port's own button semantics use this. */
+  protected note(task: SimTaskState, kind: string, detail: string): void {
+    task.events.push({ tick: this.tick, kind, detail });
   }
 
   public snapshot(): BodyState {
@@ -300,9 +346,10 @@ export class SimAdapter implements BodyPort {
       version: bodyProtocolVersion, revision: ++this.revision, writtenAt: new Date().toISOString(), tick: this.tick, paused: this.paused,
       time: { day: this.day, season: "spring", dayOfMonth: this.day, year: 1, timeOfDay: 600 + this.tick % 1400, weather: "clear" },
       player: { location: this.player.location, x: this.player.x, y: this.player.y, px: this.player.x * 64, py: this.player.y * 64, facing: "down", name: "Tester", money: this.player.money, health: 100, stamina: 270, items: this.player.items },
-      body: { location: this.body.location, x: t.x, y: t.y, px: this.body.px, py: this.body.py, facing: this.body.facing, present: true, moving: false, selectedSlot: this.body.slot, stamina: this.body.stamina, money: this.player.money, items: this.body.items.filter((i): i is BodyItem => i !== null), activeTask: this.task && this.task.status === "running" ? this.task.task.seq : null, menu: this.menuState() },
+      body: { location: this.body.location, x: t.x, y: t.y, px: this.body.px, py: this.body.py, facing: this.body.facing, present: true, moving: this.movedLastTick, health: this.health, selectedSlot: this.body.slot, stamina: this.body.stamina, money: this.player.money, items: this.body.items.filter((i): i is BodyItem => i !== null), activeTask: this.task && this.task.status === "running" ? this.task.task.seq : null, menu: this.menuState() },
       map: { location: location.name, width: location.rows[0].length, height: location.rows.length, rows: location.rows },
       objects: location.objects, characters: location.characters, warps: location.warps, truncated: { objects: 0 },
+      ...(this.actionTiles === undefined ? {} : { actionTiles: this.actionTiles }),
     };
   }
 
@@ -317,6 +364,9 @@ export class SimAdapter implements BodyPort {
       stock: stock.map((item, index) => ({ index, id: item.id, name: item.name, price: item.price, stock: item.stock })),
     };
   }
+
+  /** The inputs this sim accepts; a port with its own controller overrides this and `declaration`. */
+  protected declaredInputs(): ReturnType<typeof SimAdapter.declaration>["inputs"] { return SimAdapter.declaration(this.cheatSetting).inputs; }
 
   // The body port, in memory.
   public declaration(): Promise<BodyDeclaration> { return Promise.resolve(SimAdapter.declaration(this.cheatSetting)); }
@@ -344,8 +394,11 @@ export class SimAdapter implements BodyPort {
       if (!this.paused) budget -= now - last;
       last = now;
       const current = this.task?.task.seq === task.seq ? this.task : undefined;
-      if (current !== undefined && ["done", "interrupted", "failed", "cancelled"].includes(current.status)) {
-        return { seq: task.seq, status: current.status, reason: current.reason, events: current.events.slice(-32), state: this.snapshot(), acceptMs: undefined, totalMs: Date.now() - started };
+      const ended = current !== undefined && ["done", "interrupted", "failed", "cancelled"].includes(current.status)
+        ? { status: current.status, reason: current.reason, events: current.events.slice(-32) }
+        : this.finished.get(task.seq);
+      if (ended !== undefined) {
+        return { seq: task.seq, status: ended.status, reason: ended.reason, events: ended.events, state: this.snapshot(), acceptMs: undefined, totalMs: Date.now() - started };
       }
       if (options.signal?.aborted) await this.cancelActive();
       if (budget <= 0) {

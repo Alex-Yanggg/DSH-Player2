@@ -121,6 +121,15 @@ export const bodyWarpSchema = z.object({
 });
 export type BodyWarp = z.infer<typeof bodyWarpSchema>;
 
+/** One tile the game itself answers, as raw data: position, layer, and the raw action string (or sheet#index where code answers by tile). */
+export const bodyActionTileSchema = z.object({
+  x: z.number().int().nonnegative(),
+  y: z.number().int().nonnegative(),
+  layer: z.string().min(1),
+  action: z.string().min(1).max(160),
+});
+export type BodyActionTile = z.infer<typeof bodyActionTileSchema>;
+
 /** One line of a shop's stock. */
 export const bodyMenuItemSchema = z.object({
   index: z.number().int().nonnegative(),
@@ -176,6 +185,8 @@ export const bodyStateSchema = z.object({
     present: z.boolean(),
     moving: z.boolean(),
     selectedSlot: z.number().int().nonnegative(),
+    /** The body's own health, when the game exports it (a reflex row reads it). */
+    health: z.number().optional(),
     stamina: z.number(),
     /** Its own gold; co-op farmers share one purse unless the farm splits wallets. */
     money: z.number().int(),
@@ -195,6 +206,8 @@ export const bodyStateSchema = z.object({
   characters: z.array(bodyCharacterSchema),
   warps: z.array(bodyWarpSchema),
   truncated: z.object({ objects: z.number().int().nonnegative() }),
+  /** Tiles the game answers (raw Action/TouchAction strings, mine tiles as sheet#index); absent from older adapters. */
+  actionTiles: z.array(bodyActionTileSchema).max(96).optional(),
 });
 export type BodyState = z.infer<typeof bodyStateSchema>;
 
