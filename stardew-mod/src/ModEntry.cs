@@ -470,7 +470,14 @@ internal sealed class ModEntry : Mod
             (this.previousCompanionAppearance ?? this.playerAppearanceBeforeCustomization).Apply(player);
             // The menu's name box edits the farmer's name: start it at the companion's, not the player's.
             player.Name = this.previousCompanionAppearance?.Name ?? this.ResolveCompanionName();
-            var menu = new CharacterCustomization(CharacterCustomization.Source.Wizard);
+            // The new-farmhand screen is the one that offers shirts and pants (the wizard's has none), and its OK
+            // announces nothing. It also offers the farm's name and pet, which are the player's: those come off.
+            var menu = new CharacterCustomization(CharacterCustomization.Source.NewFarmhand);
+            menu.farmnameBoxCC.visible = false;
+            this.Helper.Reflection.GetField<ClickableComponent>(menu, "farmLabel").GetValue().visible = false;
+            menu.petPortraitBox = null;
+            menu.leftSelectionButtons.RemoveAll(button => button.name == "Pet");
+            menu.rightSelectionButtons.RemoveAll(button => button.name == "Pet");
             menu.exitFunction = this.CompleteCompanionCustomization;
             this.activeAppearanceMenu = menu;
             Game1.activeClickableMenu = menu;
