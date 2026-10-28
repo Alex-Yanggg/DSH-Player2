@@ -105,6 +105,25 @@ describe("observation", () => {
     const look = await tool("world_observe").execute({});
     expect(look).toContain("Tiles the game itself answers, raw: (17,3) 'MineElevator'; (23,9) 'Mine'");
   });
+
+  it("the map window draws what stands on the ground and explains every character it uses", async () => {
+    const farm = sim.locations.get("Farm")!;
+    farm.rows[1] = "#..,,,,............#";
+    farm.objects.push(
+      { x: 3, y: 1, kind: "dirt", name: "Crop", extra: { crop: "Parsnip", ready: false, passable: true } },
+      { x: 4, y: 1, kind: "dirt", name: "Tilled Soil", extra: { passable: true } },
+      { x: 12, y: 1, kind: "blocker", name: "Landslide", extra: { passable: false, width: 3, height: 2, note: "the game clears it itself on Spring 5" } },
+    );
+    const map = await tool("world_map").execute({ x: 8, y: 3, radius: 6 });
+    expect(map).toContain("'*' growing crop");
+    expect(map).toContain("'=' tilled soil, empty");
+    expect(map).toContain("',' walkable ground a hoe can till");
+    expect(map).toContain("Blockers here: Landslide at (12,1): the game clears it itself on Spring 5.");
+    const row1 = map.split("\n").find((line) => line.startsWith("  1 "))!;
+    expect(row1.slice(4)).toBe(".*=,,.....XXX");
+    expect(map.split("\n").find((line) => line.startsWith("  2 "))!.slice(4)).toContain("@");
+    expect(map.split("\n")[2]).toBe("       5    10");
+  });
 });
 
 describe("navigation", () => {

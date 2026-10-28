@@ -31,7 +31,7 @@ export function createBodyTools(body: BodyPort) {
     }),
     defineTool({
       name: BODY_TOOL_NAMES.find,
-      description: "Search everything exported in your current location by kind and/or name (case-insensitive substring), nearest to you first. Kinds include object, forage, dirt, tree, grass, clump, bush, item, machine.",
+      description: "Search everything exported in your current location by kind and/or name (case-insensitive substring), nearest to you first. Kinds include object, forage, dirt, tree, grass, clump, bush, item, machine, blocker (story blockers like the landslide before the mines, with a note).",
       parameters: {
         kind: { type: "string", description: "Exact kind, optional." },
         name: { type: "string", description: "Substring of the name or id, optional." },
@@ -43,14 +43,14 @@ export function createBodyTools(body: BodyPort) {
     }),
     defineTool({
       name: BODY_TOOL_NAMES.map,
-      description: "Read the raw tile grid around a point of your current location, using the adapter's legend ('.' walkable, '#' blocked, '~' water, 'W' walk warp, 'D' door). Row labels are y, column header is x.",
+      description: "Read the tile grid around a point of your current location. The answer starts with a legend of every character it uses: ground ('.' walkable, ',' ground a hoe can till, '#' blocked, '~' water, 'W' walk warp, 'D' door) with what stands on it drawn over it (crops, tilled soil, grass, trees, debris, story blockers, you and the player). Row labels are y.",
       parameters: {
         x: { type: "integer", description: "Centre x (default: your tile)." },
         y: { type: "integer", description: "Centre y (default: your tile)." },
         radius: { type: "integer", description: "Half-size of the window (default 8, max 20)." },
       },
       output: textOutput,
-      execute: async (args) => renderMapAround(await body.state(), { ...args, radius: Math.min(20, Math.max(2, args.radius ?? 8)) }),
+      execute: async (args) => renderMapAround(await body.state(), { ...args, radius: Math.min(20, Math.max(2, args.radius ?? 8)) }, (await body.declaration()).state.legend),
     }),
     defineTool({
       name: BODY_TOOL_NAMES.locations,
@@ -110,6 +110,8 @@ function describeObject(o: BodyState["objects"][number]): string {
   if (extra.ready === true && o.kind !== "dirt") bits.push("ready");
   if (extra.passable === false) bits.push("blocks");
   if (o.kind === "tree") bits.push(`stage ${String(extra.stage)}${extra.stump ? " stump" : ""}`);
+  if (typeof extra.width === "number" && typeof extra.height === "number" && extra.width * extra.height > 1) bits.push(`${extra.width}x${extra.height} tiles`);
+  if (typeof extra.note === "string") bits.push(extra.note);
   return `${o.name} (${o.kind}${o.id ? ` ${o.id}` : ""}) at (${o.x},${o.y})${bits.length ? `: ${bits.join(", ")}` : ""}`;
 }
 
@@ -164,21 +166,83 @@ export function renderObservation(state: BodyState, radius: number): string {
   return lines.join("\n");
 }
 
+/** Ground characters when the adapter declares no legend. */
+const GROUND: Record<string, string> = {
+  ".": "walkable",
+  ",": "walkable ground a hoe can till",
+  "#": "blocked (wall, building, cliff, or something listed in world_observe)",
+  "~": "water",
+  "W": "walk warp",
+  "D": "door (face it and press the action button)",
+};
+
+/** What stands on a tile, drawn over the ground: the letter and its legend entry. */
+function markOf(o: BodyState["objects"][number]): [string, string] | undefined {
+  const extra = o.extra ?? {};
+  switch (o.kind) {
+    case "dirt":
+      if (!extra.crop) return ["=", "tilled soil, empty"];
+      return extra.ready ? ["$", "crop ready to harvest"] : ["*", "growing crop"];
+    case "grass": return ['"', "grass (walkable; a hoe cannot till under it, cut it first)"];
+    case "tree": return ["T", "tree"];
+    case "clump": return ["C", "stump, log or boulder (several tiles)"];
+    case "blocker": return ["X", "story blocker (world_find kind blocker says what it is)"];
+    case "item": return ["i", "item lying on the ground"];
+    default: return extra.passable === false ? ["o", "blocking object (stone, twig, weeds, machine...)"] : undefined;
+  }
+}
+
 /** The `world_map` window shared by the tools; `radius` arrives clamped (2..20). */
-export function renderMapAround(state: BodyState, args: { x?: number; y?: number; radius: number }): string {
+export function renderMapAround(state: BodyState, args: { x?: number; y?: number; radius: number }, ground: Readonly<Record<string, string>> = GROUND): string {
   const x0 = Math.max(0, (args.x ?? state.body?.x ?? state.player.x) - args.radius);
   const y0 = Math.max(0, (args.y ?? state.body?.y ?? state.player.y) - args.radius);
   const x1 = Math.min(state.map.width - 1, x0 + 2 * args.radius);
   const y1 = Math.min(state.map.height - 1, y0 + 2 * args.radius);
   const overlay = new Map<string, string>();
-  for (const o of state.objects) if (o.extra?.passable === false) overlay.set(`${o.x},${o.y}`, "o");
+  const marks = new Map<string, string>();
+  for (const o of state.objects) {
+    const mark = markOf(o);
+    if (mark === undefined) continue;
+    const w = typeof o.extra?.width === "number" ? o.extra.width : 1;
+    const h = typeof o.extra?.height === "number" ? o.extra.height : 1;
+    for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) {
+      const key = `${o.x + dx},${o.y + dy}`;
+      // A blocking thing wins over grass or soil drawn on the same tile.
+      if (!overlay.has(key) || o.extra?.passable === false) overlay.set(key, mark[0]);
+    }
+    marks.set(mark[0], mark[1]);
+  }
   if (state.body && state.body.location === state.map.location) overlay.set(`${state.body.x},${state.body.y}`, "@");
   if (state.player.location === state.map.location) overlay.set(`${state.player.x},${state.player.y}`, "P");
-  const lines = [`${state.map.location} x ${x0}..${x1}, y ${y0}..${y1}. '@' you, 'P' player, 'o' blocking object.`];
+  marks.set("@", "you").set("P", "player");
+  const rows: string[] = [];
+  const used = new Set<string>();
   for (let y = y0; y <= y1; y++) {
     let row = "";
     for (let x = x0; x <= x1; x++) row += overlay.get(`${x},${y}`) ?? state.map.rows[y]?.[x] ?? " ";
-    lines.push(`${String(y).padStart(3)} ${row}`);
+    for (const c of row) used.add(c);
+    rows.push(`${String(y).padStart(3)} ${row}`);
   }
-  return lines.join("\n");
+  const legend = [...used].filter((c) => c !== " ").map((c) => `'${c}' ${marks.get(c) ?? ground[c] ?? GROUND[c] ?? "?"}`);
+  const named = state.objects
+    .filter((o) => o.kind === "blocker" && o.x <= x1 && o.y <= y1 && o.x + (Number(o.extra?.width) || 1) > x0 && o.y + (Number(o.extra?.height) || 1) > y0)
+    .map((o) => `${o.name} at (${o.x},${o.y})${o.extra?.note ? `: ${String(o.extra.note)}` : ""}`);
+  return [
+    `${state.map.location} x ${x0}..${x1}, y ${y0}..${y1}. Legend: ${legend.join(", ")}.`,
+    ...(named.length > 0 ? [`Blockers here: ${named.join("; ")}.`] : []),
+    `    ${columnHeader(x0, x1)}`,
+    ...rows,
+  ].join("\n");
+}
+
+/** The x of every fifth column, so a tile can be read off the window. */
+function columnHeader(x0: number, x1: number): string {
+  const header = Array.from({ length: x1 - x0 + 1 }, () => " ");
+  for (let x = x0; x <= x1; x++) {
+    if (x % 5 !== 0) continue;
+    const label = String(x);
+    if (x - x0 + label.length > header.length || header.slice(x - x0, x - x0 + label.length).some((c) => c !== " ")) continue;
+    for (let i = 0; i < label.length; i++) header[x - x0 + i] = label[i]!;
+  }
+  return header.join("").trimEnd();
 }
