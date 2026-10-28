@@ -469,9 +469,10 @@ internal sealed class BodyStateExporter
 
     /// <summary>
     /// Story blockers a location keeps outside its object lists, so the grid
-    /// shows only '#' there: the landslide before the mines, the boulder on the
-    /// railroad path, the big log at the Secret Woods. Read by field name, as
-    /// the game holds them; a field this game version lacks is skipped.
+    /// shows only '#' there: the landslide before the mines and the boulder on
+    /// the railroad path. Read by field name, as the game holds them; a field
+    /// this game version lacks is skipped. (The Secret Woods log is a resource
+    /// clump in 1.6 and is listed with the clumps.)
     /// </summary>
     internal static IEnumerable<BodyObject> Blockers(GameLocation location)
     {
@@ -482,19 +483,6 @@ internal sealed class BodyStateExporter
                 found.Add(Blocker(slide, "Landslide", "fallen rocks over the way to the mines; the game clears them itself on Spring 5 of year 1"));
             if (Member(mountain, "railroadAreaBlocked") is (true or Netcode.NetBool { Value: true }) && Member(mountain, "railroadBlockRect") is Rectangle rail)
                 found.Add(Blocker(rail, "Boulder on the railroad path", "the game clears it itself with an earthquake on Summer 3 of year 1"));
-        }
-        if (location is StardewValley.Locations.Forest forest)
-        {
-            var log = Member(forest, "log") switch
-            {
-                ResourceClump clump => clump,
-                Netcode.NetRef<ResourceClump> net => net.Value,
-                _ => null,
-            };
-            if (log is not null && !location.resourceClumps.Contains(log))
-                found.Add(new BodyObject((int)log.Tile.X, (int)log.Tile.Y, "blocker", "Large Log", log.parentSheetIndex.Value.ToString(),
-                    new Dictionary<string, object?> { ["passable"] = false, ["width"] = log.width.Value, ["height"] = log.height.Value, ["health"] = log.health.Value,
-                        ["note"] = "blocks the way to the Secret Woods; a steel axe or better breaks it" }));
         }
         return found;
     }
