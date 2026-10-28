@@ -581,7 +581,6 @@ function messageText(message: UserMessage): string {
   return message.content.map((block) => (block.type === "text" ? block.text : "")).join("");
 }
 
-/** The non-empty text of one committed assistant message event, or null. */
 /** The web tools a look-up goes through. */
 const LOOKUP_TOOLS = new Set(["web_search", "web_fetch"]);
 
@@ -626,6 +625,7 @@ function calledTools(event: { type: string; data: unknown }): string[] {
   return content.filter((block) => block.type === "tool-call" && typeof block.name === "string").map((block) => block.name!);
 }
 
+/** The non-empty text of one committed assistant message event, or null. */
 function assistantEventText(event: { type: string; data: unknown }): string | null {
   if (event.type !== "assistant/message") return null;
   const content = (event.data as { message?: { content?: readonly { type: string; text?: string }[] } }).message?.content ?? [];
