@@ -170,7 +170,8 @@ describe("the async claim on the sim (idle ratio, actions per game minute)", () 
     const steps: PlanStepInput[] = [];
     for (let index = 0; index < 12; index++) {
       steps.push({ label: `pace ${index}`, tool: "body_input", args: { steps: [{ hold: [index % 2 === 0 ? "DPadRight" : "DPadLeft"], ms: 400 }] } });
-      steps.push({ label: `breathe ${index}`, tool: "wait", args: { minutes: 1 } });
+      // A short idle input, not a wait: a game minute (700 ms) would make the 3 s bench count the clock, not the board.
+      steps.push({ label: `breathe ${index}`, tool: "body_input", args: { steps: [{ ms: 300 }] } });
     }
     made.board.set("pace the meadow", steps);
     const asyncSamples: boolean[] = [];
