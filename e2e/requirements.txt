@@ -4,4 +4,3 @@ pillow>=12.1
 psutil>=7.2
 pywin32>=311
 dxcam==0.3.0
-zstandard>=0.25
