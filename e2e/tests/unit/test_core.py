@@ -146,3 +146,37 @@ def test_bedtime_answers_only_a_question_on_screen():
     except TimeoutError as stop:
         assert "night never ended" in str(stop)  # past the bed: the host did get in
     assert keys.log == ["a", "d", "a", "d", "a", "d", "y"]
+
+
+def test_grab_tries_the_front_first_and_tags_a_printwindow_frame(monkeypatch):
+    """PrintWindow can return an old frame of the game: grab brings the game forward and reads DXGI first, and a
+    frame that still had to come from PrintWindow says so."""
+    from gamepilot import capture
+
+    foreground = {"hwnd": 1}
+    focused = []
+    monkeypatch.setattr(capture.user32, "GetForegroundWindow", lambda: foreground["hwnd"], raising=False)
+    monkeypatch.setattr(capture, "focus", lambda hwnd, attempts=8: focused.append(hwnd) or False)
+    monkeypatch.setattr(capture, "_dxgi", lambda rect: Image.new("RGB", (2, 2), "red"))
+    monkeypatch.setattr(capture, "print_window", lambda hwnd, rect: Image.new("RGB", (2, 2), "blue"))
+
+    stale = capture.grab(gp.Rect(0, 0, 2, 2), hwnd=7)
+    assert focused == [7] and stale.info.get("backend") == "printwindow"
+
+    foreground["hwnd"] = 7
+    fresh = capture.grab(gp.Rect(0, 0, 2, 2), hwnd=7)
+    assert focused == [7] and "backend" not in fresh.info
+
+
+def test_a_possibly_stale_shot_is_named_with_its_game_time(tmp_path):
+    from games.stardew import StardewGame
+
+    game = StardewGame.__new__(StardewGame)
+    game.art = gp.RunArtifacts(tmp_path, "run")
+    frame = Image.new("RGB", (2, 2))
+    frame.info["backend"] = "printwindow"
+    game.frame = lambda: frame
+    game.state = lambda: {"time": {"dayOfMonth": 5, "timeOfDay": 650}}
+    game.shot("parsnips_day5")
+    assert (tmp_path / "run" / "parsnips_day5_possibly-stale_day5-0650.png").exists()
+    assert "parsnips_day5_possibly-stale_day5-0650" in game.art.results["possibly_stale_shots"]

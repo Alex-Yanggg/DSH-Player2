@@ -111,6 +111,11 @@ def pytest_sessionfinish(session):
                          f"{sum(r['outcome']=='error' for r in rs)} | {sum(r['outcome']=='skipped' for r in rs)} |")
     lines += ["", "## Details", ""]
     lines += [f"- **{r['outcome'].upper()}** `{r['category']}/{r['test']}` {r['detail']}" for r in _results]
+    if stale := art.results.get("possibly_stale_shots"):
+        lines += ["", "## Possibly stale screenshots", "",
+                  "Taken through PrintWindow (the game was not in front), which can return an old frame; each is named "
+                  "with the game time it should show.", ""]
+        lines += [f"- `{name}.png`" for name in stale]
     (art.dir / "summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     observe(art.dir)
 
