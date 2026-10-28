@@ -124,6 +124,44 @@ describe("Player2 companion inside the ACP profile", () => {
     expect(refused.isError).toBe(true);
   });
 
+  it("leaves a blocked goal set aside: plan facts reach the mind as a follow-up turn", async () => {
+    const sim = new SimAdapter({ locations: [{ name: "Farm", rows: ["....."], warps: [], objects: [], characters: [] }], body: { location: "Farm", x: 1, y: 0, items: [] } });
+    const followups: string[] = [];
+    const resumed: unknown[] = [];
+    const agent = { status: "idle", session: { id: "s-1", header: { cwd: "" } }, followup: (message: { content: { text?: string }[] }) => { followups.push(message.content.map((block) => block.text ?? "").join("")); } };
+    const ctx = new Context();
+    await ctx.plugin(SystemPrompt);
+    await ctx.plugin(ToolRuntime);
+    ctx.provide("agents", { list: () => [agent] });
+    ctx.provide("goals", { get: () => ({ id: "g-1", revision: 3, phase: "blocked", blockedReason: { message: "short of gold" } }), resume: (...args: unknown[]) => { resumed.push(args); }, disarm: () => undefined });
+    await ctx.plugin(companionPlugin, { persona: packPath("da-fei-yu"), body: sim });
+    const signal = new AbortController().signal;
+    const set = (steps: unknown[]) => ctx.tools.execute({ callId: ToolCallId(`call-${steps.length}`), name: "plan_set", arguments: { approach: "wait a bit", steps }, agent: agent as never, signal });
+    expect((await set([{ tool: "wait", args: { minutes: 60 } }])).isError).toBe(false);
+    expect((await set([])).isError).toBe(false);
+    expect(resumed).toEqual([]);
+    expect(followups.join("\n")).toContain("The plan was taken back");
+  });
+
+  it("asks the mind what it wants to do once its hands stood empty for a game hour", async () => {
+    const sim = new SimAdapter({ locations: [{ name: "Farm", rows: ["....."], warps: [], objects: [], characters: [] }], body: { location: "Farm", x: 1, y: 0, items: [] } });
+    await sim.start(10);
+    const followups: string[] = [];
+    const agent = { status: "idle", session: { id: "s-2", header: { cwd: "" } }, followup: (message: { content: { text?: string }[] }) => { followups.push(message.content.map((block) => block.text ?? "").join("")); } };
+    const ctx = new Context();
+    await ctx.plugin(SystemPrompt);
+    await ctx.plugin(ToolRuntime);
+    ctx.provide("agents", { list: () => [agent] });
+    await ctx.plugin(companionPlugin, { persona: packPath("da-fei-yu"), body: sim });
+    try {
+      const deadline = Date.now() + 9_000;
+      while (followups.length === 0 && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(followups[0]).toContain("Your hands are empty");
+    } finally {
+      await sim.stop();
+    }
+  }, 12_000);
+
   it("reads the game's turn markers", () => {
     expect(companionPlugin.readMarker("[chat day=12] 你好")).toEqual({ kind: "chat", day: 12, text: "你好" });
     expect(companionPlugin.readMarker("[day-end day=3]")).toEqual({ kind: "day-end", day: 3, text: "" });

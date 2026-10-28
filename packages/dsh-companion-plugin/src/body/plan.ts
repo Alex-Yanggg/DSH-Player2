@@ -96,6 +96,11 @@ export class PlanBoard {
     return this.facts.splice(0);
   }
 
+  /** True while a plan stands or a step is still running. */
+  public isWorking(): boolean {
+    return this.plan !== null || this.working;
+  }
+
   /** True while an undelivered finish or stop waits — a reason to wake the mind. */
   public wakePending(): boolean {
     return this.wake;
