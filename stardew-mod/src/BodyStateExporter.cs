@@ -86,7 +86,7 @@ internal sealed class BodyStateExporter
         foreach (var pair in location.objects.Pairs)
         {
             var o = pair.Value;
-            var extra = new Dictionary<string, object?> { ["passable"] = o.isPassable(), ["category"] = o.Category };
+            var extra = new Dictionary<string, object?> { ["passable"] = o.isPassable(), ["category"] = o.Category, ["internalName"] = o.Name };
             if (o.readyForHarvest.Value) extra["ready"] = true;
             if (o.heldObject.Value is { } held) extra["holding"] = held.DisplayName;
             if (o.MinutesUntilReady > 0) extra["minutesUntilReady"] = o.MinutesUntilReady;

@@ -36,8 +36,14 @@ internal sealed record CompanionAppearance(
             farmer.Gender);
     }
 
+    /// <summary>
+    /// Dresses the farmer in this look. Worn clothing items override the base shirt and
+    /// pants the look carries (a farmhand wears its creation outfit as items), so they come off.
+    /// </summary>
     public void Apply(Farmer farmer)
     {
+        farmer.shirtItem.Value = null;
+        farmer.pantsItem.Value = null;
         farmer.Gender = this.Gender;
         farmer.hair.Value = this.Hair;
         farmer.skin.Value = this.Skin;

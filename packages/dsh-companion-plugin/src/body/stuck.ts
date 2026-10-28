@@ -6,8 +6,8 @@ import type { BodyState } from "@dsh-player2/contracts";
  * observed state counts as one wall; on the third hit the body stops — the
  * plan executor holds — and the mind gets a stuck fact with the recent
  * attempts. The observed state is the world around the body, deliberately not
- * its vitals or the clock: a losing fight or a passing minute is not the
- * world answering differently.
+ * its vitals, the clock, or anyone else moving about: a losing fight, a passing
+ * minute or the player walking by is not the world answering differently.
  */
 
 /** Consecutive same-signature, no-change hits that make a wall. */
@@ -20,16 +20,16 @@ export interface StuckAttempt {
   readonly outcome: string;
 }
 
-/** A cheap canonical digest of the world around the body: location, tile, toolbar, player, menu, objects, characters. */
+/** A cheap canonical digest of the world around the body: location, tile, toolbar, menu, objects, who is there. */
 export function stateDigest(state: BodyState): string {
   const body = state.body;
   const items = (list: readonly { name: string; stack: number }[]) => list.map((i) => `${i.name}x${i.stack}`).sort().join(",");
   const objects = state.objects.map((o) => `${o.name}@${o.x},${o.y}:${o.extra?.ready === true ? "r" : ""}${o.extra?.passable === false ? "b" : ""}`).sort().join(",");
-  const characters = state.characters.map((c) => `${c.name}@${c.x},${c.y}`).sort().join(",");
+  // Who is here, not where they stand: someone else moving about is not the world answering.
+  const characters = state.characters.map((c) => c.name).sort().join(",");
   const menu = body?.menu === null || body?.menu === undefined ? "" : `${body.menu.kind}:${body.menu.focus ?? ""}`;
   return [
     body === null ? "nobody" : `${body.location}:${body.x},${body.y}:${body.facing}:${body.selectedSlot}:${items(body.items)}`,
-    `player:${state.player.location}:${state.player.x},${state.player.y}:${state.player.money}:${items(state.player.items)}`,
     menu,
     objects,
     characters,
@@ -80,10 +80,10 @@ export class StuckWatch {
     }
     this.attempts.push({ tool, target, outcome });
     if (this.attempts.length > 6) this.attempts.shift();
+    // The count stays: the same action met again in the same world is the wall again at once.
     if (this.hits >= STUCK_HITS) {
       this.fact = stuckFact(signature, this.attempts);
       this.holding = true;
-      this.hits = 0;
     }
   }
 
@@ -104,9 +104,12 @@ export class StuckWatch {
     return this.holding;
   }
 
-  /** The mind acted and the world answered; the body may work the plan again. */
+  /**
+   * The mind handed down a new plan: the body may work again. The count is
+   * kept, so a new plan that repeats the action that met the wall, in the
+   * world that did not change, stops at once instead of starting over.
+   */
   public release(): void {
-    this.reset();
     this.holding = false;
   }
 

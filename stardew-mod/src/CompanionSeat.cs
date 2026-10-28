@@ -113,6 +113,8 @@ internal sealed class CompanionSeat
             Game1.player.FarmerRenderer.MarkSpriteDirty();
             this.appearanceDirty = false;
         }
+        // A farmhand keeps the name it was created with; the companion's name is the persona's, every day.
+        if (Playing && Game1.player.Name != this.Name) Game1.player.Name = this.Name;
     }
 
     private void TakeFarmer(FarmhandMenu menu)
