@@ -480,7 +480,7 @@ internal sealed class BodyStateExporter
         {
             if (Member(mountain, "landslide") is Netcode.NetBool { Value: true } && Member(mountain, "landSlideRect") is Rectangle slide)
                 found.Add(Blocker(slide, "Landslide", "fallen rocks over the way to the mines; the game clears them itself on Spring 5 of year 1"));
-            if (Member(mountain, "railroadAreaBlocked") is true && Member(mountain, "railroadBlockRect") is Rectangle rail)
+            if (Member(mountain, "railroadAreaBlocked") is (true or Netcode.NetBool { Value: true }) && Member(mountain, "railroadBlockRect") is Rectangle rail)
                 found.Add(Blocker(rail, "Boulder on the railroad path", "the game clears it itself with an earthquake on Summer 3 of year 1"));
         }
         if (location is StardewValley.Locations.Forest forest)
