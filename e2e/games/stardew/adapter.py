@@ -240,6 +240,7 @@ class StardewFlows:
         # because the cursor never hovers it.
         while not self._title_buttons_visible():
             if time.monotonic() > deadline:
+                self.shot("FAIL_title_wait")
                 raise TimeoutError("title buttons never appeared")
             time.sleep(0.5)
         time.sleep(1.5)
