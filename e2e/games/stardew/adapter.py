@@ -94,6 +94,9 @@ def build_test_save(paths: Paths, source: str | None = None) -> Path:
     source = source or os.environ.get("E2E_SOURCE_SAVE", "")
     if not source or not (paths.saves / source / source).is_file():
         raise RuntimeError(f"set E2E_SOURCE_SAVE to a day-1 save folder in {paths.saves} (got {source!r}); see e2e/README.md")
+    # Without a cabin the mod has no seat for the companion: the run would load single-player and world_state stays null.
+    if 'xsi:type="Cabin"' not in (paths.saves / source / source).read_text(encoding="utf-8"):
+        raise RuntimeError(f"template {source!r} has no cabin on its farm, so the companion cannot be seated; pick one that has")
     _forget_previous_test_save(paths)
     LAST_TEST_SAVE.parent.mkdir(parents=True, exist_ok=True)
     LAST_TEST_SAVE.write_text(str(TEST_SAVE_ID), encoding="utf-8")
@@ -327,9 +330,10 @@ class StardewFlows:
             self.refocus()
             self.kb.hold("a", 0.4)
             self.kb.hold("d", 0.5)
-            self._wait_dialog(5)
-            # The sleep question's Yes, tapped even when the dimmed night screen hides the
-            # dialog from the color heuristic; without a question the tap is harmless.
+            # Yes only to a question on screen: without one, Y opens the emote wheel, which then
+            # swallows every later step out of bed (the night screen does not hide the question box).
+            if not self._wait_dialog(5):
+                continue
             self.kb.tap("y")
             if self.smapi.wait_for(in_bed, 5, since=mark):
                 break

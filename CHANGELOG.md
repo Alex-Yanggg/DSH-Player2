@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased - companion fixes from play testing
+
+- the companion's farmhand wears the look chosen in the appearance menu (its
+  creation clothes no longer hide it) and carries the persona's name;
+- the companion knows it plays Stardew Valley and checks a goal's
+  preconditions, on the wiki when unsure, before planning;
+- walks clear stones, twigs and weeds off their own path with the matching
+  tool (obstacle rows in the reflex table);
+- a plan stops at a step that failed or missed its expected change; `wait`
+  waits the game minutes asked for; the stuck count survives a new plan.
+
 ## 0.2.0 - behavior layer and mine goal (P2-0019)
 
 - small brain by default (P2-0019c): all body work goes through `plan_set`;

@@ -151,6 +151,15 @@ describe("walk helper over raw input", () => {
     expect(sim.body.location).toBe("Town");
   });
 
+  it("walking onto a way out goes through it, and a door in a wall leads where it goes", async () => {
+    sim.locations.get("Farm")!.warps.push({ x: 10, y: 3, to: "Town", toX: 5, toY: 2, kind: "action" });
+    const door = await walkTo(client, controlsOf(await client.declaration()), () => client.world(), { x: 10, y: 3, mode: "stand" });
+    expect(door.ok, door.reason).toBe(true);
+    expect(door.reason).toContain("into Town");
+    expect(sim.body.location).toBe("Town");
+    expect(sim.tile).toEqual({ x: 5, y: 2 });
+  });
+
   it("fails honestly for an unreachable tile", async () => {
     const result = await walkTo(client, controlsOf(await client.declaration()), () => client.world(), { x: 0, y: 0, mode: "stand" });
     expect(result.ok).toBe(false);
@@ -167,6 +176,30 @@ describe("walk helper over raw input", () => {
     expect(result.ok).toBe(false);
     // The shortest way runs through the stump; a way around it is named first.
     expect(result.reason).toMatch(/in the way: Stone at \((6|8),6\)$/);
+  });
+
+  it("clears breakable things off the only way in: walk next to one, face it, select the tool, swing", async () => {
+    const farm = sim.locations.get("Farm")!;
+    farm.objects.push(...[6, 7, 8, 9].map((x) => ({ x, y: 6, kind: "object", name: "石头", id: "(O)450", extra: { passable: false, internalName: "Stone", breaksWith: "Pickaxe", hits: 2 } })));
+    sim.body.items[4] = { slot: 4, id: "(T)Pickaxe", name: "Pickaxe", stack: 1, category: "Tool" };
+    const obstacles = [{ id: "stone", match: { internalNames: ["Stone"] }, tool: ["Pickaxe"], swing: [{ press: ["ControllerX"], ms: 100 }], maxSwings: 3 }];
+    const result = await walkTo(client, controlsOf(await client.declaration()), () => client.world(), { x: 7, y: 5, mode: "stand" }, { obstacles });
+    expect(result.ok, result.reason).toBe(true);
+    expect(result.reason).toContain("cleared on the way: 石头");
+    expect(sim.tile).toEqual({ x: 7, y: 5 });
+    expect(farm.objects.filter((o) => o.name === "石头")).toHaveLength(3);
+    expect(sim.inputsSeen.some((t) => t.steps.some((s) => s.press?.includes("Slot5")))).toBe(true);
+  });
+
+  it("leaves things it has no tool for, and walks around a short detour rather than clearing", async () => {
+    const farm = sim.locations.get("Farm")!;
+    farm.objects.push({ x: 5, y: 2, kind: "object", name: "Stone", extra: { passable: false, internalName: "Stone", breaksWith: "Pickaxe" } });
+    sim.body.items[4] = { slot: 4, id: "(T)Pickaxe", name: "Pickaxe", stack: 1, category: "Tool" };
+    const obstacles = [{ id: "stone", match: { internalNames: ["Stone"] }, tool: ["Pickaxe"], swing: [{ press: ["ControllerX"], ms: 100 }], maxSwings: 3 }];
+    const result = await walkTo(client, controlsOf(await client.declaration()), () => client.world(), { x: 8, y: 2, mode: "stand" }, { obstacles });
+    expect(result.ok, result.reason).toBe(true);
+    expect(result.reason).not.toContain("cleared");
+    expect(farm.objects.some((o) => o.name === "Stone")).toBe(true);
   });
 });
 
