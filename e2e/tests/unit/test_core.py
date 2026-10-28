@@ -102,3 +102,17 @@ def test_strip_farm_stones_removes_stones_only_from_the_farm(tmp_path, monkeypat
     mine = after.split('xsi:type="UndergroundMine1"')[1]
     assert "Stone" not in farm and "Weeds" in farm
     assert "<name>Stone</name>" in mine  # mine floors keep their stones
+
+
+def test_a_template_without_a_cabin_is_refused(tmp_path, monkeypatch):
+    """The companion is seated in a farm cabin; a template without one would load single-player with no body."""
+    import pytest
+    from games.stardew import Paths, build_test_save
+
+    saves = tmp_path / "Saves"
+    (saves / "t_1").mkdir(parents=True)
+    (saves / "t_1" / "t_1").write_text('<locations><GameLocation xsi:type="Farm" /></locations>', encoding="utf-8")
+    paths = Paths()
+    monkeypatch.setattr(paths, "saves", saves)
+    with pytest.raises(RuntimeError, match="no cabin"):
+        build_test_save(paths, "t_1")
