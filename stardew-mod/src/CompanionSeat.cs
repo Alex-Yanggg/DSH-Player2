@@ -49,6 +49,9 @@ internal sealed class CompanionSeat
 
     public CompanionAppearance? Appearance { get; private set; }
 
+    /// <summary>The name its farmer carries: the one typed in its appearance menu, else the persona's.</summary>
+    private string FarmerName => this.Appearance?.Name is { Length: > 0 } chosen ? chosen : this.Name;
+
     public void SetAppearance(CompanionAppearance appearance)
     {
         this.Appearance = appearance;
@@ -113,8 +116,9 @@ internal sealed class CompanionSeat
             Game1.player.FarmerRenderer.MarkSpriteDirty();
             this.appearanceDirty = false;
         }
-        // A farmhand keeps the name it was created with; the companion's name is the persona's, every day.
-        if (Playing && Game1.player.Name != this.Name) Game1.player.Name = this.Name;
+        // A farmhand keeps the name it was created with; the companion's is the one chosen in its
+        // appearance menu, else the persona's, every day.
+        if (Playing && Game1.player.Name != this.FarmerName) Game1.player.Name = this.FarmerName;
     }
 
     private void TakeFarmer(FarmhandMenu menu)
@@ -136,10 +140,10 @@ internal sealed class CompanionSeat
         var player = Game1.player;
         this.Appearance?.Apply(player);
         player.modData[FarmhandKey] = "1";
-        this.reflection.GetField<TextBox>(creator, "nameBox").GetValue().Text = this.Name;
+        this.reflection.GetField<TextBox>(creator, "nameBox").GetValue().Text = this.FarmerName;
         this.reflection.GetField<TextBox>(creator, "favThingBox").GetValue().Text = "farming";
         // The menu copies its boxes into the farmer only while drawn, and the seat is not drawn.
-        player.Name = this.Name;
+        player.Name = this.FarmerName;
         player.favoriteThing.Value = "farming";
         player.farmName.Value = Game1.MasterPlayer.farmName.Value;
         this.reflection.GetMethod(creator, "optionButtonClick").Invoke("OK");

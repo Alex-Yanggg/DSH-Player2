@@ -4,6 +4,8 @@ the console fixture channel is then unavailable)."""
 from __future__ import annotations
 
 import os
+import shlex
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -110,3 +112,19 @@ def pytest_sessionfinish(session):
     lines += ["", "## Details", ""]
     lines += [f"- **{r['outcome'].upper()}** `{r['category']}/{r['test']}` {r['detail']}" for r in _results]
     (art.dir / "summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    observe(art.dir)
+
+
+def observe(run: Path):
+    """Runs the command in E2E_OBSERVER with the run directory appended, after the game has quit, so an outside
+    observer can read this run's records. Its failure never fails the run; it is noted in summary.md."""
+    if not (cmd := os.environ.get("E2E_OBSERVER")):
+        return
+    try:
+        p = subprocess.run([*(a.strip('"') for a in shlex.split(cmd, posix=os.name != "nt")), str(run)], capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=900)
+        note = f"observer exit {p.returncode}" + (f": {p.stderr.strip().splitlines()[-1][:200]}" if p.returncode and p.stderr.strip() else "")
+    except (OSError, subprocess.TimeoutExpired) as e:
+        note = f"observer failed: {e}"
+    with (run / "summary.md").open("a", encoding="utf-8") as f:
+        f.write(f"\n{note}\n")

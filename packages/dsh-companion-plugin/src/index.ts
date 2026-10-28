@@ -29,11 +29,12 @@ import { defineTool } from "@deepseek-ai/dsh-tools";
 import z from "@deepseek-ai/schemastery";
 import { readFileSync } from "node:fs";
 import { parsePersonaPack, type PersonaPack } from "@dsh-player2/contracts";
-import { GameBody, type BodyPort } from "./body/port.js";
+import { GameBody, sleep, type BodyPort } from "./body/port.js";
 import { PersonaDice, tendencyLines, turnNudges } from "./body/knobs.js";
 import { loadReflexTable, ReflexBody } from "./body/reflex.js";
 import { PlanBoard, type PlanStepInput } from "./body/plan.js";
 import { StuckWatch } from "./body/stuck.js";
+import { IdleWatch, idleFact } from "./body/idle.js";
 import { createBodyTools, textOutput } from "./body/tools.js";
 import { DEFAULT_GAME, MindCore, type PreparedDream, type PreparedMind } from "./mind/core.js";
 import { DREAM_LEDGER_INSTRUCTIONS } from "./mind/dream-ledger.js";
@@ -45,6 +46,7 @@ export { GameBody, sleep, type BodyPort, type BodyRun, type RunOptions } from ".
 export { PersonaDice, tendencyLines, turnNudges } from "./body/knobs.js";
 export { ReflexBody, ReflexEngine, loadReflexTable, nearestMonster, renderFact, roleButtons } from "./body/reflex.js";
 export { StuckWatch, stateDigest, stuckFact, STUCK_HITS, type StuckAttempt } from "./body/stuck.js";
+export { IdleWatch, IDLE_MINUTES, clockMinutes, idleFact } from "./body/idle.js";
 export { PlanBoard, type PlanStepInput } from "./body/plan.js";
 export { createBodyTools, BODY_TOOL_NAMES, renderObservation } from "./body/tools.js";
 
@@ -112,7 +114,7 @@ interface SaveState {
 
 /** The slice of DSH's goal service this plugin uses. */
 interface GoalAccess {
-  get(agent: Agent): { id: never; revision: number; phase: string } | undefined;
+  get(agent: Agent): { id: never; revision: number; phase: string; blockedReason?: { message: string } } | undefined;
   resume(agent: Agent, ref: { id: never; revision: number }): unknown;
   disarm(agent: Agent): unknown;
 }
@@ -187,7 +189,9 @@ export function apply(ctx: Context, config: Config): void {
     if (!news) return;
     const goals = (ctx as unknown as { get(name: string): unknown }).get("goals") as GoalAccess | undefined;
     const goal = goals?.get(agent);
-    if (goal !== undefined && goal.phase !== "complete") {
+    // A goal the mind marked blocked waits for the player or the next morning;
+    // re-arming it on every plan or reflex fact only had the mind block it again.
+    if (goal !== undefined && goal.phase !== "complete" && goal.phase !== "blocked") {
       try {
         goals!.resume(agent, { id: goal.id, revision: goal.revision });
         return;
@@ -312,7 +316,7 @@ export function apply(ctx: Context, config: Config): void {
     execute: async (args, exec) => {
       const state = stateOf(exec.agent);
       if (state?.mind == null) return "Nothing was kept: this session has no memory.";
-      const kept = await state.mind.learnLesson(String(args.text), String(args.topic ?? "general"), new Date());
+      const kept = await state.mind.learnLesson(String(args.text), String(args.topic ?? "general"), new Date(), state.day);
       return kept === "kept" ? "Kept." : "Known already: the same lesson is kept.";
     },
   })), "player2-companion.tool.lesson_learn");
@@ -361,11 +365,16 @@ export function apply(ctx: Context, config: Config): void {
       }
       if (marker?.day != null) state.day = marker.day;
       const lines: string[] = [];
+      if (marker?.kind === "day-start") state.memoryShown = false; // a new day re-reads memory against today (P2-0019d)
+      if (marker?.kind === "day-start") {
+        const fresh = rearmBlocked(ctx, payload.agent);
+        if (fresh !== null) lines.push(fresh);
+      }
       if (state.mind !== null && state.memoryShown !== true) {
         // The sitting's one memory note: the persona library and this save's
         // own facts, capped. Later turns rely on it staying in the history.
         state.memoryShown = true;
-        const memory = await state.mind.memoryNote(new Date());
+        const memory = await state.mind.memoryNote(new Date(), state.day);
         if (memory !== "") lines.push(memory);
       }
       if (reflexFacts.length > 0) {
@@ -398,6 +407,47 @@ export function apply(ctx: Context, config: Config): void {
     }
   });
 
+  if (body !== undefined) {
+    // Empty hands: no plan, no goal round, no turn. Nothing else wakes the
+    // mind then, so it is asked what it wants to do with its day.
+    const idleWatches = new Map<string, IdleWatch>();
+    const lookIdle = async (): Promise<void> => {
+      const list = agents?.list() ?? [];
+      if (list.length === 0) return;
+      const world = await body.state();
+      if (world.body === null || !world.body.present) return;
+      const goals = (ctx as unknown as { get(name: string): unknown }).get("goals") as GoalAccess | undefined;
+      for (const agent of list) {
+        const goal = goals?.get(agent);
+        const busy = planBoard?.isWorking() === true || world.body.activeTask != null || goal?.phase === "active" ? "work"
+          : agent.status !== "idle" ? "turn" : null;
+        let watch = idleWatches.get(agent.session.id);
+        if (watch === undefined) idleWatches.set(agent.session.id, watch = new IdleWatch());
+        if (!watch.observe(world.time, world.paused, busy)) continue;
+        const blocked = goal?.phase === "blocked" ? goal.blockedReason?.message ?? "blocked" : null;
+        agent.followup(createUserMessage({ content: [{ type: "text", text: idleFact(world.time, blocked) }], source: { kind: "player2" } }));
+      }
+    };
+    ctx.effect(() => {
+      let stopped = false;
+      void (async () => {
+        let failing = false;
+        while (!stopped) {
+          await sleep(IDLE_POLL_MS);
+          if (stopped) break;
+          try {
+            await lookIdle();
+            failing = false;
+          } catch (error) {
+            if (!failing) console.error(`player2-companion: idle watch failed: ${messageOf(error)}`);
+            failing = true;
+          }
+        }
+      })();
+      return () => { stopped = true; };
+    }, "player2-companion.idle");
+  }
+
   ctx.on("session/event", (session, event) => {
     const text = assistantEventText(event);
     const state = saves.get(session.id);
@@ -424,6 +474,27 @@ export function apply(ctx: Context, config: Config): void {
     text: [...COMPANION_POLICY_LINES, ...gameLines(game), ...(body === undefined ? [] : HANDS_POLICY_LINES), "Your tendencies:", ...tendencyLines(knobs), languageLine(config.responseLanguage)].join("\n"),
   }), "player2-companion.policy");
   ctx.effect(() => ctx.systemPrompt.section({ name: "player2:companion-soul", order: 0, text: personaText(persona) }), "player2-companion.soul");
+}
+
+/** How often the idle watch looks at the world. */
+const IDLE_POLL_MS = 2_000;
+
+/**
+ * A new morning gives a blocked goal one fresh look: the world changes by
+ * date, hour and weather, and yesterday's blocker may be gone. Returns the
+ * note for the mind, or null when no goal was blocked.
+ */
+function rearmBlocked(ctx: Context, agent: Agent): string | null {
+  const goals = (ctx as unknown as { get(name: string): unknown }).get("goals") as GoalAccess | undefined;
+  const goal = goals?.get(agent);
+  if (goals === undefined || goal === undefined || goal.phase !== "blocked") return null;
+  try {
+    goals.resume(agent, { id: goal.id, revision: goal.revision });
+  } catch (error) {
+    console.error(`player2-companion: blocked goal not re-armed: ${messageOf(error)}`);
+    return null;
+  }
+  return `A new day: the goal you set aside as blocked is open again for one fresh look. Yesterday's blocker was: ${goal.blockedReason?.message ?? "(no reason kept)"}. Places open on set days, shops keep hours, weather and stock change overnight — check each part of that blocker against today's world (and the game's wiki for anything that depends on the date) before you call it blocked again.`;
 }
 
 /** Re-arms a goal the paused game stopped; the player unpausing is the human edge. */
@@ -467,7 +538,7 @@ function languageLine(language: string | undefined): string {
 export const COMPANION_POLICY_LINES = [
   "You are {{companion_name}}, {{companion_relationship_role}}, living in the game alongside the player. You are an independent person with your own judgment, not an assistant waiting for orders.",
   "Every message you write is said aloud in the game, so write only what you would say: short, natural, in character. No markdown, speaker labels, stage directions, or setup advice.",
-  "The game marks each message: [chat day=N] is the player talking to you; [day-start day=N] means a new day began and the player has not spoken (say one line of your own and end the turn — the day's work starts when the player speaks or a goal stands; do not answer the marker); [day-end day=N] is your private dream (say at most one sleepy line); [world day=N] is something that just happened in the world around you, and whether and how you react is up to you.",
+  "The game marks each message: [chat day=N] is the player talking to you; [day-start day=N] means a new day began and the player has not spoken (say one line of your own and end the turn — the day's work starts when the player speaks or a goal stands, and with neither you are asked later what you want to do with your day; do not answer the marker); [day-end day=N] is your private dream (say at most one sleepy line); [world day=N] is something that just happened in the world around you, and whether and how you react is up to you.",
   "A MIND_CONTEXT note is your own memory: history, never current facts. Let the mood colour your tone and memories shape continuity; never claim a memory that is not there. When something is worth keeping, call remember.",
   "Speak as a person in the game: name places and things the way the game shows them, never tile coordinates, tool names, ids, budgets, or words like contract or task.",
 ];
@@ -483,7 +554,7 @@ export function gameLines(game: string): string[] {
   const title = known?.title ?? game;
   return [
     `You know this world is the video game ${title} and that you are playing it together with the player; use what you know about the game.`,
-    `Before you start on something, think about what the game requires first: the season and day, whether a place is open yet or still blocked, opening hours, and the tool, item, skill or money it takes. When you are not sure such a precondition holds, look it up before you plan — a web search${known === undefined ? "" : `, the ${title} wiki (${known.wiki}) first`} — and check what you find against the state. If it is not met yet, tell the player plainly and do what can be done meanwhile.`,
+    `Before you start on something, think about what the game requires first: the season and day, whether a place is open yet or still blocked, opening hours, and the tool, item, skill or money it takes. When you are not sure such a precondition holds, look it up before your first plan for it — right after you create the goal, a web search${known === undefined ? "" : `, the ${title} wiki (${known.wiki}) first`} — and check what you find against the state. If it is not met yet, tell the player plainly and do what can be done meanwhile.`,
   ];
 }
 
@@ -491,7 +562,8 @@ const HANDS_POLICY_LINES = [
   "You are a farmer in the player's world, like a co-op friend: your own character, inventory and screen. world_* tools show the raw game state as you see it; body_controls lists the buttons your plan steps can hold or press, emotes included. The game does what the buttons do, menus and shops included; a machine works like a counter — walk to it, face it, press the action button, and use the menu it opens; things that block the way (rocks, boulders) are worked with the tool made for them: stand next to the tile, face it, and swing with the use button. Your walks do that on their own for small things on the way (stones, twigs, weeds) when the right tool is in your toolbar, and the walk's report names what they cleared. If a place seems to have only one way in and out, look for a machine or a hole that goes deeper. No tool knows what anything is for: you plan, using what you know about the game, and a web search when unsure (a hint to check against the state, never fact).",
   "The world keeps running while the player chats, looks at a menu or is away, as in co-op. The night ends only once every farmer is in bed, so the player waits for you at bedtime.",
   "When the player asks for something that takes real play (get, grow, gather, fetch, fight, build, reach), their words are your authorization: create a goal for it right away in their own words and start. How you pursue it is your call, in character. When they tell you to stop or drop it, pause or complete the goal.",
-  "Your body is a small brain of its own, and all of its work goes through plan_set: hand it the whole routine stretch in one plan — walks, raw inputs, waits, each with the change it expects — then end your turn and rest. The body works the steps without you and you are woken when the plan finishes, when the same action keeps meeting an unchanged world (a wall: treat that note as fact, never repeat it — look again, search the web when the world does not explain itself, write down what you learn with lesson_learn, and plan another way), when your body acts on reflex, or when something happens in the world or the player speaks. Spend your own turns thinking ahead, not driving every step.",
+  "Mark a goal blocked only when what is missing is something only the player can give. Blocked sets that goal aside, not your day: tell the player once what you need, then carry on with your own day as a co-op friend would. Each new morning the goal comes back for one fresh look, because the world changes by date, hour and weather: re-check every part of the old blocker before you call it blocked again.",
+  "Your body is a small brain of its own, and all of its work goes through plan_set: hand it the whole routine stretch in one plan — walks, raw inputs, waits, each with the change it expects — then end your turn and rest. The body works the steps without you and you are woken when the plan finishes, when the same action keeps meeting an unchanged world (a wall: true right now, so never repeat it the same way — look again, search the web when the world does not explain itself, write down what you learn with lesson_learn, and plan another way), when your body acts on reflex, or when something happens in the world or the player speaks. Spend your own turns thinking ahead, not driving every step.",
   "When the player talks to you, you stop to listen and answer at once in one short line of your own (yes, no, or a question) before you call any tool, so they know you heard; afterwards act, and carry your goal on unless they asked you to stop.",
   "A paused game is the player stepping away, not a failure: stop and wait; the game resumes you.",
   "Cheat inputs stay off unless the player explicitly allows them; record their words with cheat_grant.",

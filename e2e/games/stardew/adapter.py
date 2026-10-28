@@ -94,13 +94,16 @@ def build_test_save(paths: Paths, source: str | None = None) -> Path:
     source = source or os.environ.get("E2E_SOURCE_SAVE", "")
     if not source or not (paths.saves / source / source).is_file():
         raise RuntimeError(f"set E2E_SOURCE_SAVE to a day-1 save folder in {paths.saves} (got {source!r}); see e2e/README.md")
+    # Without a cabin the mod has no seat for the companion: the run would load single-player and world_state stays null.
+    if 'xsi:type="Cabin"' not in (paths.saves / source / source).read_text(encoding="utf-8"):
+        raise RuntimeError(f"template {source!r} has no cabin on its farm, so the companion cannot be seated; pick one that has")
     _forget_previous_test_save(paths)
     LAST_TEST_SAVE.parent.mkdir(parents=True, exist_ok=True)
     LAST_TEST_SAVE.write_text(str(TEST_SAVE_ID), encoding="utf-8")
     day = int(os.environ["E2E_DAY"]) if os.environ.get("E2E_DAY") else None
     dst = copy_save(paths, source, TEST_SAVE_ID, day=day,
                     season=os.environ.get("E2E_SEASON"), year=int(os.environ["E2E_YEAR"]) if os.environ.get("E2E_YEAR") else None,
-                    strip_farm_stones=bool(os.environ.get("E2E_STRIP_FARM_STONES")))
+                    bare_farm=bool(os.environ.get("E2E_STRIP_FARM_STONES")))
     # Reset our bridge sessions only - the path is keyed by the test ID, never by a real save's.
     for d in paths.session_dirs():
         shutil.rmtree(d, ignore_errors=True)
@@ -127,7 +130,7 @@ def strip_farm_stones(paths: Paths, save_id: int = TEST_SAVE_ID) -> int:
 
 
 def copy_save(paths: Paths, source: str, save_id: int, day: int | None = None, season: str | None = None,
-              year: int | None = None, strip_farm_stones: bool = False) -> Path:
+              year: int | None = None, bare_farm: bool = False) -> Path:
     """Copies a save to `E2E_<save_id>` under a new unique id, the source only read. The date fields are edited in
     the save XML itself, so a copy can start on any day with whatever the source already holds (a created
     companion farmhand, a cabin) and no day-1 creation runs."""
@@ -159,7 +162,7 @@ def copy_save(paths: Paths, source: str, save_id: int, day: int | None = None, s
             head = re.sub(rf"<{tag}>\d+<", f"<{tag}>{value}<", head)
     main.write_text(xml, encoding="utf-8")
     info.write_text(head, encoding="utf-8")
-    if strip_farm_stones:
+    if bare_farm:
         # A Hill-Top template ships and regrows quarry stones: a bare start keeps the mine the only ore source.
         strip_farm_stones(paths, save_id)
     return dst
@@ -240,6 +243,7 @@ class StardewFlows:
         # because the cursor never hovers it.
         while not self._title_buttons_visible():
             if time.monotonic() > deadline:
+                self.shot("FAIL_title_wait")
                 raise TimeoutError("title buttons never appeared")
             time.sleep(0.5)
         time.sleep(1.5)
@@ -266,6 +270,7 @@ class StardewFlows:
         # as soon as the game enters loadingMode: input sent while it loads is unwanted (and may hit a lost focus).
         self.smapi.wait_for(r"Synchronizing 'Find Save Games' task", 30)
         for _ in range(5):
+            self.refocus()
             self.click_at(*_frac(UI["load_slot_1"]))
             if self.smapi.wait_for(r"set to 'loadingMode", 6, since=mark):
                 break
@@ -325,9 +330,10 @@ class StardewFlows:
             self.refocus()
             self.kb.hold("a", 0.4)
             self.kb.hold("d", 0.5)
-            self._wait_dialog(5)
-            # The sleep question's Yes, tapped even when the dimmed night screen hides the
-            # dialog from the color heuristic; without a question the tap is harmless.
+            # Yes only to a question on screen: without one, Y opens the emote wheel, which then
+            # swallows every later step out of bed (the night screen does not hide the question box).
+            if not self._wait_dialog(5):
+                continue
             self.kb.tap("y")
             if self.smapi.wait_for(in_bed, 5, since=mark):
                 break
@@ -524,6 +530,7 @@ class StardewGame(StardewFlows):
         self.failsafe.bind(self.hwnd)
         if not win.focus(self.hwnd):
             raise RuntimeError("could not bring the game window to the foreground")
+        win.pin_on_top(self.hwnd)
         win.ime_passthrough(self.hwnd)
         self.rect = win.client_rect(self.hwnd)
 
@@ -563,15 +570,6 @@ class StardewGame(StardewFlows):
         if self.art:
             self.art.shot(name, img)
         return img
-
-    def reload_with_strip(self) -> None:
-        """Quits, strips every Stone the Hill-Top farm has regrown from the night save on disk, and reloads it.
-        The save file is the night's own save; the companion's session is keyed by the save id and resumes, so
-        the goal carries over. The test calls this inside its metrics night window, so the dead air is excluded."""
-        self.quit()
-        strip_farm_stones(self.paths)
-        self.launch()
-        self.load_test_save()
 
     def state(self) -> dict:
         """The mod's world_state: the host (`player`), the companion's farmer (`body`), the clock, the body's menu."""

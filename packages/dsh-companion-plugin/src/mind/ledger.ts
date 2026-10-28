@@ -57,6 +57,8 @@ export interface Lesson {
   lastUsedAt: string | null;
   /** Set only when the day showed this lesson's approach working in its save. */
   worked?: true;
+  /** The game day this lesson was last seen true (P2-0019d): a fact is as of that day, never forever. */
+  day?: number;
 }
 
 /** Whitespace-collapsed, case-folded key two lessons must share to be the same. */
@@ -72,7 +74,7 @@ export function lessonScore(lesson: Lesson, now: Date): number {
 
 /** One prompt line per lesson. */
 export function lessonLines(lessons: readonly Lesson[]): string[] {
-  return lessons.map((lesson) => `- [${lesson.topic}${lesson.uses > 1 ? ` x${lesson.uses}` : ""}] ${lesson.text}`);
+  return lessons.map((lesson) => `- [${lesson.topic}${lesson.uses > 1 ? ` x${lesson.uses}` : ""}${lesson.day !== undefined ? `, day ${lesson.day}` : ""}] ${lesson.text}`);
 }
 
 /** A new experience before the ledger assigns its id. */
@@ -291,7 +293,7 @@ export class PersonaLedger {
   }
 
   /** Keeps one save fact; the same text (folded) is counted again, not duplicated. */
-  public async learnFact(save: string, text: string, topic: string, now: Date, worked = false): Promise<"kept" | "known"> {
+  public async learnFact(save: string, text: string, topic: string, now: Date, worked = false, day: number | null = null): Promise<"kept" | "known"> {
     return this.exclusive(async () => {
       const clean = text.replace(/\s+/g, " ").trim().slice(0, 240);
       if (clean.length < 3) throw new Error("a fact needs at least 3 characters");
@@ -301,10 +303,11 @@ export class PersonaLedger {
       if (known !== undefined) {
         known.uses += 1;
         if (worked) known.worked = true;
+        if (day !== null) known.day = day; // seen true again: the fact is as of today
         await this.writeFacts(save, facts, now);
         return "known" as const;
       }
-      facts.push({ text: clean, topic: topic.replace(/\s+/g, " ").trim().slice(0, 40) || "general", createdAt: now.toISOString(), uses: 1, lastUsedAt: null, ...(worked ? { worked: true as const } : {}) });
+      facts.push({ text: clean, topic: topic.replace(/\s+/g, " ").trim().slice(0, 40) || "general", createdAt: now.toISOString(), uses: 1, lastUsedAt: null, ...(worked ? { worked: true as const } : {}), ...(day !== null ? { day } : {}) });
       await this.writeFacts(save, facts, now);
       return "kept" as const;
     });

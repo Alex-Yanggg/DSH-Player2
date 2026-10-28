@@ -52,7 +52,7 @@ export function dreamEpisodes(episodes: readonly Episode[], gameDay: number): Ep
 }
 
 /** The ledger half of the dream input. */
-export function ledgerDigest(episodes: readonly Episode[], traits: readonly Trait[], story: Story | null, memory: readonly string[] = []): string {
+export function ledgerDigest(episodes: readonly Episode[], traits: readonly Trait[], story: Story | null, memory: readonly string[] = [], elsewhere: readonly string[] = []): string {
   const live = traits.filter((trait) => trait.status !== "retired");
   return [
     `OUR_STORY=${story === null || story.text.trim() === "" ? "(none yet)" : JSON.stringify(story.text)}`,
@@ -62,6 +62,7 @@ export function ledgerDigest(episodes: readonly Episode[], traits: readonly Trai
     ...episodes.map((episode) => `- ${episode.id} ${episode.kind} salience ${episode.salience.toFixed(2)}: ${episode.summary}`),
     `MEMORY_ALREADY_KEPT(${memory.length}) — never write a lesson that repeats one of these:`,
     ...memory,
+    ...(elsewhere.length === 0 ? [] : [`WORKED_IN_YOUR_OTHER_SAVES(${elsewhere.length}) — if today proved one of these again here, write it as a lesson with exactly this text and "worked": true:`, ...elsewhere]),
   ].join("\n");
 }
 
@@ -71,7 +72,7 @@ export const DREAM_LEDGER_INSTRUCTIONS = [
   '- story: rewrite our story so far in your own voice when today changed it; null keeps it. Mention only what the episodes and the existing story support.',
   '- traits: {"op":"add","text":"...","scope":"person","episodeIds":["ep-…","ep-…"]} needs two independent episodes (or one player correction); fewer keeps it as a candidate. {"op":"strengthen"|"weaken"|"retire","id":"tr-…","episodeIds":["ep-…"]} changes an existing trait and needs at least one episode.',
   "- forget: trivial episode ids not worth keeping; receipts are never forgotten.",
-  '- lessons: durable facts and policies the day taught about this world, one sentence each. Mark "worked": true only when today really showed the approach working; a lesson that proves out in two different saves joins your library on its own. Nothing new learned: omit the field.',
+  '- lessons: durable facts and policies the day taught about this world, one sentence each. Mark "worked": true only when today really showed the approach working; a lesson that proves out in two different saves joins your library on its own. Something blocked or closed is what you saw today, not forever: say so. Nothing new learned: omit the field.',
   "Do not call dream_commit when nothing changed. Every id you write must appear above.",
 ];
 

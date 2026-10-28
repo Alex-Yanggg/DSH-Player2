@@ -136,6 +136,22 @@ describe("the plan board", () => {
     expect(made.board.wakePending()).toBe(true);
   });
 
+  it("a new plan stops the old plan's step in flight", async () => {
+    const sim = open();
+    sims.push(sim);
+    await sim.start(1);
+    const made = board(sim);
+    made.board.start();
+    made.board.set("wait a long while", [{ label: "long wait", tool: "wait", args: { minutes: 30 } }]);
+    await until(() => sim.snapshot().body?.activeTask != null);
+    made.board.set("walk instead", [{ label: "to the pass", tool: "body_walk_to", args: { x: 11, y: 4 }, expect: { at: { x: 11, y: 4 } } }]);
+    let facts = "";
+    await until(() => (facts += made.board.drain().join("\n")).includes("Plan finished: walk instead"));
+    expect(facts).toContain("Plan finished: walk instead");
+    expect(facts).not.toContain("long wait");
+    expect(sim.tile).toEqual({ x: 11, y: 4 });
+  });
+
   it("refuses a step whose arguments are not inside args, teaching the shape", () => {
     const made = board(open());
     // The live failure: the tool's arguments spread beside args instead of inside it.
@@ -170,7 +186,8 @@ describe("the async claim on the sim (idle ratio, actions per game minute)", () 
     const steps: PlanStepInput[] = [];
     for (let index = 0; index < 12; index++) {
       steps.push({ label: `pace ${index}`, tool: "body_input", args: { steps: [{ hold: [index % 2 === 0 ? "DPadRight" : "DPadLeft"], ms: 400 }] } });
-      steps.push({ label: `breathe ${index}`, tool: "wait", args: { minutes: 1 } });
+      // A short idle input, not a wait: a game minute (700 ms) would make the 3 s bench count the clock, not the board.
+      steps.push({ label: `breathe ${index}`, tool: "body_input", args: { steps: [{ ms: 300 }] } });
     }
     made.board.set("pace the meadow", steps);
     const asyncSamples: boolean[] = [];

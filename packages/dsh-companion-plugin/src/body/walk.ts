@@ -1,4 +1,4 @@
-import type { BodyEvent, BodyObject, BodyState, BodyWorld, ObstacleRow } from "@dsh-player2/contracts";
+import type { BodyEvent, BodyObject, BodyState, BodyWarp, BodyWorld, ObstacleRow } from "@dsh-player2/contracts";
 import type { BodyPort } from "./port.js";
 import { directionTo, faceStep, findPath, locationRoute, neighbours, planLeg, Walkability, type Controls, type Tile } from "./navigation.js";
 
@@ -39,8 +39,10 @@ const DETOUR_TILES = 12;
  * exported warp graph. Blocked steps mark the tile and re-plan around it; it
  * gives up honestly with the reason instead of looping.
  */
-export async function walkTo(body: BodyPort, controls: Controls, loadWorld: () => Promise<BodyWorld>, target: WalkTarget, options: WalkOptions = {}): Promise<WalkResult> {
+export async function walkTo(body: BodyPort, controls: Controls, loadWorld: () => Promise<BodyWorld>, asked: WalkTarget, options: WalkOptions = {}): Promise<WalkResult> {
   const { signal, obstacles = [] } = options;
+  let target = asked;
+  let through: string | null = null;
   const started = Date.now();
   const events: BodyEvent[] = [];
   const blocked: Tile[] = [];
@@ -50,7 +52,7 @@ export async function walkTo(body: BodyPort, controls: Controls, loadWorld: () =
   let world: BodyWorld | undefined;
   let last: BodyState | undefined;
   const result = (ok: boolean, reason: string): WalkResult => ({
-    ok, reason: cleared.length > 0 ? `${reason}; cleared on the way: ${cleared.join(", ")}` : reason,
+    ok, reason: [reason, ...(through === null ? [] : [`went through the way out at the target into ${through}`]), ...(cleared.length > 0 ? [`cleared on the way: ${cleared.join(", ")}`] : [])].join("; "),
     location: last?.body?.location ?? null, x: last?.body?.x ?? null, y: last?.body?.y ?? null,
     legs, ms: Date.now() - started, events: events.slice(-12),
   });
@@ -73,6 +75,15 @@ export async function walkTo(body: BodyPort, controls: Controls, loadWorld: () =
     const destination = target.location ?? self.location;
     let leg: ReturnType<typeof planLeg>;
     let warped = false;
+    if (self.location === destination && target.mode === "stand" && through === null) {
+      // Standing on a door or a map exit means going through it: walk to where it leads instead.
+      const door = doorAt(state.warps, target, new Walkability(state).walkable(target.x, target.y));
+      if (door !== undefined) {
+        through = door.to;
+        target = { location: door.to, x: door.toX, y: door.toY, mode: "stand" };
+        continue;
+      }
+    }
     if (self.location === destination) {
       const goal = { x: target.x, y: target.y };
       if (target.mode === "stand" && self.x === goal.x && self.y === goal.y) return result(true, "arrived");
@@ -111,6 +122,12 @@ export async function walkTo(body: BodyPort, controls: Controls, loadWorld: () =
     if (outcome !== undefined) return result(false, outcome);
   }
   return result(false, `gave up after ${MAX_ATTEMPTS} legs without reaching the target`);
+}
+
+/** The warp on the tile, or, when the tile itself cannot be stood on, one right next to it. */
+function doorAt(warps: readonly BodyWarp[], tile: Tile, standable: boolean): BodyWarp | undefined {
+  return warps.find((warp) => warp.x === tile.x && warp.y === tile.y)
+    ?? (standable ? undefined : warps.find((warp) => Math.abs(warp.x - tile.x) + Math.abs(warp.y - tile.y) === 1));
 }
 
 /** The tiles an object covers (clumps span several). */

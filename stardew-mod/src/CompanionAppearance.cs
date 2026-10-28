@@ -18,7 +18,8 @@ internal sealed record CompanionAppearance(
     uint HairColor,
     uint PantsColor,
     uint EyeColor,
-    Gender Gender)
+    Gender Gender,
+    string? Name = null)
 {
     public static CompanionAppearance Capture(Farmer farmer)
     {
@@ -34,6 +35,22 @@ internal sealed record CompanionAppearance(
             farmer.pantsColor.Value.PackedValue,
             farmer.newEyeColor.Value.PackedValue,
             farmer.Gender);
+    }
+
+    /// <summary>
+    /// The look a closed customization menu left on the farmer, with the name typed in it. Its OK
+    /// turns the chosen shirt and pants into worn items and sets the base ids to "-1", so the worn
+    /// ids and the dyed pants colour are what was chosen.
+    /// </summary>
+    public static CompanionAppearance CaptureChosen(Farmer farmer)
+    {
+        return Capture(farmer) with
+        {
+            Shirt = farmer.GetShirtId(),
+            Pants = farmer.GetPantsId(),
+            PantsColor = (farmer.pantsItem.Value?.clothesColor.Value ?? farmer.pantsColor.Value).PackedValue,
+            Name = string.IsNullOrWhiteSpace(farmer.Name) ? null : farmer.Name,
+        };
     }
 
     /// <summary>
