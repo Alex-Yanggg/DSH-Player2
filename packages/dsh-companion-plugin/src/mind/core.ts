@@ -7,12 +7,13 @@
  *
  * @module @dsh-player2/dsh-companion-plugin/mind/core
  */
-import type { Episode } from "@dsh-player2/contracts";
+import type { Episode, ReflexRow } from "@dsh-player2/contracts";
 import { applyLedgerEdits, dreamEpisodes, ledgerDigest, parseLedgerEdits, type LedgerEditOutcome } from "./dream-ledger.js";
 import { writeLedgerExport } from "./export.js";
 import { PersonaLedger, PERSONA_SAVE, lessonKey, lessonLines, lessonScore, type Lesson, type WhyRecord } from "./ledger.js";
 import { isWhyQuestion, mindContextNote } from "./mind-context.js";
 import { describeMood, type MoodEvent } from "./mood.js";
+import { applyReflexEdits, provenAcrossSaves, readReflexBook, recordReflexOutcome, reflexDigest, rowsInPlay, type ReflexBook } from "./reflex-growth.js";
 import { retrieveEpisodes, type EpisodeSelector, type RetrievedEpisode } from "./retrieval.js";
 import type { EpisodeNomination } from "./turn-extras.js";
 
@@ -183,6 +184,53 @@ export class MindCore {
     if (promoted.length > 0) outcome = { ...(outcome ?? { person: await this.ledger.person(), story: await this.ledger.story(this.save), forget: [], applied: [], rejected: [] }), applied: [...(outcome?.applied ?? []), ...promoted] };
     await writeLedgerExport(this.ledger, companionName, now);
     return outcome;
+  }
+
+  /** The reflex rows in play for this save: its own and the persona's grown rows over the shipped ones. */
+  public async reflexRows(shipped: readonly ReflexRow[]): Promise<ReflexRow[]> {
+    return rowsInPlay(shipped, await Promise.all([this.reflexBook(this.save), this.reflexBook(PERSONA_SAVE)]));
+  }
+
+  /** One judged firing; a candidate that failed its trial leaves a lesson. Returns the trial's verdict line, or null. */
+  public async reflexOutcome(id: string, good: boolean, now: Date): Promise<string | null> {
+    const verdict = await this.ledger.exclusive(async () => {
+      const book = await this.reflexBook(this.save);
+      const line = recordReflexOutcome(book, id, good);
+      await this.ledger.writeJson(this.ledger.savePath(this.save, "reflexes.json"), book);
+      return line;
+    });
+    if (verdict?.endsWith("dropped") === true) await this.ledger.learnFact(this.save, `My ${verdict}.`, "reflexes", now);
+    return verdict;
+  }
+
+  /** The dream's reflex section; reading it starts a new day's tally. */
+  public async reflexDream(shipped: readonly ReflexRow[]): Promise<string> {
+    return this.ledger.exclusive(async () => {
+      const [book, persona] = await Promise.all([this.reflexBook(this.save), this.reflexBook(PERSONA_SAVE)]);
+      const digest = reflexDigest(rowsInPlay(shipped, [book, persona]), [book, persona], book.today);
+      await this.ledger.writeJson(this.ledger.savePath(this.save, "reflexes.json"), { ...book, today: {} });
+      return digest;
+    });
+  }
+
+  /** The dream's `reflexes` edits, then any row now active in two saves joins the persona. */
+  public async growReflexes(raw: unknown, shipped: readonly ReflexRow[], buttons: ReadonlySet<string>, now: Date): Promise<{ applied: string[]; rejected: string[] }> {
+    return this.ledger.exclusive(async () => {
+      const [book, persona] = await Promise.all([this.reflexBook(this.save), this.reflexBook(PERSONA_SAVE)]);
+      const outcome = applyReflexEdits(raw, book, rowsInPlay(shipped, [book, persona]), buttons, now);
+      await this.ledger.writeJson(this.ledger.savePath(this.save, "reflexes.json"), book);
+      const proven = provenAcrossSaves(await Promise.all((await this.ledger.saves()).map((save) => this.reflexBook(save))), persona);
+      if (proven.length > 0) {
+        persona.grown.push(...proven);
+        await this.ledger.writeJson(this.ledger.savePath(PERSONA_SAVE, "reflexes.json"), persona);
+        outcome.applied.push(...proven.map((entry) => `reflex ${entry.row.id} proved out in two saves and joins every save`));
+      }
+      return outcome;
+    });
+  }
+
+  private reflexBook(save: string): Promise<ReflexBook> {
+    return readReflexBook(this.ledger.savePath(save, "reflexes.json"));
   }
 
   /**

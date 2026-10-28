@@ -10,6 +10,11 @@
   tool (obstacle rows in the reflex table);
 - a plan stops at a step that failed or missed its expected change; `wait`
   waits the game minutes asked for; the stuck count survives a new plan.
+- reflex growth: every fired reflex is judged from raw state 4 s later; the
+  dream sees the day's verdicts and may add or tune a row (schema and declared
+  buttons checked), a new row is a candidate until 3 judged firings decide it,
+  a dropped one leaves a lesson, and a row active in two saves joins the
+  persona; the risk knob scales reflex thresholds.
 
 ## 0.2.0 - behavior layer and mine goal (P2-0019)
 

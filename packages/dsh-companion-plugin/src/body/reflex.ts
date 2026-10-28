@@ -17,8 +17,15 @@ export type RoleButtons = Record<"up" | "right" | "down" | "left", string>;
 
 export interface ReflexEngineOptions {
   readonly table: ReflexTable;
+  /** The persona's appetite for risk (0..1): bold ones eat later and back off closer. */
+  readonly risk?: number;
   /** Stamp for cooldowns; tests replace it. */
   readonly now?: () => number;
+}
+
+/** How far the risk knob moves a threshold: 1.3x for the timid, 0.7x for the bold, 1x at 0.5. */
+export function riskScale(risk: number | undefined): number {
+  return 1.3 - 0.6 * (risk ?? 0.5);
 }
 
 /** Pure evaluation and burst building, separated from the loop so tests drive it directly. */
@@ -30,8 +37,12 @@ export class ReflexEngine {
   public walking = false;
   private lastPx = NaN;
   private lastPy = NaN;
+  /** The rows in play: the shipped table, or what the save grew on top of it. */
+  public rows: readonly ReflexRow[];
 
-  public constructor(private readonly options: ReflexEngineOptions) {}
+  public constructor(private readonly options: ReflexEngineOptions) {
+    this.rows = options.table.rows;
+  }
 
   private get now(): number { return this.options.now?.() ?? Date.now(); }
 
@@ -39,10 +50,11 @@ export class ReflexEngine {
   public match(state: BodyState, roles: RoleButtons): { row: ReflexRow; monster: MonsterFact | null; item: string | null; steps: BodyInputStep[] } | null {
     if (state.paused || state.body === null || !state.body.present) return null;
     const monster = nearestMonster(state);
-    for (const row of this.options.table.rows) {
+    for (const row of this.rows) {
       const since = this.fired.get(row.id);
       if (since !== undefined && this.now - since < (row.cooldownMs ?? 0)) continue;
-      if (!holds(row.when.all, state, monster, this) || (row.when.none?.some((one: ReflexCondition) => holds([one], state, monster, this)) ?? false)) continue;
+      const scale = riskScale(this.options.risk);
+      if (!holds(row.when.all, state, monster, this, scale) || (row.when.none?.some((one: ReflexCondition) => holds([one], state, monster, this, scale)) ?? false)) continue;
       const burst = this.build(row.do, state, monster, roles);
       if (burst === null) continue;
       return { row, monster, item: burst.item, steps: burst.steps };
@@ -115,14 +127,14 @@ export function nearestMonster(state: BodyState): MonsterFact | null {
   return best;
 }
 
-function holds(conditions: readonly ReflexCondition[], state: BodyState, monster: MonsterFact | null, engine: ReflexEngine): boolean {
+function holds(conditions: readonly ReflexCondition[], state: BodyState, monster: MonsterFact | null, engine: ReflexEngine, scale = 1): boolean {
   const body = state.body;
   if (body === null) return false;
   return conditions.every((condition) => {
     switch (condition.kind) {
-      case "healthBelow": return body.health !== undefined && body.health < condition.value;
-      case "staminaBelow": return body.stamina < condition.value;
-      case "monsterWithin": return monster !== null && monster.tiles <= condition.tiles;
+      case "healthBelow": return body.health !== undefined && body.health < condition.value * scale;
+      case "staminaBelow": return body.stamina < condition.value * scale;
+      case "monsterWithin": return monster !== null && monster.tiles <= condition.tiles * scale;
       case "hasItem": return matchingSlot(body, condition) !== null;
       case "stuckFor": return body.activeTask !== null && engine.walking && engine.stuckMs() >= condition.ms;
     }
@@ -148,6 +160,34 @@ function awayStep(monster: MonsterFact, body: NonNullable<BodyState["body"]>, ro
   return Math.abs(dx) >= Math.abs(dy) ? (dx >= 0 ? roles.left : roles.right) : (dy >= 0 ? roles.up : roles.down);
 }
 
+/**
+ * Whether a fired row helped, read from raw state a few seconds later: every
+ * measurable trigger fact eased (health or stamina up, the monster gone or out
+ * of range, the stuck body moved). Null when no trigger fact is measurable.
+ */
+export function judgeReflex(row: ReflexRow, before: BodyState, after: BodyState): boolean | null {
+  const was = before.body;
+  const now = after.body;
+  if (was === null || now === null) return null;
+  const verdicts: boolean[] = [];
+  for (const condition of row.when.all) {
+    switch (condition.kind) {
+      case "healthBelow":
+        if (was.health !== undefined && now.health !== undefined) verdicts.push(now.health > was.health);
+        break;
+      case "staminaBelow": verdicts.push(now.stamina > was.stamina); break;
+      case "monsterWithin": {
+        const monster = nearestMonster(after);
+        verdicts.push(monster === null || monster.tiles > condition.tiles);
+        break;
+      }
+      case "stuckFor": verdicts.push(Math.hypot(now.px - was.px, now.py - was.py) >= 32); break;
+      case "hasItem": break;
+    }
+  }
+  return verdicts.length === 0 ? null : verdicts.every(Boolean);
+}
+
 /** The fact line the mind receives, with the row's placeholders filled from raw state. */
 export function renderFact(row: ReflexRow, state: BodyState, monster: MonsterFact | null, item: string | null): string {
   const body = state.body;
@@ -163,7 +203,12 @@ export interface ReflexBodyOptions {
   readonly table: ReflexTable;
   /** Fast state poll cadence; also the reflex latency budget (default 200 ms). */
   readonly intervalMs?: number;
+  /** The persona's risk knob; see `riskScale`. */
+  readonly risk?: number;
   readonly onFact: (fact: string) => void;
+  /** Each fired row's verdict, `outcomeMs` after its burst (reflex growth). */
+  readonly onOutcome?: (id: string, good: boolean) => void;
+  readonly outcomeMs?: number;
   readonly onError?: (error: unknown) => void;
 }
 
@@ -182,7 +227,7 @@ export class ReflexBody implements BodyPort {
   private failures = 0;
 
   public constructor(private readonly inner: BodyPort, private readonly options: ReflexBodyOptions) {
-    this.engine = new ReflexEngine({ table: options.table });
+    this.engine = new ReflexEngine({ table: options.table, risk: options.risk });
     this.intervalMs = options.intervalMs ?? 200;
   }
 
@@ -193,6 +238,11 @@ export class ReflexBody implements BodyPort {
 
   public stop(): void {
     this.stopped = true;
+  }
+
+  /** Swaps the rows in play (a save's grown rows over the shipped table). */
+  public setRows(rows: readonly ReflexRow[]): void {
+    this.engine.rows = rows;
   }
 
   private async loop(): Promise<void> {
@@ -221,8 +271,21 @@ export class ReflexBody implements BodyPort {
       const run = await this.inner.run(steps, this.burstOptions(steps));
       this.engine.didFire(row.id);
       this.options.onFact(`${renderFact(row, state, monster, item)} (${run.status})`);
+      if (this.options.onOutcome !== undefined) void this.judgeLater(row, state);
     } finally {
       this.firing = false;
+    }
+  }
+
+  /** Reads the state again after the outcome window and reports whether the row helped. */
+  private async judgeLater(row: ReflexRow, before: BodyState): Promise<void> {
+    await sleep(this.options.outcomeMs ?? 4_000);
+    if (this.stopped) return;
+    try {
+      const verdict = judgeReflex(row, before, await this.inner.state());
+      if (verdict !== null) this.options.onOutcome!(row.id, verdict);
+    } catch (error) {
+      this.options.onError?.(error);
     }
   }
 
