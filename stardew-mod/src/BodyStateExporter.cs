@@ -31,7 +31,7 @@ internal sealed class BodyStateExporter
         new("player", "The human farmer (the host): location, tile x/y, pixel px/py, facing, money, health, stamina, inventory."),
         new("body", "Your own farmer: location, tile, facing, whether it is moving, selected toolbar slot (0-based), health, stamina, gold (one purse shared with the player unless the farm splits wallets), inventory, running task seq, and menu: the menu open on your screen (kind, focus = what the controller cursor is on, options = its buttons, money, and a shop's stock with index, name, price, stock), when any."),
         new("map", "The body's current location: width, height, and rows of legend characters, row 0 at the top (north); x grows east, y grows south."),
-        new("objects", "Things on tiles, nearest first: object (stones, weeds, twigs, artifact spots, machines), forage, dirt (tilled soil; extra.crop, extra.ready, extra.watered), tree, grass, clump (stumps, logs, boulders), bush, item (lying on the ground). extra.passable says whether a body can walk through."),
+        new("objects", "Things on tiles, nearest first: object (stones, weeds, twigs, artifact spots, machines), forage, dirt (tilled soil; extra.crop, extra.ready, extra.watered), tree, grass, clump (stumps, logs, boulders), bush, item (lying on the ground), blocker (a story blocker the map only shows as '#', such as the landslide before the mines; extra.note says what the game says about it). extra.width/height give a footprint of more than one tile. extra.passable says whether a body can walk through."),
         new("characters", "NPCs, monsters (with health), farmers, in the body's location."),
         new("warps", "Exits of the body's location: kind walk (step onto the tile, often just past the map edge) or action (face it and press Action)."),
         new("actionTiles", "Tiles of this location the game itself answers, as raw data: position, map layer, and the tile's raw Action/TouchAction string from the map (or sheet#index on mine floors, where code answers by tile). What an entry does is the game's to say; face it and press the action button, or walk onto a TouchAction."),
@@ -108,6 +108,10 @@ internal sealed class BodyStateExporter
             var tile = feature.Tile;
             objects.Add((Vector2.Distance(tile, origin), new BodyObject((int)tile.X, (int)tile.Y, feature is Bush ? "bush" : "large-feature", feature.GetType().Name, null,
                 new Dictionary<string, object?> { ["passable"] = feature.isPassable(actor) })));
+        }
+        foreach (var blocker in Blockers(location))
+        {
+            objects.Add((Vector2.Distance(new Vector2(blocker.X, blocker.Y), origin), blocker));
         }
         foreach (var debris in location.debris)
         {
@@ -462,6 +466,54 @@ internal sealed class BodyStateExporter
     private static string Label(ClickableComponent component) => Clip(string.IsNullOrWhiteSpace(component.label) ? component.name : component.label);
 
     private static string Facing(int direction) => direction switch { 0 => "up", 1 => "right", 2 => "down", _ => "left" };
+
+    /// <summary>
+    /// Story blockers a location keeps outside its object lists, so the grid
+    /// shows only '#' there: the landslide before the mines, the boulder on the
+    /// railroad path, the big log at the Secret Woods. Read by field name, as
+    /// the game holds them; a field this game version lacks is skipped.
+    /// </summary>
+    internal static IEnumerable<BodyObject> Blockers(GameLocation location)
+    {
+        var found = new List<BodyObject>();
+        if (location is StardewValley.Locations.Mountain mountain)
+        {
+            if (Member(mountain, "landslide") is Netcode.NetBool { Value: true } && Member(mountain, "landSlideRect") is Rectangle slide)
+                found.Add(Blocker(slide, "Landslide", "fallen rocks over the way to the mines; the game clears them itself on Spring 5 of year 1"));
+            if (Member(mountain, "railroadAreaBlocked") is true && Member(mountain, "railroadBlockRect") is Rectangle rail)
+                found.Add(Blocker(rail, "Boulder on the railroad path", "the game clears it itself with an earthquake on Summer 3 of year 1"));
+        }
+        if (location is StardewValley.Locations.Forest forest)
+        {
+            var log = Member(forest, "log") switch
+            {
+                ResourceClump clump => clump,
+                Netcode.NetRef<ResourceClump> net => net.Value,
+                _ => null,
+            };
+            if (log is not null && !location.resourceClumps.Contains(log))
+                found.Add(new BodyObject((int)log.Tile.X, (int)log.Tile.Y, "blocker", "Large Log", log.parentSheetIndex.Value.ToString(),
+                    new Dictionary<string, object?> { ["passable"] = false, ["width"] = log.width.Value, ["height"] = log.height.Value, ["health"] = log.health.Value,
+                        ["note"] = "blocks the way to the Secret Woods; a steel axe or better breaks it" }));
+        }
+        return found;
+    }
+
+    private static BodyObject Blocker(Rectangle pixels, string name, string note) =>
+        new(pixels.X / 64, pixels.Y / 64, "blocker", name, null, new Dictionary<string, object?>
+        {
+            ["passable"] = false,
+            ["width"] = Math.Max(1, pixels.Width / 64),
+            ["height"] = Math.Max(1, pixels.Height / 64),
+            ["note"] = note,
+        });
+
+    private static object? Member(object owner, string name)
+    {
+        const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic;
+        var type = owner.GetType();
+        return type.GetField(name, flags)?.GetValue(owner) ?? type.GetProperty(name, flags)?.GetValue(owner);
+    }
 
     private static string ClumpName(int index) => index switch
     {
