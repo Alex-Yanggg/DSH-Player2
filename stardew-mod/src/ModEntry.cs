@@ -468,6 +468,8 @@ internal sealed class ModEntry : Mod
             player.shirtItem.Value = null;
             player.pantsItem.Value = null;
             (this.previousCompanionAppearance ?? this.playerAppearanceBeforeCustomization).Apply(player);
+            // The menu's name box edits the farmer's name: start it at the companion's, not the player's.
+            player.Name = this.previousCompanionAppearance?.Name ?? this.ResolveCompanionName();
             var menu = new CharacterCustomization(CharacterCustomization.Source.Wizard);
             menu.exitFunction = this.CompleteCompanionCustomization;
             this.activeAppearanceMenu = menu;
@@ -484,12 +486,12 @@ internal sealed class ModEntry : Mod
     private void CompleteCompanionCustomization()
     {
         if (this.activeAppearanceMenu is null) return;
-        var customized = CompanionAppearance.Capture(Game1.player);
+        var customized = CompanionAppearance.CaptureChosen(Game1.player);
         this.RestorePlayerAfterCustomization();
         this.activeAppearanceMenu = null;
         CompanionAppearanceStore.Save(Game1.player, customized);
         this.seat.SetAppearance(customized);
-        Game1.addHUDMessage(new HUDMessage(this.T("appearance.saved", new { name = this.ResolveCompanionName() })));
+        Game1.addHUDMessage(new HUDMessage(this.T("appearance.saved", new { name = customized.Name ?? this.ResolveCompanionName() })));
         if (this.dayPending) this.StartCompanionDay();
     }
 
