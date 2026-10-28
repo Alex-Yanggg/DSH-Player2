@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parseReflexTable, type BodyItem, type ReflexTable } from "@dsh-player2/contracts";
-import { loadReflexTable, ReflexBody } from "./reflex.js";
+import { judgeReflex, loadReflexTable, ReflexBody, ReflexEngine, roleButtons } from "./reflex.js";
 import { SimAdapter, type SimLocation } from "./sim-adapter.testkit.js";
 
 vi.setConfig({ testTimeout: 30_000 });
@@ -143,5 +143,49 @@ describe("reflexes over the sim body", () => {
     } finally {
       body.stop();
     }
+  });
+
+  it("judges a fired row a few seconds later: the swing that killed the slime helped", async () => {
+    sim.locations.get("Farm")!.characters.push({ x: 5, y: 3, px: 5 * 64, py: 3 * 64, name: "Green Slime", kind: "monster", health: 20 });
+    const outcomes: Array<[string, boolean]> = [];
+    const body = new ReflexBody(sim, { table: loadReflexTable("stardew-valley")!, intervalMs: 40, outcomeMs: 300, onFact: () => undefined, onOutcome: (id, good) => outcomes.push([id, good]) });
+    body.start();
+    try {
+      await waitUntil(() => outcomes.length > 0);
+      expect(outcomes[0]).toEqual(["swing-when-cornered", true]);
+    } finally {
+      body.stop();
+    }
+  });
+});
+
+describe("reflex growth on the body side", () => {
+  const table = loadReflexTable("stardew-valley")!;
+  const eat = table.rows.find((row) => row.id === "eat-when-hurt")!;
+
+  it("a bold persona eats later than a timid one (the risk knob scales thresholds)", async () => {
+    sim.health = 30; // under the shipped 35
+    const state = await sim.state();
+    const roles = roleButtons(await sim.declaration());
+    expect(new ReflexEngine({ table, risk: 0.2 }).match(state, roles)?.row.id).toBe("eat-when-hurt");
+    expect(new ReflexEngine({ table, risk: 1 }).match(state, roles)).toBeNull(); // 35 * 0.7 = 24.5
+  });
+
+  it("judges by the trigger facts easing, and abstains when none is measurable", async () => {
+    sim.health = 20;
+    const before = await sim.state();
+    sim.health = 45;
+    expect(judgeReflex(eat, before, await sim.state())).toBe(true);
+    sim.health = 15;
+    expect(judgeReflex(eat, before, await sim.state())).toBe(false);
+    const itemOnly = { ...eat, when: { all: [{ kind: "hasItem" as const, category: "Food" }] } };
+    expect(judgeReflex(itemOnly, before, before)).toBeNull();
+  });
+
+  it("plays the rows it is given in place of the shipped table", async () => {
+    sim.health = 20;
+    const engine = new ReflexEngine({ table });
+    engine.rows = table.rows.filter((row) => row.id !== "eat-when-hurt");
+    expect(engine.match(await sim.state(), roleButtons(await sim.declaration()))).toBeNull();
   });
 });

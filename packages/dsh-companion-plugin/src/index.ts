@@ -37,6 +37,7 @@ import { StuckWatch } from "./body/stuck.js";
 import { createBodyTools, textOutput } from "./body/tools.js";
 import { DEFAULT_GAME, MindCore, type PreparedDream, type PreparedMind } from "./mind/core.js";
 import { DREAM_LEDGER_INSTRUCTIONS } from "./mind/dream-ledger.js";
+import { REFLEX_GROWTH_INSTRUCTIONS } from "./mind/reflex-growth.js";
 import { NOMINABLE_KINDS, nominationOf } from "./mind/turn-extras.js";
 
 export * from "./mind/index.js";
@@ -130,12 +131,29 @@ export function apply(ctx: Context, config: Config): void {
   const rawBody: BodyPort | undefined = config.body ?? ((config.gameUrl ?? "") !== "" ? new GameBody(config.gameUrl!, config.gameToken ?? "") : undefined);
   const reflexFacts: string[] = [];
   const reflexTable = rawBody === undefined ? null : loadReflexTable(game);
+  /** The save whose ledger grows the reflexes: the one last seen by a turn. */
+  let reflexMind: MindCore | null = null;
   const body: BodyPort | undefined = rawBody === undefined || reflexTable === null ? rawBody
     : new ReflexBody(rawBody, {
       table: reflexTable,
+      risk: knobs.risk,
       onFact: (fact) => { reflexFacts.push(fact); wakeAll(); },
+      onOutcome: (id, good) => {
+        reflexMind?.reflexOutcome(id, good, new Date()).then((verdict) => {
+          if (verdict === null) return;
+          reflexFacts.push(verdict);
+          wakeAll();
+          return refreshReflexes(reflexMind);
+        }).catch((error: unknown) => console.error(`player2-companion: reflex outcome not kept: ${messageOf(error)}`));
+      },
       onError: (error) => console.error(`player2-companion: reflex state poll failed: ${messageOf(error)}`),
     });
+  /** Puts this save's grown rows in play over the shipped table. */
+  const refreshReflexes = async (mind: MindCore | null): Promise<void> => {
+    if (!(body instanceof ReflexBody) || mind === null || reflexTable === null) return;
+    reflexMind = mind;
+    body.setRows(await mind.reflexRows(reflexTable.rows));
+  };
   if (body instanceof ReflexBody) {
     ctx.effect(() => {
       body.start();
@@ -209,6 +227,7 @@ export function apply(ctx: Context, config: Config): void {
       }
       state = { mind, day: null, attendedTurn: -1, lastText: "" };
       saves.set(id, state);
+      refreshReflexes(mind).catch((error: unknown) => console.error(`player2-companion: grown reflexes not loaded: ${messageOf(error)}`));
     }
     return state;
   };
@@ -306,15 +325,22 @@ export function apply(ctx: Context, config: Config): void {
       traits: { type: "array", items: { type: "object", additionalProperties: true }, description: "Trait edits as described in the dream." },
       lessons: { type: "array", items: { type: "object", additionalProperties: true }, description: 'Durable lessons the day taught: {"text":"...","topic":"...","worked":true?}. Mark worked only when today showed the approach working; lessons that proved out in two saves join your library on their own.' },
       forget: { type: "array", items: { type: "string" }, description: "Trivial episode ids." },
+      reflexes: { type: "array", items: { type: "object", additionalProperties: true }, description: "Reflex rows to add or tune, as described in the dream." },
     },
     output: textOutput,
     execute: async (args, exec) => {
       const state = stateOf(exec.agent);
       if (state?.mind == null || state.dream === undefined) throw new Error("No dream is open; dream_commit only works during the day-end dream.");
-      const outcome = await state.mind.commitDream(args, state.dream, persona.name, new Date());
+      const ledger = await state.mind.commitDream(args, state.dream, persona.name, new Date());
       state.dream = undefined;
-      if (outcome === null) return "Nothing changed.";
-      return [`Kept: ${outcome.applied.join("; ") || "nothing"}.`, outcome.rejected.length > 0 ? `Refused: ${outcome.rejected.join("; ")}.` : ""].join(" ").trim();
+      const grown = body instanceof ReflexBody && reflexTable !== null && Array.isArray(args.reflexes)
+        ? await state.mind.growReflexes(args.reflexes, reflexTable.rows, new Set((await body.declaration()).inputs.map((input) => input.id)), new Date())
+        : null;
+      if (grown !== null) await refreshReflexes(state.mind);
+      const applied = [...ledger?.applied ?? [], ...grown?.applied ?? []];
+      const rejected = [...ledger?.rejected ?? [], ...grown?.rejected ?? []];
+      if (ledger === null && grown === null) return "Nothing changed.";
+      return [`Kept: ${applied.join("; ") || "nothing"}.`, rejected.length > 0 ? `Refused: ${rejected.join("; ")}.` : ""].join(" ").trim();
     },
   })), "player2-companion.tool.dream_commit");
 
@@ -356,7 +382,10 @@ export function apply(ctx: Context, config: Config): void {
       }
       if (state.mind !== null && marker?.kind === "day-end") {
         state.dream = await state.mind.prepareDream(state.day);
-        lines.push("DREAM (today, as your memory holds it):", state.dream.digest, ...DREAM_LEDGER_INSTRUCTIONS);
+        lines.push("DREAM (today, as your memory holds it):", state.dream.digest);
+        if (body instanceof ReflexBody && reflexTable !== null) lines.push(await state.mind.reflexDream(reflexTable.rows));
+        lines.push(...DREAM_LEDGER_INSTRUCTIONS);
+        if (body instanceof ReflexBody && reflexTable !== null) lines.push(REFLEX_GROWTH_INSTRUCTIONS);
       }
       // Goal rounds get the persona's dice; the player's own turns are answered as they come.
       if (marker === null) lines.push(...await turnNudges(new PersonaDice(knobs, payload.agent.session.id), payload.turn, false));
