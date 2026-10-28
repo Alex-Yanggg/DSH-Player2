@@ -148,6 +148,21 @@ def test_bedtime_answers_only_a_question_on_screen():
     assert keys.log == ["a", "d", "a", "d", "a", "d", "y"]
 
 
+def test_the_mods_declared_descriptions_fit_the_contract():
+    """The contracts cap a declared state-field or input description at 400 characters; one over the cap makes the
+    whole body declaration invalid and every body tool fails (the objects field once grew to 485)."""
+    import re
+    from pathlib import Path
+
+    src = Path(__file__).resolve().parents[3] / "stardew-mod" / "src"
+    literal = r'"((?:[^"\\]|\\.)*)"'
+    fields = re.findall(r'new\(' + literal + r', ' + literal + r'\)', (src / "BodyStateExporter.cs").read_text(encoding="utf-8"))
+    inputs = re.findall(r'new\(' + literal + r', "(?:hold|press|modifier)", ' + literal, (src / "BodyAdapter.cs").read_text(encoding="utf-8"))
+    assert len(fields) >= 10 and len(inputs) >= 10
+    too_long = {name: len(text) for name, text in fields + inputs if len(text) > 400}
+    assert not too_long, too_long
+
+
 def test_grab_tries_the_front_first_and_tags_a_printwindow_frame(monkeypatch):
     """PrintWindow can return an old frame of the game: grab brings the game forward and reads DXGI first, and a
     frame that still had to come from PrintWindow says so."""
