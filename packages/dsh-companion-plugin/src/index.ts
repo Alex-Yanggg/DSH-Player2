@@ -287,7 +287,7 @@ export function apply(ctx: Context, config: Config): void {
     execute: async (args, exec) => {
       const state = stateOf(exec.agent);
       if (state?.mind == null) return "Nothing was kept: this session has no memory.";
-      const kept = await state.mind.learnLesson(String(args.text), String(args.topic ?? "general"), new Date());
+      const kept = await state.mind.learnLesson(String(args.text), String(args.topic ?? "general"), new Date(), state.day);
       return kept === "kept" ? "Kept." : "Known already: the same lesson is kept.";
     },
   })), "player2-companion.tool.lesson_learn");
@@ -329,11 +329,12 @@ export function apply(ctx: Context, config: Config): void {
       }
       if (marker?.day != null) state.day = marker.day;
       const lines: string[] = [];
+      if (marker?.kind === "day-start") state.memoryShown = false; // a new day re-reads memory against today (P2-0019d)
       if (state.mind !== null && state.memoryShown !== true) {
         // The sitting's one memory note: the persona library and this save's
         // own facts, capped. Later turns rely on it staying in the history.
         state.memoryShown = true;
-        const memory = await state.mind.memoryNote(new Date());
+        const memory = await state.mind.memoryNote(new Date(), state.day);
         if (memory !== "") lines.push(memory);
       }
       if (reflexFacts.length > 0) {
@@ -441,7 +442,7 @@ const HANDS_POLICY_LINES = [
   "You are a farmer in the player's world, like a co-op friend: your own character, inventory and screen. world_* tools show the raw game state as you see it; body_controls lists the buttons your plan steps can hold or press, emotes included. The game does what the buttons do, menus and shops included; a machine works like a counter — walk to it, face it, press the action button, and use the menu it opens; things that block the way (rocks, boulders) are worked with the tool made for them: stand next to the tile, face it, and swing with the use button. If a place seems to have only one way in and out, look for a machine or a hole that goes deeper. No tool knows what anything is for: you plan, using what you know about the game, and a web search when unsure (a hint to check against the state, never fact).",
   "The world keeps running while the player chats, looks at a menu or is away, as in co-op. The night ends only once every farmer is in bed, so the player waits for you at bedtime.",
   "When the player asks for something that takes real play (get, grow, gather, fetch, fight, build, reach), their words are your authorization: create a goal for it right away in their own words and start. How you pursue it is your call, in character. When they tell you to stop or drop it, pause or complete the goal.",
-  "Your body is a small brain of its own, and all of its work goes through plan_set: hand it the whole routine stretch in one plan — walks, raw inputs, waits, each with the change it expects — then end your turn and rest. The body works the steps without you and you are woken when the plan finishes, when the same action keeps meeting an unchanged world (a wall: treat that note as fact, never repeat it — look again, search the web when the world does not explain itself, write down what you learn with lesson_learn, and plan another way), when your body acts on reflex, or when something happens in the world or the player speaks. Spend your own turns thinking ahead, not driving every step.",
+  "Your body is a small brain of its own, and all of its work goes through plan_set: hand it the whole routine stretch in one plan — walks, raw inputs, waits, each with the change it expects — then end your turn and rest. The body works the steps without you and you are woken when the plan finishes, when the same action keeps meeting an unchanged world (a wall: true right now, so never repeat it the same way — look again, search the web when the world does not explain itself, write down what you learn with lesson_learn, and plan another way), when your body acts on reflex, or when something happens in the world or the player speaks. Spend your own turns thinking ahead, not driving every step.",
   "When the player talks to you, you stop to listen and answer at once in one short line of your own (yes, no, or a question) before you call any tool, so they know you heard; afterwards act, and carry your goal on unless they asked you to stop.",
   "A paused game is the player stepping away, not a failure: stop and wait; the game resumes you.",
   "Cheat inputs stay off unless the player explicitly allows them; record their words with cheat_grant.",

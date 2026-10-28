@@ -2,17 +2,28 @@
 
 ## 0.2.0 - behavior layer and mine goal (P2-0019)
 
+- small brain by default (P2-0019c): all body work goes through `plan_set`;
+  the plugin runs the steps in code while DSH's goal driver rests, and wakes
+  the mind when the plan ends, a wall is met, a reflex fires, or the world or
+  the player speaks. The direct per-step body tools and the skill tier are gone;
+- three-layer memory (P2-0019b): persona lessons shared by every save, save
+  facts keyed by the game's save id, a session per sitting that reads both at
+  the start and distils new lessons in the dream; a lesson verified in two
+  saves joins the persona's library by a code rule;
+- facts are as of a day (P2-0019d): each save fact carries the game day it was
+  last seen true, the memory note is re-read every morning against today, and
+  something found blocked or closed is shown as possibly changed, never as
+  permanent truth; the dream sees what worked in the persona's other saves and
+  judges whether today proved the same lesson;
+- stuck detector: the same action meeting an unchanged world three times stops
+  the body and hands the wall to the mind;
+- the mod exports raw action tiles (tile `Action`/`TouchAction` properties and
+  the mine's code-answered tiles), with no meaning attached;
 - reflex tier: a per-game data table of sub-second interrupts evaluated
   against the raw body state between and during body calls. Stardew ships a
   hand-checked table (eat-when-hurt, swing or step away when cornered,
   unstick); rows are validated data, never code, and every firing is reported
   to the mind as a fact before its next turn;
-- skill tier: `skill_save` distills a way of working the mind just did into a
-  small program over the same hands (replayed once before it is kept;
-  refused on failure), `skill_run` replays it for one tool call; a failing
-  run reports the error and marks the skill stale for the mind to repair or
-  drop. Programs run through DSH's own PTC seam when the profile composes
-  one, otherwise in-process; the chosen path is logged at mount;
 - the mod exports the body farmer's health, a raw field the reflex rows read;
 - mine goal: "给我挖 10 块铜矿" — down the mountain mine with its own
   pickaxe, reflexes keeping it alive, home before 2 a.m. (e2e `mine`
