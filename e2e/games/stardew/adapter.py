@@ -328,9 +328,10 @@ class StardewFlows:
             self.refocus()
             self.kb.hold("a", 0.4)
             self.kb.hold("d", 0.5)
-            self._wait_dialog(5)
-            # The sleep question's Yes, tapped even when the dimmed night screen hides the
-            # dialog from the color heuristic; without a question the tap is harmless.
+            # Yes only to a question on screen: without one, Y opens the emote wheel, which then
+            # swallows every later step out of bed (the night screen does not hide the question box).
+            if not self._wait_dialog(5):
+                continue
             self.kb.tap("y")
             if self.smapi.wait_for(in_bed, 5, since=mark):
                 break

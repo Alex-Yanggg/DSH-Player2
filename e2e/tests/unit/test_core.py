@@ -116,3 +116,33 @@ def test_a_template_without_a_cabin_is_refused(tmp_path, monkeypatch):
     monkeypatch.setattr(paths, "saves", saves)
     with pytest.raises(RuntimeError, match="no cabin"):
         build_test_save(paths, "t_1")
+
+
+def test_bedtime_answers_only_a_question_on_screen():
+    """Y without the sleep question opens the emote wheel, which then swallows the walk back into bed:
+    the host retries the bed and taps Y only once the question is on screen."""
+    from games.stardew import StardewGame
+
+    class Keys:
+        def __init__(self): self.log = []
+        def hold(self, key, _s): self.log.append(key)
+        def tap(self, key, **_): self.log.append(key)
+
+    class Log:
+        lines = []
+        def poll(self): pass
+        def wait_for(self, _pattern, _timeout, since=0): return "y" in keys.log
+
+    keys = Keys()
+    game = StardewGame.__new__(StardewGame)
+    game.kb, game.smapi = keys, Log()
+    game.refocus = lambda: None
+    game.shot = lambda _name: None
+    questions = iter([False, False, True])
+    game._wait_dialog = lambda _t: next(questions)
+    game._wait_night_end = lambda _mark: False
+    try:
+        game.sleep_night(4)
+    except TimeoutError as stop:
+        assert "night never ended" in str(stop)  # past the bed: the host did get in
+    assert keys.log == ["a", "d", "a", "d", "a", "d", "y"]
