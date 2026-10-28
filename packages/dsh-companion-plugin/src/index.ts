@@ -136,6 +136,12 @@ export function apply(ctx: Context, config: Config): void {
       onFact: (fact) => { reflexFacts.push(fact); wakeAll(); },
       onError: (error) => console.error(`player2-companion: reflex state poll failed: ${messageOf(error)}`),
     });
+  if (body instanceof ReflexBody) {
+    ctx.effect(() => {
+      body.start();
+      return () => body.stop();
+    }, "player2-companion.reflexes");
+  }
   const saves = new Map<string, SaveState>();
   /** The stuck detector over the plan's steps; a wall stops the body and wakes the mind. */
   const stuckWatch = body === undefined ? null : new StuckWatch();

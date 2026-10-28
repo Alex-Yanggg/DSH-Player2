@@ -94,6 +94,20 @@ describe("Player2 companion inside the ACP profile", () => {
     expect(renderPrompt(await withBody.systemPrompt.assemble())).toContain("plan_set");
   });
 
+  it("arms the game's reflexes on mount: a hurt body eats without a model turn", async () => {
+    const sim = new SimAdapter({ locations: [{ name: "Farm", rows: ["....."], warps: [], objects: [], characters: [] }], body: { location: "Farm", x: 1, y: 0, items: [{ slot: 0, id: "(O)194", name: "Salad", stack: 2, category: "Food" }] } });
+    await sim.start(1);
+    sim.health = 20;
+    const ctx = await createComposition({ body: sim });
+    try {
+      const deadline = Date.now() + 5_000;
+      while (!sim.inputsSeen.some((task) => task.steps.some((step) => step.press?.includes("Slot1"))) && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(sim.inputsSeen.some((task) => task.steps.some((step) => step.press?.includes("Slot1")))).toBe(true);
+    } finally {
+      await sim.stop();
+    }
+  });
+
   it("keeps what the companion nominates in the save's ledger and refuses a dream commit outside a dream", async () => {
     const cwd = await saveSession();
     const ctx = await createComposition();
