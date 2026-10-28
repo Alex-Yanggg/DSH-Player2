@@ -237,6 +237,7 @@ export function apply(ctx: Context, config: Config): void {
   };
 
   let planBoard: PlanBoard | null = null;
+  const lookupGate = new LookupGate();
   if (body !== undefined) {
     for (const tool of createBodyTools(body)) {
       ctx.effect(() => ctx.tools.register(tool), `player2-companion.tool.${tool.name}`);
@@ -262,8 +263,14 @@ export function apply(ctx: Context, config: Config): void {
       execute: async (args, exec) => {
         if (exec.agent === undefined) throw new Error("no agent to hand the plan from");
         const steps = (Array.isArray(args.steps) ? args.steps : []) as PlanStepInput[];
-        const reply = planBoard!.set(String(args.approach ?? ""), steps);
         const goals = (ctx as unknown as { get(name: string): unknown }).get("goals") as GoalAccess | undefined;
+        const goal = goals?.get(exec.agent);
+        // Only a goal being worked asks for a look-up: a blocked or paused one is set aside, and the plan is the mind's own day.
+        if (steps.length > 0 && goal !== undefined && !["complete", "blocked", "paused"].includes(goal.phase)) {
+          const refusal = lookupGate.firstPlan(exec.agent.session.id, String(goal.id));
+          if (refusal !== null) return refusal;
+        }
+        const reply = planBoard!.set(String(args.approach ?? ""), steps);
         if (steps.length === 0) wake(exec.agent);
         else {
           try { goals?.disarm(exec.agent); } catch (error) {
@@ -449,6 +456,7 @@ export function apply(ctx: Context, config: Config): void {
   }
 
   ctx.on("session/event", (session, event) => {
+    if (calledTools(event).some((name) => LOOKUP_TOOLS.has(name))) lookupGate.lookedUp(session.id);
     const text = assistantEventText(event);
     const state = saves.get(session.id);
     if (text !== null && state !== undefined) state.lastText = text;
@@ -554,7 +562,7 @@ export function gameLines(game: string): string[] {
   const title = known?.title ?? game;
   return [
     `You know this world is the video game ${title} and that you are playing it together with the player; use what you know about the game.`,
-    `Before you start on something, think about what the game requires first: the season and day, whether a place is open yet or still blocked, opening hours, and the tool, item, skill or money it takes. When you are not sure such a precondition holds, look it up before your first plan for it — right after you create the goal, a web search${known === undefined ? "" : `, the ${title} wiki (${known.wiki}) first`} — and check what you find against the state. If it is not met yet, tell the player plainly and do what can be done meanwhile.`,
+    `Before you start on something, think about what the game requires first: the season and day, whether a place is open yet or still blocked, opening hours, and the tool, item, skill or money it takes. When you are not sure such a precondition holds, look it up before your first plan for it — right after you create the goal (your body takes no first plan for a goal until you have), a web search${known === undefined ? "" : `, the ${title} wiki (${known.wiki}) first`} — and check what you find against the state. If it is not met yet, tell the player plainly and do what can be done meanwhile.`,
   ];
 }
 
@@ -574,6 +582,50 @@ function messageText(message: UserMessage): string {
 }
 
 /** The non-empty text of one committed assistant message event, or null. */
+/** The web tools a look-up goes through. */
+const LOOKUP_TOOLS = new Set(["web_search", "web_fetch"]);
+
+/**
+ * Look it up before the first plan for a goal (the game-aware policy): the
+ * prompt alone did not hold in play, so the first plan_set of a goal with no
+ * web look-up since the previous goal's first plan is refused once, with the
+ * reason. The second try goes through, so a mind without web tools is never
+ * held.
+ */
+export class LookupGate {
+  private readonly sessions = new Map<string, { goal?: string; lookedUp: boolean; warned?: string }>();
+
+  public lookedUp(session: string): void {
+    this.of(session).lookedUp = true;
+  }
+
+  /** null lets the plan through; otherwise the refusal the mind reads. */
+  public firstPlan(session: string, goal: string): string | null {
+    const state = this.of(session);
+    if (state.goal === goal) return null;
+    if (state.lookedUp || state.warned === goal) {
+      state.goal = goal;
+      state.lookedUp = false;
+      return null;
+    }
+    state.warned = goal;
+    return "Not handed down yet: this is your first plan for this goal and you have not looked anything up for it. Check what the game requires first (season and day, whether the place is open or still blocked, opening hours, the tool, item or money it takes) with web_search or the game's wiki, check it against world_observe, then hand the plan down again.";
+  }
+
+  private of(session: string) {
+    let state = this.sessions.get(session);
+    if (state === undefined) this.sessions.set(session, state = { lookedUp: false });
+    return state;
+  }
+}
+
+/** Tool names an assistant message asked for. */
+function calledTools(event: { type: string; data: unknown }): string[] {
+  if (event.type !== "assistant/message") return [];
+  const content = (event.data as { message?: { content?: readonly { type: string; name?: string }[] } }).message?.content ?? [];
+  return content.filter((block) => block.type === "tool-call" && typeof block.name === "string").map((block) => block.name!);
+}
+
 function assistantEventText(event: { type: string; data: unknown }): string | null {
   if (event.type !== "assistant/message") return null;
   const content = (event.data as { message?: { content?: readonly { type: string; text?: string }[] } }).message?.content ?? [];

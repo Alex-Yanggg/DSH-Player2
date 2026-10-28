@@ -170,3 +170,19 @@ describe("Player2 companion inside the ACP profile", () => {
     expect(companionPlugin.readMarker("hello")).toBeNull();
   });
 });
+
+describe("look it up before the first plan", () => {
+  it("refuses a goal's first plan once without a look-up, and lets it through after one", () => {
+    const gate = new companionPlugin.LookupGate();
+    expect(gate.firstPlan("s", "g1")).toContain("not looked anything up");
+    gate.lookedUp("s");
+    expect(gate.firstPlan("s", "g1")).toBeNull();
+    expect(gate.firstPlan("s", "g1")).toBeNull();
+    // A new goal needs a fresh look-up; the second try goes through regardless.
+    expect(gate.firstPlan("s", "g2")).not.toBeNull();
+    expect(gate.firstPlan("s", "g2")).toBeNull();
+    // A look-up made before the goal counts for it.
+    gate.lookedUp("s");
+    expect(gate.firstPlan("s", "g3")).toBeNull();
+  });
+});
