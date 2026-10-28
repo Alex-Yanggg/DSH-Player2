@@ -12,7 +12,7 @@ import time
 import numpy as np
 from PIL import Image
 
-from .win import Rect, user32
+from .win import Rect, focus, user32
 
 _cam = None
 _abandoned: list = []  # cameras dropped after access loss; kept alive so their COM objects are never released
@@ -84,11 +84,16 @@ def print_window(hwnd: int, rect: Rect) -> Image.Image:
 
 
 def grab(rect: Rect, hwnd: int | None = None) -> Image.Image:
-    # DXGI reads the screen, so any window on top of the game (a console, another app) lands in the frame;
-    # PrintWindow reads the game window itself, so it is used whenever the game is not the foreground window.
+    # DXGI reads the screen, so any window on top of the game (a console, another app) lands in the frame:
+    # the game is brought to the front first. PrintWindow reads the game window itself but can hand back an
+    # old frame of a GPU-drawn window (seen: a day-1 night frame while the game was on day 5), so it is the
+    # last resort and its frame is tagged info["backend"] = "printwindow" for the caller to date.
+    if hwnd is not None and user32.GetForegroundWindow() != hwnd:
+        focus(hwnd, attempts=1)
     img = _dxgi(rect) if hwnd is None or user32.GetForegroundWindow() == hwnd else None
     if img is None and hwnd is not None:
         img = print_window(hwnd, rect)
+        img.info["backend"] = "printwindow"
     if img is None:
         raise RuntimeError("frame capture failed on every backend")
     return img

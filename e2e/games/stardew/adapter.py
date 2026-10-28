@@ -568,6 +568,15 @@ class StardewGame(StardewFlows):
     def shot(self, name: str):
         img = self.frame()
         if self.art:
+            if img.info.get("backend") == "printwindow":
+                # The frame may be old: name it with the game time it should show, and list it in summary.md.
+                try:
+                    clock = self.state()["time"]
+                    when = f"day{clock['dayOfMonth']}-{clock['timeOfDay']:04d}"
+                except Exception:  # noqa: BLE001 - the endpoint may be down; the shot is still kept
+                    clock, when = None, "time-unknown"
+                name = f"{name}_possibly-stale_{when}"
+                self.art.record("possibly_stale_shots", **{name: {"game_time": clock, "backend": "printwindow"}})
             self.art.shot(name, img)
         return img
 
